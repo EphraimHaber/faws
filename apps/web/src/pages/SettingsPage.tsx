@@ -7,6 +7,7 @@ import { Badge } from "~/components/ui/badge";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import {
   DEFAULT_LOG_GUTTER,
+  DEFAULT_LOG_TASK_GUTTER,
   REFRESH_CHOICES,
   useAwsScope,
   useScope,
@@ -25,6 +26,8 @@ export function SettingsPage() {
     setLogTimestamps,
     logGutter,
     setLogGutter,
+    logTaskGutter,
+    setLogTaskGutter,
   } = useScope();
   const { theme, toggle } = useTheme();
 
@@ -104,21 +107,22 @@ export function SettingsPage() {
           </Setting>
 
           <Setting
-            title="Log timestamp column"
-            hint="Where the message starts. Drag the column's edge in any log pane to change it; this is the same number."
+            title="Log columns"
+            hint="How much of each log line the timestamp and task id take before the message starts. Drag either column's edge in any log pane; these are the same numbers."
           >
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[11.5px] text-muted-foreground tabular">
-                {logGutter}px
-              </span>
-              <button
-                type="button"
-                onClick={() => setLogGutter(DEFAULT_LOG_GUTTER)}
-                disabled={logGutter === DEFAULT_LOG_GUTTER}
-                className="cursor-pointer rounded border border-border px-2.5 py-1 text-[12px] transition-colors hover:bg-accent disabled:cursor-default disabled:opacity-45"
-              >
-                Reset
-              </button>
+            <div className="flex items-center gap-3">
+              <GutterSetting
+                label="time"
+                value={logGutter}
+                fallback={DEFAULT_LOG_GUTTER}
+                onReset={() => setLogGutter(DEFAULT_LOG_GUTTER)}
+              />
+              <GutterSetting
+                label="task"
+                value={logTaskGutter}
+                fallback={DEFAULT_LOG_TASK_GUTTER}
+                onReset={() => setLogTaskGutter(DEFAULT_LOG_TASK_GUTTER)}
+              />
             </div>
           </Setting>
 
@@ -203,6 +207,35 @@ function SilencedPanel() {
         </ul>
       )}
     </Panel>
+  );
+}
+
+/** One column's current width, with a way back to the default. */
+function GutterSetting({
+  label,
+  value,
+  fallback,
+  onReset,
+}: {
+  label: string;
+  value: number;
+  fallback: number;
+  onReset: () => void;
+}) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="font-mono text-[11.5px] text-muted-foreground tabular">
+        {label} {value}px
+      </span>
+      <button
+        type="button"
+        onClick={onReset}
+        disabled={value === fallback}
+        className="cursor-pointer rounded border border-border px-2 py-0.5 text-[11.5px] transition-colors hover:bg-accent disabled:cursor-default disabled:opacity-45"
+      >
+        Reset
+      </button>
+    </span>
   );
 }
 

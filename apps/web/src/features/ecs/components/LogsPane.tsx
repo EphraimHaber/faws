@@ -15,9 +15,10 @@ import { LogFilterBar } from "~/features/ecs/components/LogFilterBar";
 import { LogLine } from "~/features/ecs/components/LogLine";
 import { MIN_LOG_GUTTER, useAwsScope, useScope } from "~/contexts/ScopeContext";
 import { hasAnsi, stripAnsi } from "~/lib/ansi";
-import { ArrowDown, ArrowUp, Eye, EyeOff, Pause, Play } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock, Eye, EyeOff, Pause, Play } from "lucide-react";
 import { clockTime, fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
+import { cn } from "~/lib/utils";
 
 /**
  * CloudWatch Logs for one container, scoped either to a single task or to
@@ -33,25 +34,40 @@ type LogOrder = "asc" | "desc";
 /** Tail cadence when the app-wide refresh is set to manual. */
 const TAIL_INTERVAL_MS = 10_000;
 
+/** The log body's own padding and the gap between its columns, in px - the
+ *  drag handles sit on top of the lines, so they need both. */
+const LOG_PANE_PADDING = 12;
+const LOG_COLUMN_GAP = 10;
+
 /**
- * The draggable edge of the timestamp column.
+ * The draggable trailing edge of one of the leading columns.
  *
- * Full timestamps are wider than clock times, and different sources want
- * different amounts of the line, so where the message starts is the reader's
- * choice. The strip runs the height of the scrolled content, so it can be
- * grabbed beside whatever line you happen to be reading, and the width it
- * writes is the app-wide setting rather than this pane's own state.
+ * Full timestamps are wider than clock times and a task id is longer than the
+ * column that shows its tail, so how much of the line each takes is the
+ * reader's choice. The strip runs the height of the scrolled content, so it
+ * can be grabbed beside whatever line you happen to be reading, and the width
+ * it writes is the app-wide setting rather than this pane's own state.
  */
-function GutterHandle({ width, onResize }: { width: number; onResize: (next: number) => void }) {
-  // The gutter sits inside the pane's p-3, and the strip straddles its edge.
-  const left = width + 12 - 4;
+function GutterHandle({
+  label,
+  edge,
+  width,
+  onResize,
+}: {
+  label: string;
+  /** Distance from the pane's left edge to this column's trailing edge. */
+  edge: number;
+  width: number;
+  onResize: (next: number) => void;
+}) {
   return (
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize the timestamp column"
-      title="Drag to resize the timestamp column"
-      style={{ left }}
+      aria-label={`Resize the ${label} column`}
+      title={`Drag to resize the ${label} column`}
+      // The strip straddles the column's edge.
+      style={{ left: edge - 4 }}
       onPointerDown={(event) => {
         event.preventDefault();
         const start = event.clientX;
@@ -91,7 +107,16 @@ export function LogsPane({
   endTime?: number | undefined;
 }) {
   const scope = useAwsScope();
-  const { region, refreshSeconds, logTimestamps, logGutter, setLogGutter } = useScope();
+  const {
+    region,
+    refreshSeconds,
+    logTimestamps,
+    setLogTimestamps,
+    logGutter,
+    setLogGutter,
+    logTaskGutter,
+    setLogTaskGutter,
+  } = useScope();
   const [containerName, setContainerName] = React.useState<string | null>(null);
   // The pattern as CloudWatch will receive it; the filter bar owns the raw
   // text and the mode that produced this.
@@ -238,6 +263,20 @@ export function LogsPane({
 
           <Button
             type="button"
+            variant="outline"
+            onClick={() => setLogTimestamps(logTimestamps === "full" ? "clock" : "full")}
+            title={
+              logTimestamps === "full"
+                ? "Show clock time only"
+                : "Show the full date and time of each line"
+            }
+          >
+            <Clock className="size-3" />
+            {logTimestamps === "full" ? "Full time" : "Clock time"}
+          </Button>
+
+          <Button
+            type="button"
             onClick={() => setOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
             title="Switch between oldest and newest first"
           >
@@ -290,7 +329,20 @@ export function LogsPane({
         />
       ) : (
         <div className="relative min-h-0 flex-1 overflow-auto p-3 font-mono text-[11.5px] leading-relaxed">
-          <GutterHandle width={logGutter} onResize={setLogGutter} />
+          <GutterHandle
+            label="timestamp"
+            edge={LOG_PANE_PADDING + logGutter}
+            width={logGutter}
+            onResize={setLogGutter}
+          />
+          {!taskId && showStream ? (
+            <GutterHandle
+              label="task id"
+              edge={LOG_PANE_PADDING + logGutter + LOG_COLUMN_GAP + logTaskGutter}
+              width={logTaskGutter}
+              onResize={setLogTaskGutter}
+            />
+          ) : null}
           {order === "desc" ? <div ref={edgeRef} aria-hidden /> : null}
           {ordered.map((event) => (
             <div
@@ -308,7 +360,8 @@ export function LogsPane({
               </span>
               {!taskId && showStream ? (
                 <span
-                  className="w-32 shrink-0 truncate text-muted-foreground/70"
+                  style={{ width: logTaskGutter }}
+                  className="shrink-0 truncate text-muted-foreground/70"
                   title={event.stream}
                 >
                   {event.stream.slice(event.stream.lastIndexOf("/") + 1)}
@@ -316,14 +369,18 @@ export function LogsPane({
               ) : null}
               <LogLine
                 text={event.message}
-                className={
+                className={cn(
+                  // The message gives way to the columns beside it: without a
+                  // zero min-width its own content is a floor, and the
+                  // timestamp column stops widening halfway across the pane.
+                  "min-w-0 flex-1",
                   // Only tint the line when the program didn't already colour
                   // it - overriding its own ANSI would throw away better
                   // information than this heuristic has.
-                  !hasAnsi(event.message) && /error|exception|fatal/i.test(event.message)
-                    ? "text-danger"
-                    : undefined
-                }
+                  !hasAnsi(event.message) &&
+                    /error|exception|fatal/i.test(event.message) &&
+                    "text-danger",
+                )}
               />
             </div>
           ))}

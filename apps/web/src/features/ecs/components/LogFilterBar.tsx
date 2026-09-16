@@ -35,6 +35,7 @@ export function LogFilterBar({
   const [mode, setMode] = React.useState<LogFilterMode>("search");
   const [value, setValue] = React.useState("");
   const [showHelp, setShowHelp] = React.useState(false);
+  const [focused, setFocused] = React.useState(false);
 
   const effective = toFilterPattern(value, mode);
   const suggestPattern = mode === "search" && looksLikePattern(value);
@@ -75,6 +76,8 @@ export function LogFilterBar({
           <Input
             value={value}
             disabled={disabled}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             onChange={(event) => setValue(event.target.value)}
             placeholder={
               mode === "search" ? "Find text, e.g. 10-0" : 'Pattern, e.g. {$.level = "error"}'
@@ -114,7 +117,14 @@ export function LogFilterBar({
       </form>
 
       <div className="absolute top-full right-0 z-20 mt-1 flex flex-col items-end gap-1">
-        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px]">
+        {/* Nothing to say until the box is in use: an idle hint floating over
+            the log lines below reads as part of them. */}
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-2 rounded-md border border-border bg-card px-2 py-1 font-mono text-[10px] shadow-lg",
+            !focused && !value && "hidden",
+          )}
+        >
           {effective ? (
             <span className="text-muted-foreground">
               sent as <span className="text-foreground">{effective}</span>

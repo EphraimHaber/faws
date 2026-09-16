@@ -24,11 +24,14 @@ export interface ScopeValue {
   readonly logTimestamps: LogTimestamps;
   /** Width in px of the log pane's leading timestamp column. */
   readonly logGutter: number;
+  /** Width in px of the log pane's task-id column. */
+  readonly logTaskGutter: number;
   setProfile(next: string): void;
   setRegion(next: string): void;
   setRefreshSeconds(next: number): void;
   setLogTimestamps(next: LogTimestamps): void;
   setLogGutter(next: number): void;
+  setLogTaskGutter(next: number): void;
 }
 
 const ScopeContext = React.createContext<ScopeValue | null>(null);
@@ -38,9 +41,12 @@ const REGION_KEY = "faws:region";
 const REFRESH_KEY = "faws:refresh";
 const LOG_TIMESTAMPS_KEY = "faws:logTimestamps";
 const LOG_GUTTER_KEY = "faws:logGutter";
+const LOG_TASK_GUTTER_KEY = "faws:logTaskGutter";
 
 /** Wide enough for a clock time, which is what the pane opens with. */
 export const DEFAULT_LOG_GUTTER = 68;
+/** Wide enough for the truncated tail of a task id. */
+export const DEFAULT_LOG_TASK_GUTTER = 128;
 /** Narrower than this and the column is a stripe, not a timestamp. */
 export const MIN_LOG_GUTTER = 36;
 
@@ -58,6 +64,7 @@ const storedRegion = z.string().catch("");
 const storedRefresh = z.coerce.number().int().catch(30);
 const storedLogTimestamps = z.enum(["clock", "full"]).catch("clock");
 const storedLogGutter = z.coerce.number().min(MIN_LOG_GUTTER).catch(DEFAULT_LOG_GUTTER);
+const storedLogTaskGutter = z.coerce.number().min(MIN_LOG_GUTTER).catch(DEFAULT_LOG_TASK_GUTTER);
 
 function readStored<T>(key: string, schema: z.ZodType<T>): T {
   try {
@@ -88,6 +95,9 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
   const [logGutter, setLogGutterState] = React.useState(() =>
     readStored(LOG_GUTTER_KEY, storedLogGutter),
   );
+  const [logTaskGutter, setLogTaskGutterState] = React.useState(() =>
+    readStored(LOG_TASK_GUTTER_KEY, storedLogTaskGutter),
+  );
 
   // Until the user picks a region, follow whatever the CLI would use for this
   // profile so the first render isn't empty.
@@ -104,6 +114,7 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
       refreshSeconds,
       logTimestamps,
       logGutter,
+      logTaskGutter,
       setProfile: (next) => {
         setProfileState(next);
         writeStored(PROFILE_KEY, next);
@@ -125,8 +136,13 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
         setLogGutterState(clamped);
         writeStored(LOG_GUTTER_KEY, String(clamped));
       },
+      setLogTaskGutter: (next) => {
+        const clamped = Math.max(MIN_LOG_GUTTER, Math.round(next));
+        setLogTaskGutterState(clamped);
+        writeStored(LOG_TASK_GUTTER_KEY, String(clamped));
+      },
     }),
-    [profile, region, refreshSeconds, logTimestamps, logGutter, defaultRegion.data],
+    [profile, region, refreshSeconds, logTimestamps, logGutter, logTaskGutter, defaultRegion.data],
   );
 
   return <ScopeContext.Provider value={value}>{children}</ScopeContext.Provider>;
