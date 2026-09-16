@@ -1,0 +1,12 @@
+node_modules
+.turbo
+.DS_Store
+*.log
+*.tsbuildinfo
+apps/*/dist
+apps/*/dist-electron
+packages/*/dist
+.env
+.env.local
+build/
+release/

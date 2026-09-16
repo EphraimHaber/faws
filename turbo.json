@@ -1,0 +1,42 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "globalEnv": [
+    "HOST",
+    "PORT",
+    "NODE_ENV",
+    "LOG_LEVEL",
+    "FAWS_HOST",
+    "FAWS_PORT",
+    "FAWS_DATA_DIR",
+    "FAWS_WEB_DIST",
+    "VITE_TRPC_URL",
+    "VITE_DEV_SERVER_URL",
+    "AWS_PROFILE",
+    "AWS_REGION",
+    "AWS_DEFAULT_REGION",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_SESSION_TOKEN",
+    "AWS_CONFIG_FILE",
+    "AWS_SHARED_CREDENTIALS_FILE"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "dist-electron/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": [],
+      "cache": false
+    },
+    "test": {
+      "outputs": [],
+      "cache": false
+    }
+  }
+}

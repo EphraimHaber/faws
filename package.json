@@ -1,0 +1,31 @@
+{
+  "name": "@faws/monorepo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev-runner.ts dev",
+    "dev:server": "node scripts/dev-runner.ts dev:server",
+    "dev:web": "node scripts/dev-runner.ts dev:web",
+    "dev:desktop": "node scripts/dev-runner.ts dev:desktop",
+    "build": "turbo run build",
+    "build:desktop": "turbo run build --filter=@faws/desktop",
+    "start:desktop": "turbo run start --filter=@faws/desktop",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "oxlint --report-unused-disable-directives",
+    "fmt": "oxfmt '**/*.{ts,tsx,css}'",
+    "fmt:check": "oxfmt --check '**/*.{ts,tsx,css}'",
+    "clean:manual": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist apps/*/dist-electron packages/*/dist .turbo apps/*/.turbo packages/*/.turbo"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.55.0",
+    "turbo": "^2.9.10",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "packageManager": "pnpm@12.4.1"
+}

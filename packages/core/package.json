@@ -1,0 +1,36 @@
+{
+  "name": "@faws/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./fetchers": {
+      "types": "./src/fetchers/index.ts",
+      "import": "./src/fetchers/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch": "catalog:",
+    "@aws-sdk/client-cloudwatch-logs": "catalog:",
+    "@aws-sdk/client-ecs": "catalog:",
+    "@aws-sdk/client-elastic-load-balancing-v2": "^3.1132.0",
+    "@aws-sdk/client-sts": "catalog:",
+    "@aws-sdk/credential-providers": "catalog:",
+    "@faws/contracts": "workspace:*",
+    "@faws/shared": "workspace:*",
+    "@smithy/shared-ini-file-loader": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

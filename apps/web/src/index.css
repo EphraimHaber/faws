@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+/* Geist for UI text, JetBrains Mono for every identifier, count and
+   timestamp. Self-hosted so a cold start never waits on Google Fonts. */
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark, .dark *));
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-chrome: var(--chrome);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  --radius-sm: calc(var(--radius) - 3px);
+  --radius-md: calc(var(--radius) - 1px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Dark is the default posture: this is an operations tool that sits open on a
+   second monitor next to a terminal. The light theme is a full peer, not an
+   inversion afterthought. */
+:root {
+  color-scheme: light;
+  --radius: 0.5rem;
+
+  --background: oklch(0.982 0.003 250);
+  --chrome: oklch(0.965 0.004 250);
+  --foreground: oklch(0.22 0.02 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 260);
+  --popover: oklch(0.995 0.002 250);
+  --popover-foreground: oklch(0.22 0.02 260);
+  /* Signal cyan: reads as instrumentation, not as a marketing gradient. */
+  --primary: oklch(0.55 0.13 224);
+  --primary-foreground: oklch(0.99 0.002 250);
+  --muted: oklch(0.22 0.02 260 / 0.05);
+  --muted-foreground: oklch(0.47 0.02 260);
+  --accent: oklch(0.22 0.02 260 / 0.06);
+  --accent-foreground: oklch(0.22 0.02 260);
+  --border: oklch(0.22 0.02 260 / 0.11);
+  --input: oklch(0.22 0.02 260 / 0.14);
+  --ring: oklch(0.55 0.13 224);
+  --success: oklch(0.6 0.14 155);
+  --warning: oklch(0.72 0.15 75);
+  --danger: oklch(0.57 0.19 25);
+  --info: oklch(0.58 0.13 250);
+}
+
+.dark {
+  color-scheme: dark;
+  /* Near-black with a blue cast, two steps: the chrome (header, sidebar,
+     status bar) sits below the content plane so the tables read as lit. */
+  --background: oklch(0.185 0.012 260);
+  --chrome: oklch(0.155 0.012 262);
+  --foreground: oklch(0.93 0.01 250);
+  --card: oklch(0.213 0.013 260);
+  --card-foreground: oklch(0.93 0.01 250);
+  --popover: oklch(0.228 0.014 260);
+  --popover-foreground: oklch(0.93 0.01 250);
+  --primary: oklch(0.76 0.13 205);
+  --primary-foreground: oklch(0.16 0.012 260);
+  --muted: oklch(0.93 0.01 250 / 0.055);
+  --muted-foreground: oklch(0.67 0.014 255);
+  --accent: oklch(0.93 0.01 250 / 0.07);
+  --accent-foreground: oklch(0.93 0.01 250);
+  --border: oklch(0.93 0.01 250 / 0.1);
+  --input: oklch(0.93 0.01 250 / 0.13);
+  --ring: oklch(0.76 0.13 205);
+  --success: oklch(0.76 0.16 155);
+  --warning: oklch(0.82 0.15 78);
+  --danger: oklch(0.7 0.18 22);
+  --info: oklch(0.72 0.12 250);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv11", "ss01";
+    /* Not `hidden`: the layout is flex with min-h-0 throughout, so nothing
+       should reach here - and if something ever does, it must scroll rather
+       than disappear. */
+    overflow: auto;
+  }
+  /* Numbers in tables must line up column to column. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Suppresses the flash of transitions while theme variables swap. */
+.no-transitions,
+.no-transitions * {
+  transition-duration: 0s !important;
+  animation-duration: 0s !important;
+}
+
+/* Electron frameless titlebar: the header is the drag handle, but anything
+   interactive inside it has to opt back out. */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+/* macOS inset traffic lights overlay the header, so the first item has to
+   start clear of them. The class is added by the desktop bridge and removed
+   in fullscreen, where macOS hides the buttons. */
+.mac-titlebar .titlebar-inset {
+  padding-left: 82px;
+}
+.drag-region button,
+.drag-region a,
+.drag-region input,
+.drag-region [role="button"] {
+  -webkit-app-region: no-drag;
+}
+
+/* Thin, unobtrusive scrollbars — long task lists shouldn't grow a chrome bar. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--input) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--input);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@keyframes pulse-ring {
+  0% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+}
+.pulse-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: currentColor;
+  animation: pulse-ring 2.4s ease-out infinite;
+}

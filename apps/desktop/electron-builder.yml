@@ -1,0 +1,51 @@
+appId: net.cloudburst.faws
+productName: faws
+copyright: Copyright © 2026
+
+directories:
+  output: dist
+  buildResources: build
+
+# The app ships a pre-bundled server (apps/server/dist/main.mjs) and the built
+# SPA (apps/web/dist) as extraResources; main.ts resolves both from
+# process.resourcesPath.
+files:
+  - dist-electron/**
+  - package.json
+  - "!**/.DS_Store"
+  - "!**/*.map"
+  - "!**/*.ts"
+
+extraResources:
+  - from: ../server/dist
+    to: server
+    filter: ["**/*", "!**/*.map"]
+  - from: ../web/dist
+    to: web
+    filter: ["**/*", "!**/*.map"]
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+
+linux:
+  category: Development
+  target:
+    - target: AppImage
+      arch: [x64]
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+# The server is pre-bundled and we ship no native modules, so electron-builder
+# has nothing to rebuild.
+nodeGypRebuild: false

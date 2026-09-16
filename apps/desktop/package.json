@@ -1,0 +1,28 @@
+{
+  "name": "@faws/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist-electron/main.cjs",
+  "productName": "faws",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsdown",
+    "start": "node scripts/start-electron.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@trpc/client": "^11.0.0",
+    "superjson": "^2.2.6"
+  },
+  "devDependencies": {
+    "@faws/server": "workspace:*",
+    "@types/node": "catalog:",
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
