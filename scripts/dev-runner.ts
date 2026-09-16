@@ -2,6 +2,7 @@
  * dev-runner - orchestrates the multi-process dev session.
  *
  *   node scripts/dev-runner.ts dev          # server + web + desktop
+ *   node scripts/dev-runner.ts dev:webapp   # server + web, no desktop
  *   node scripts/dev-runner.ts dev:server   # server only
  *   node scripts/dev-runner.ts dev:web      # web only (talks to a running server)
  *   node scripts/dev-runner.ts dev:desktop  # desktop only
@@ -118,6 +119,10 @@ switch (process.argv[2] ?? "dev") {
     spawnProc(webSpec, colors[1]);
     // Give Vite a moment to bind before Electron points a window at it.
     setTimeout(() => spawnProc(desktopSpec, colors[2]), 1500);
+    break;
+  case "dev:webapp":
+    spawnProc(serverSpec, colors[0]);
+    spawnProc(webSpec, colors[1]);
     break;
   case "dev:server":
     spawnProc(serverSpec, colors[0]);
