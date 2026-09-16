@@ -142,13 +142,22 @@ function buildMenu(): void {
       label: "View",
       submenu: [
         { label: "Overview", accelerator: "CmdOrCtrl+0", click: () => void navigate("/") },
-        { label: "Clusters", accelerator: "CmdOrCtrl+1", click: () => void navigate("/ecs") },
+        {
+          label: "Clusters",
+          accelerator: "CmdOrCtrl+1",
+          click: () => void navigate("/ecs/clusters"),
+        },
+        {
+          label: "Recently deployed",
+          accelerator: "CmdOrCtrl+2",
+          click: () => void navigate("/ecs/deployments"),
+        },
         {
           label: "Task definitions",
-          accelerator: "CmdOrCtrl+2",
+          accelerator: "CmdOrCtrl+3",
           click: () => void navigate("/ecs/task-definitions"),
         },
-        { label: "Diagnostics", accelerator: "CmdOrCtrl+3", click: () => void navigate("/logs") },
+        { label: "Diagnostics", accelerator: "CmdOrCtrl+4", click: () => void navigate("/logs") },
         { type: "separator" },
         { role: "reload" },
         { role: "toggleDevTools" },

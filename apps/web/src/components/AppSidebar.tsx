@@ -39,20 +39,27 @@ export function AppSidebar() {
 
         {AWS_SERVICES.map((service) =>
           service.status === "available" ? (
-            service.sections.map((section) => (
+            <React.Fragment key={service.id}>
+              {/* The service root is its own destination - a card page naming
+                  what the section holds - so it gets a row above the sections
+                  rather than standing in for the first of them. */}
               <NavLink
-                key={`${service.id}:${section.id}`}
-                to={section.to ?? service.basePath}
-                icon={section.icon}
-                label={section.label}
-                active={
-                  section.to === service.basePath
-                    ? location.pathname === service.basePath ||
-                      location.pathname.startsWith(`${service.basePath}/clusters`)
-                    : location.pathname.startsWith(section.to ?? service.basePath)
-                }
+                to={service.basePath}
+                icon={service.icon}
+                label={service.label}
+                active={location.pathname === service.basePath}
               />
-            ))
+              {service.sections.map((section) => (
+                <NavLink
+                  key={`${service.id}:${section.id}`}
+                  to={section.to ?? service.basePath}
+                  icon={section.icon}
+                  label={section.label}
+                  indent
+                  active={location.pathname.startsWith(section.to ?? service.basePath)}
+                />
+              ))}
+            </React.Fragment>
           ) : (
             <PlannedLink key={service.id} service={service} />
           ),
@@ -110,7 +117,7 @@ export function AppSidebar() {
 
         {visible.map((cluster) => {
           const active = location.pathname.startsWith(
-            `/clusters/${encodeURIComponent(cluster.name)}`,
+            `/ecs/clusters/${encodeURIComponent(cluster.name)}`,
           );
           const busy = cluster.pendingTasks > 0;
           return (
@@ -170,17 +177,21 @@ function NavLink({
   icon: Icon,
   label,
   active,
+  indent = false,
 }: {
   to: string;
   icon: LucideIcon;
   label: string;
   active: boolean;
+  /** Sections sit under the service they belong to. */
+  indent?: boolean;
 }) {
   return (
     <Link
       to={to}
       className={cn(
         "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[12.5px] transition-colors",
+        indent && "ml-3",
         active
           ? "bg-accent text-foreground"
           : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",

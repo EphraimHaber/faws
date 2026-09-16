@@ -32,11 +32,22 @@ import { fullTimestamp } from "~/lib/format";
 import { classifyEvent, type ClassifiedEvent } from "~/lib/deployment";
 import { describe } from "~/lib/hotkeys";
 import { useOverlaysOpen } from "~/stores/overlays";
+import { useTabSearch } from "~/hooks/useTabSearch";
 import { serviceTone, taskTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
 
-type Tab = "tasks" | "deployments" | "events" | "targets" | "metrics" | "logs";
+/** The tabs, in the order they are shown; the first is the default. */
+export const SERVICE_TABS = [
+  "tasks",
+  "deployments",
+  "events",
+  "targets",
+  "metrics",
+  "logs",
+] as const;
+
+type Tab = (typeof SERVICE_TABS)[number];
 
 /**
  * One service, everything about it on one screen.
@@ -49,7 +60,7 @@ type Tab = "tasks" | "deployments" | "events" | "targets" | "metrics" | "logs";
 export function ServicePage({ cluster, service }: { cluster: string; service: string }) {
   const scope = useAwsScope();
   const { region } = useScope();
-  const [tab, setTab] = React.useState<Tab>("tasks");
+  const [tab, setTab] = useTabSearch(SERVICE_TABS, "tasks");
   const [updating, setUpdating] = React.useState(false);
   const overlayOpen = useOverlaysOpen();
 

@@ -44,7 +44,10 @@ export function LogFilterBar({
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    // The pattern line and the syntax help hang below the toolbar rather than
+    // sitting in it: a filter bar two rows tall would drag every control
+    // beside it out of line with the row it belongs to.
+    <div className="relative flex flex-col">
       <form
         className="flex flex-wrap items-center gap-1.5"
         onSubmit={(event) => {
@@ -110,51 +113,53 @@ export function LogFilterBar({
         </button>
       </form>
 
-      <div className="flex min-h-[15px] flex-wrap items-center gap-2 font-mono text-[10px]">
-        {effective ? (
-          <span className="text-muted-foreground">
-            sent as <span className="text-foreground">{effective}</span>
-          </span>
-        ) : (
-          <span className="text-muted-foreground/60">
-            <Kbd>↵</Kbd> to apply
-          </span>
-        )}
-        {suggestPattern ? (
-          <button
-            type="button"
-            onClick={() => {
-              setMode("pattern");
-              apply("pattern");
-            }}
-            className="cursor-pointer text-warning underline decoration-warning/40 underline-offset-2"
-          >
-            that looks like a pattern — switch to Pattern mode?
-          </button>
+      <div className="absolute top-full right-0 z-20 mt-1 flex flex-col items-end gap-1">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[10px]">
+          {effective ? (
+            <span className="text-muted-foreground">
+              sent as <span className="text-foreground">{effective}</span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground/60">
+              <Kbd>↵</Kbd> to apply
+            </span>
+          )}
+          {suggestPattern ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("pattern");
+                apply("pattern");
+              }}
+              className="cursor-pointer text-warning underline decoration-warning/40 underline-offset-2"
+            >
+              that looks like a pattern — switch to Pattern mode?
+            </button>
+          ) : null}
+        </div>
+
+        {showHelp ? (
+          <dl className="grid gap-x-4 gap-y-1 rounded-md border border-border bg-card p-2.5 shadow-lg sm:grid-cols-2">
+            {PATTERN_EXAMPLES.map((example) => (
+              <div key={example.pattern} className="flex items-baseline gap-2">
+                <dt>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode("pattern");
+                      setValue(example.pattern);
+                    }}
+                    className="cursor-pointer rounded bg-muted px-1.5 py-0.5 font-mono text-[10.5px] whitespace-nowrap transition-colors hover:bg-accent"
+                  >
+                    {example.pattern}
+                  </button>
+                </dt>
+                <dd className="text-[11px] text-muted-foreground">{example.description}</dd>
+              </div>
+            ))}
+          </dl>
         ) : null}
       </div>
-
-      {showHelp ? (
-        <dl className="mt-1 grid gap-x-4 gap-y-1 rounded-md border border-border bg-background/50 p-2.5 sm:grid-cols-2">
-          {PATTERN_EXAMPLES.map((example) => (
-            <div key={example.pattern} className="flex items-baseline gap-2">
-              <dt>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode("pattern");
-                    setValue(example.pattern);
-                  }}
-                  className="cursor-pointer rounded bg-muted px-1.5 py-0.5 font-mono text-[10.5px] whitespace-nowrap transition-colors hover:bg-accent"
-                >
-                  {example.pattern}
-                </button>
-              </dt>
-              <dd className="text-[11px] text-muted-foreground">{example.description}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
     </div>
   );
 }

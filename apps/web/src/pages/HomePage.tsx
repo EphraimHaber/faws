@@ -319,7 +319,7 @@ function EcsOverview() {
           <PanelHeader>
             <Rocket className="size-3.5 text-muted-foreground" strokeWidth={1.8} />
             <PanelTitle>
-              <Link to="/ecs" className="transition-colors hover:text-foreground">
+              <Link to="/ecs/deployments" className="transition-colors hover:text-foreground">
                 Recently deployed
               </Link>
             </PanelTitle>
@@ -355,7 +355,7 @@ function EcsOverview() {
           <PanelHeader>
             <Layers className="size-3.5 text-muted-foreground" strokeWidth={1.8} />
             <PanelTitle>
-              <Link to="/ecs" className="transition-colors hover:text-foreground">
+              <Link to="/ecs/clusters" className="transition-colors hover:text-foreground">
                 Clusters
               </Link>
             </PanelTitle>

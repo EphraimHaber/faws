@@ -5,7 +5,12 @@ import * as React from "react";
 import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { Badge } from "~/components/ui/badge";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
-import { REFRESH_CHOICES, useAwsScope, useScope } from "~/contexts/ScopeContext";
+import {
+  DEFAULT_LOG_GUTTER,
+  REFRESH_CHOICES,
+  useAwsScope,
+  useScope,
+} from "~/contexts/ScopeContext";
 import { useTheme } from "~/contexts/ThemeContext";
 import { trpc } from "~/lib/trpc";
 import { type SilenceEntry, useSilenced } from "~/stores/silenced";
@@ -13,7 +18,14 @@ import { cn } from "~/lib/utils";
 
 export function SettingsPage() {
   const scope = useAwsScope();
-  const { refreshSeconds, setRefreshSeconds } = useScope();
+  const {
+    refreshSeconds,
+    setRefreshSeconds,
+    logTimestamps,
+    setLogTimestamps,
+    logGutter,
+    setLogGutter,
+  } = useScope();
   const { theme, toggle } = useTheme();
 
   const whoami = useQuery({ ...trpc.aws.whoami.queryOptions(scope), retry: false });
@@ -65,6 +77,48 @@ export function SettingsPage() {
                   {choice === -1 ? "manual" : `${choice}s`}
                 </button>
               ))}
+            </div>
+          </Setting>
+
+          <Setting
+            title="Log timestamps"
+            hint="Clock time is enough to follow a tail; the full stamp includes the date, for lining logs up against another system."
+          >
+            <div className="flex items-center gap-1">
+              {(["clock", "full"] as const).map((choice) => (
+                <button
+                  key={choice}
+                  type="button"
+                  onClick={() => setLogTimestamps(choice)}
+                  className={cn(
+                    "cursor-pointer rounded px-2 py-1 font-mono text-[11.5px] transition-colors",
+                    choice === logTimestamps
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:bg-accent",
+                  )}
+                >
+                  {choice}
+                </button>
+              ))}
+            </div>
+          </Setting>
+
+          <Setting
+            title="Log timestamp column"
+            hint="Where the message starts. Drag the column's edge in any log pane to change it; this is the same number."
+          >
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11.5px] text-muted-foreground tabular">
+                {logGutter}px
+              </span>
+              <button
+                type="button"
+                onClick={() => setLogGutter(DEFAULT_LOG_GUTTER)}
+                disabled={logGutter === DEFAULT_LOG_GUTTER}
+                className="cursor-pointer rounded border border-border px-2.5 py-1 text-[12px] transition-colors hover:bg-accent disabled:cursor-default disabled:opacity-45"
+              >
+                Reset
+              </button>
             </div>
           </Setting>
 

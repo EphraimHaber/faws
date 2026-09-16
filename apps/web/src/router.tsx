@@ -7,6 +7,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import * as React from "react";
+import { z } from "zod";
 
 import { AppHeader } from "~/components/AppHeader";
 import { AppSidebar } from "~/components/AppSidebar";
@@ -19,11 +20,13 @@ import { describe } from "~/lib/hotkeys";
 import { useLogIngest } from "~/lib/log-store";
 import { getSocket } from "~/lib/socket";
 import { findService } from "~/services/registry";
-import { ClusterPage } from "~/features/ecs/pages/ClusterPage";
+import { CLUSTER_TABS, ClusterPage } from "~/features/ecs/pages/ClusterPage";
 import { ClustersPage } from "~/features/ecs/pages/ClustersPage";
+import { DeploymentsPage } from "~/features/ecs/pages/DeploymentsPage";
+import { EcsIndexPage } from "~/features/ecs/pages/EcsIndexPage";
 import { HomePage } from "~/pages/HomePage";
 import { LogsPage } from "~/pages/LogsPage";
-import { ServicePage } from "~/features/ecs/pages/ServicePage";
+import { SERVICE_TABS, ServicePage } from "~/features/ecs/pages/ServicePage";
 import { SettingsPage } from "~/pages/SettingsPage";
 import { TaskDefinitionsPage } from "~/features/ecs/pages/TaskDefinitionsPage";
 import { TaskPage } from "~/features/ecs/pages/TaskPage";
@@ -40,35 +43,70 @@ const indexRoute = createRoute({
   // reload and can be pasted to someone else. An id no longer in the registry
   // is dropped here and the page falls back to its default, so a stale link
   // still opens on something.
-  validateSearch: (search: Record<string, unknown>): { service?: string } => {
-    const raw = search["service"];
-    const match = typeof raw === "string" ? findService(raw) : undefined;
-    return match ? { service: match.id } : {};
-  },
+  validateSearch: z
+    .object({ service: z.string().optional().catch(undefined) })
+    .transform(({ service }): { service?: string } => {
+      const match = service ? findService(service) : undefined;
+      return match ? { service: match.id } : {};
+    }),
   component: HomePage,
 });
 
 const ecsIndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ecs",
+  component: EcsIndexPage,
+});
+
+/**
+ * Whether the log pane shows which task each line came from.
+ *
+ * It rides in the URL for the same reason the overview's service does: a
+ * reading preference that survives a reload, and a link that opens on the
+ * same view the sender was looking at.
+ */
+const logSearch = z.object({ stream: z.literal("hidden").optional().catch(undefined) });
+
+/**
+ * Which tab a tabbed page has open, validated against that page's own list, so
+ * a link carrying a tab the page no longer has opens on its default instead of
+ * on nothing. `catch` is what makes that a fallback rather than a thrown
+ * error: a URL someone edited by hand still opens the page.
+ */
+function tabSearch<const T extends readonly [string, ...string[]]>(tabs: T) {
+  return logSearch.extend({ tab: z.enum(tabs).optional().catch(undefined) });
+}
+
+const clustersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/ecs/clusters",
   component: ClustersPage,
+});
+
+const deploymentsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/ecs/deployments",
+  component: DeploymentsPage,
 });
 
 const clusterRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ecs/clusters/$cluster",
+  validateSearch: tabSearch(CLUSTER_TABS),
   component: ClusterRoute,
 });
 
 const serviceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ecs/clusters/$cluster/services/$service",
+  validateSearch: tabSearch(SERVICE_TABS),
   component: ServiceRoute,
 });
 
 const taskRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ecs/clusters/$cluster/tasks/$taskId",
+  validateSearch: logSearch,
   component: TaskRoute,
 });
 
@@ -93,6 +131,8 @@ const settingsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   ecsIndexRoute,
+  clustersRoute,
+  deploymentsRoute,
   clusterRoute,
   serviceRoute,
   taskRoute,

@@ -3,10 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Boxes,
+  Container,
   CornerDownLeft,
   FileJson,
   Layers,
   LayoutDashboard,
+  Rocket,
   ScrollText,
   Settings2,
 } from "lucide-react";
@@ -90,11 +92,25 @@ function PaletteBody({
         run: () => void navigate({ to: "/" }),
       },
       {
+        id: "nav:ecs",
+        icon: Container,
+        label: "ECS",
+        hint: "section overview",
+        run: () => void navigate({ to: "/ecs" }),
+      },
+      {
         id: "nav:clusters",
         icon: Layers,
         label: "Clusters",
-        hint: "overview",
-        run: () => void navigate({ to: "/ecs" }),
+        hint: "every cluster in the region",
+        run: () => void navigate({ to: "/ecs/clusters" }),
+      },
+      {
+        id: "nav:deployments",
+        icon: Rocket,
+        label: "Recently deployed",
+        hint: "rollouts across the region",
+        run: () => void navigate({ to: "/ecs/deployments" }),
       },
       {
         id: "nav:task-definitions",

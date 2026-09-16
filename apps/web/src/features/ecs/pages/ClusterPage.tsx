@@ -22,13 +22,17 @@ import { HiddenCount, SilenceMenu } from "~/components/SilenceMenu";
 import { TaskLogsDrawer } from "~/features/ecs/components/TaskLogsDrawer";
 import { partitionSilenced, useSilenced, useServiceSilence } from "~/stores/silenced";
 import { trpc } from "~/lib/trpc";
+import { useTabSearch } from "~/hooks/useTabSearch";
 
-type Tab = "services" | "tasks" | "stopped" | "instances";
+/** The tabs, in the order they are shown; the first is the default. */
+export const CLUSTER_TABS = ["services", "tasks", "stopped", "instances"] as const;
+
+type Tab = (typeof CLUSTER_TABS)[number];
 
 /** One cluster: its services, its tasks (running and stopped), its EC2 fleet. */
 export function ClusterPage({ cluster }: { cluster: string }) {
   const scope = useAwsScope();
-  const [tab, setTab] = React.useState<Tab>("services");
+  const [tab, setTab] = useTabSearch(CLUSTER_TABS, "services");
   const [filter, setFilter] = React.useState("");
 
   const services = useQuery({

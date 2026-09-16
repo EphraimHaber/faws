@@ -70,13 +70,22 @@ export function deriveCrumbs(pathname: string): Crumb[] {
 
   const crumbs: Crumb[] = [home, { label: service.label, to: service.basePath }];
 
+  // /ecs/deployments
+  if (segments[1] === "deployments") {
+    crumbs.push({ label: "Recently deployed", to: `${service.basePath}/deployments` });
+    return crumbs;
+  }
+
   // /ecs/task-definitions
   if (segments[1] === "task-definitions") {
     crumbs.push({ label: "Task definitions", to: `${service.basePath}/task-definitions` });
     return crumbs;
   }
 
-  // /ecs/clusters/$cluster/...
+  // /ecs/clusters and /ecs/clusters/$cluster/...
+  if (segments[1] === "clusters") {
+    crumbs.push({ label: "Clusters", to: `${service.basePath}/clusters` });
+  }
   if (segments[1] === "clusters" && segments[2]) {
     const cluster = decodeURIComponent(segments[2]);
     const clusterPath = `${service.basePath}/clusters/${segments[2]}`;

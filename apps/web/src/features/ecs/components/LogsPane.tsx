@@ -1,5 +1,6 @@
 import type { ContainerLogConfig } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ExternalLink, FileWarning, ScrollText } from "lucide-react";
 import * as React from "react";
 
@@ -12,10 +13,10 @@ import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows } from "~/components/ui/spinner";
 import { LogFilterBar } from "~/features/ecs/components/LogFilterBar";
 import { LogLine } from "~/features/ecs/components/LogLine";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { MIN_LOG_GUTTER, useAwsScope, useScope } from "~/contexts/ScopeContext";
 import { hasAnsi, stripAnsi } from "~/lib/ansi";
-import { ArrowDown, ArrowUp, Pause, Play } from "lucide-react";
-import { clockTime } from "~/lib/format";
+import { ArrowDown, ArrowUp, Eye, EyeOff, Pause, Play } from "lucide-react";
+import { clockTime, fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -31,6 +32,48 @@ type LogOrder = "asc" | "desc";
 
 /** Tail cadence when the app-wide refresh is set to manual. */
 const TAIL_INTERVAL_MS = 10_000;
+
+/**
+ * The draggable edge of the timestamp column.
+ *
+ * Full timestamps are wider than clock times, and different sources want
+ * different amounts of the line, so where the message starts is the reader's
+ * choice. The strip runs the height of the scrolled content, so it can be
+ * grabbed beside whatever line you happen to be reading, and the width it
+ * writes is the app-wide setting rather than this pane's own state.
+ */
+function GutterHandle({ width, onResize }: { width: number; onResize: (next: number) => void }) {
+  // The gutter sits inside the pane's p-3, and the strip straddles its edge.
+  const left = width + 12 - 4;
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize the timestamp column"
+      title="Drag to resize the timestamp column"
+      style={{ left }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        const start = event.clientX;
+        const from = width;
+        const handle = event.currentTarget;
+        handle.setPointerCapture(event.pointerId);
+
+        const move = (moveEvent: PointerEvent) =>
+          onResize(Math.max(MIN_LOG_GUTTER, from + (moveEvent.clientX - start)));
+        const stop = () => {
+          handle.removeEventListener("pointermove", move);
+          handle.removeEventListener("pointerup", stop);
+          handle.removeEventListener("pointercancel", stop);
+        };
+        handle.addEventListener("pointermove", move);
+        handle.addEventListener("pointerup", stop);
+        handle.addEventListener("pointercancel", stop);
+      }}
+      className="absolute inset-y-0 z-10 w-2 cursor-col-resize touch-none after:absolute after:inset-y-0 after:left-[3px] after:w-px after:bg-transparent after:transition-colors hover:after:bg-primary/60"
+    />
+  );
+}
 
 export function LogsPane({
   taskDefinition,
@@ -48,7 +91,7 @@ export function LogsPane({
   endTime?: number | undefined;
 }) {
   const scope = useAwsScope();
-  const { region, refreshSeconds } = useScope();
+  const { region, refreshSeconds, logTimestamps, logGutter, setLogGutter } = useScope();
   const [containerName, setContainerName] = React.useState<string | null>(null);
   // The pattern as CloudWatch will receive it; the filter bar owns the raw
   // text and the mode that produced this.
@@ -57,6 +100,26 @@ export function LogsPane({
   // spinner that never resolves into anything.
   const [tail, setTail] = React.useState(!endTime);
   const [order, setOrder] = React.useState<LogOrder>("asc");
+
+  // Which task a line came from only matters while reading several at once,
+  // and the column costs a fixed slice of every line's width. It lives in the
+  // URL so the choice survives a reload and travels with a shared link.
+  const navigate = useNavigate();
+  const search: { stream?: "hidden" } = useSearch({ strict: false });
+  const showStream = search.stream !== "hidden";
+  const toggleStream = () =>
+    void navigate({
+      to: ".",
+      search: ((prev: Record<string, unknown>) => {
+        // The default is "shown", so that state is the absent param rather
+        // than a second spelling of it. Everything else the URL carries -
+        // which tab is open, above all - is passed through untouched.
+        const { stream: _hidden, ...rest } = prev;
+        return showStream ? { ...rest, stream: "hidden" } : rest;
+      }) as never,
+      // Hiding a column is adjusting the view, not a step in the trail.
+      replace: true,
+    });
 
   const configs = useQuery(trpc.ecs.logConfig.queryOptions({ ...scope, taskDefinition }));
 
@@ -125,7 +188,7 @@ export function LogsPane({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-start gap-2.5 border-b border-border px-3.5 py-2">
+      <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-3.5 py-2">
         <Segmented
           value={active.containerName}
           onChange={setContainerName}
@@ -139,7 +202,7 @@ export function LogsPane({
         {endTime ? <Badge tone="neutral">historical window</Badge> : null}
         <span className="font-mono text-[10.5px] text-muted-foreground">{scopeLabel}</span>
 
-        <div className="ml-auto flex items-start gap-1.5">
+        <div className="ml-auto flex items-center gap-1.5">
           <Button
             type="button"
             variant={tail ? "default" : "outline"}
@@ -156,6 +219,22 @@ export function LogsPane({
             {tail ? <Pause className="size-3" /> : <Play className="size-3" />}
             {tail ? "Tailing" : "Tail"}
           </Button>
+
+          {!taskId ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={toggleStream}
+              title={
+                showStream
+                  ? "Hide the column showing which task each line came from"
+                  : "Show which task each line came from"
+              }
+            >
+              {showStream ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+              {showStream ? "Hide task IDs" : "Show task IDs"}
+            </Button>
+          ) : null}
 
           <Button
             type="button"
@@ -210,17 +289,24 @@ export function LogsPane({
           hint={`Group ${active.logGroup}${logStream ? ` · stream ${logStream}` : ""}`}
         />
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto p-3 font-mono text-[11.5px] leading-relaxed">
+        <div className="relative min-h-0 flex-1 overflow-auto p-3 font-mono text-[11.5px] leading-relaxed">
+          <GutterHandle width={logGutter} onResize={setLogGutter} />
           {order === "desc" ? <div ref={edgeRef} aria-hidden /> : null}
           {ordered.map((event) => (
             <div
               key={`${event.timestamp}-${event.stream}-${event.message}`}
               className="flex gap-2.5 whitespace-pre-wrap break-words"
             >
-              <span className="shrink-0 text-muted-foreground/60 tabular">
-                {clockTime(event.timestamp)}
+              <span
+                style={{ width: logGutter }}
+                className="shrink-0 truncate text-muted-foreground/60 tabular"
+                title={fullTimestamp(event.timestamp)}
+              >
+                {logTimestamps === "full"
+                  ? fullTimestamp(event.timestamp)
+                  : clockTime(event.timestamp)}
               </span>
-              {!taskId ? (
+              {!taskId && showStream ? (
                 <span
                   className="w-32 shrink-0 truncate text-muted-foreground/70"
                   title={event.stream}

@@ -8,6 +8,7 @@ import {
   HardDrive,
   Inbox,
   Layers,
+  Rocket,
   ScrollText,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -56,7 +57,8 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
     status: "available",
     basePath: "/ecs",
     sections: [
-      { id: "clusters", label: "Clusters", icon: Layers, to: "/ecs" },
+      { id: "clusters", label: "Clusters", icon: Layers, to: "/ecs/clusters" },
+      { id: "deployments", label: "Recently deployed", icon: Rocket, to: "/ecs/deployments" },
       {
         id: "task-definitions",
         label: "Task definitions",
