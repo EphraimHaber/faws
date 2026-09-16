@@ -180,7 +180,7 @@ export function LogsPane({
       : {}),
   });
 
-  const edgeRef = React.useRef<HTMLDivElement>(null);
+  const bodyRef = React.useRef<HTMLDivElement>(null);
   // Stable identity: `?? []` would hand every memo below a fresh array on each
   // render while the query has no data.
   const events = React.useMemo(() => logs.data?.events ?? [], [logs.data]);
@@ -194,8 +194,12 @@ export function LogsPane({
 
   React.useEffect(() => {
     // Only chase the newest line while tailing - otherwise scrolling up to read
-    // something would be undone by the next poll.
-    if (tail) edgeRef.current?.scrollIntoView({ block: order === "asc" ? "end" : "start" });
+    // something would be undone by the next poll. Which end that is follows
+    // the order: newest-first grows at the top, oldest-first at the bottom, and
+    // either way the line that just arrived is the one left on screen.
+    const body = bodyRef.current;
+    if (!tail || !body || ordered.length === 0) return;
+    body.scrollTop = order === "asc" ? body.scrollHeight : 0;
   }, [ordered, tail, order]);
 
   if (configs.isPending) return <LoadingRows rows={8} />;
@@ -277,11 +281,16 @@ export function LogsPane({
 
           <Button
             type="button"
+            variant="outline"
             onClick={() => setOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-            title="Switch between oldest and newest first"
+            title={
+              order === "asc"
+                ? "Show the newest line first instead"
+                : "Show the oldest line first instead"
+            }
           >
             {order === "asc" ? <ArrowDown className="size-3" /> : <ArrowUp className="size-3" />}
-            {order === "asc" ? "Oldest" : "Newest"}
+            {order === "asc" ? "Oldest first" : "Newest first"}
           </Button>
 
           <LogFilterBar onApply={setAppliedFilter} disabled={!active.logGroup} />
@@ -328,7 +337,10 @@ export function LogsPane({
           hint={`Group ${active.logGroup}${logStream ? ` · stream ${logStream}` : ""}`}
         />
       ) : (
-        <div className="relative min-h-0 flex-1 overflow-auto p-3 font-mono text-[11.5px] leading-relaxed">
+        <div
+          ref={bodyRef}
+          className="relative min-h-0 flex-1 overflow-auto p-3 font-mono text-[11.5px] leading-relaxed"
+        >
           <GutterHandle
             label="timestamp"
             edge={LOG_PANE_PADDING + logGutter}
@@ -343,7 +355,6 @@ export function LogsPane({
               onResize={setLogTaskGutter}
             />
           ) : null}
-          {order === "desc" ? <div ref={edgeRef} aria-hidden /> : null}
           {ordered.map((event) => (
             <div
               key={`${event.timestamp}-${event.stream}-${event.message}`}
@@ -384,7 +395,6 @@ export function LogsPane({
               />
             </div>
           ))}
-          {order === "asc" ? <div ref={edgeRef} aria-hidden /> : null}
         </div>
       )}
     </div>
