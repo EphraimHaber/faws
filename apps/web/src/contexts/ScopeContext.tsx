@@ -3,6 +3,7 @@ import * as React from "react";
 
 import { z } from "zod";
 
+import { readStored, writeStored } from "~/lib/stored";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -61,27 +62,17 @@ export const REFRESH_CHOICES = [-1, 10, 30, 60, 300] as const;
  */
 const storedProfile = z.string().min(1).catch("default");
 const storedRegion = z.string().catch("");
-const storedRefresh = z.coerce.number().int().catch(30);
+
+// `z.coerce.number()` turns a missing key into 0, which would sail past a bare
+// `int()` and leave a first run refreshing at an interval that isn't even on
+// the menu. Checking membership is what makes the `catch` fire.
+const storedRefresh = z.coerce
+  .number()
+  .refine((n) => (REFRESH_CHOICES as readonly number[]).includes(n))
+  .catch(30);
 const storedLogTimestamps = z.enum(["clock", "full"]).catch("clock");
 const storedLogGutter = z.coerce.number().min(MIN_LOG_GUTTER).catch(DEFAULT_LOG_GUTTER);
 const storedLogTaskGutter = z.coerce.number().min(MIN_LOG_GUTTER).catch(DEFAULT_LOG_TASK_GUTTER);
-
-function readStored<T>(key: string, schema: z.ZodType<T>): T {
-  try {
-    return schema.parse(window.localStorage.getItem(key));
-  } catch {
-    // Blocked storage: the schema's own fallback is still the right answer.
-    return schema.parse(null);
-  }
-}
-
-function writeStored(key: string, value: string): void {
-  try {
-    window.localStorage.setItem(key, value);
-  } catch {
-    /* private mode / blocked storage - the session still works */
-  }
-}
 
 export function ScopeProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfileState] = React.useState(() => readStored(PROFILE_KEY, storedProfile));
