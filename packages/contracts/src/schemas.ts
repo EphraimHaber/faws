@@ -41,3 +41,25 @@ export const stopTaskSchema = z.object({
 });
 
 export type StopTaskInput = z.infer<typeof stopTaskSchema>;
+
+/**
+ * One page of an object listing.
+ *
+ * `cursor` carries S3's own continuation token untouched, under the name the
+ * infinite query helper looks for when it threads one page into the next. The
+ * page size is capped at the 1000 the API allows and defaults well below it: a
+ * shorter first page is a faster first row.
+ */
+export const s3ListObjectsSchema = z.object({
+  bucket: z.string().min(1),
+  prefix: z.string().max(1024).default(""),
+  /**
+   * Empty means no delimiter, which lists every key under the prefix rather
+   * than stopping at the next slash.
+   */
+  delimiter: z.enum(["/", ""]).default("/"),
+  maxKeys: z.number().int().min(1).max(1000).default(200),
+  cursor: z.string().nullish(),
+});
+
+export type S3ListObjectsInput = z.infer<typeof s3ListObjectsSchema>;

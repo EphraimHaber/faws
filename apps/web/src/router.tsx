@@ -131,9 +131,18 @@ const bucketsRoute = createRoute({
   component: BucketsPage,
 });
 
+/**
+ * Which prefix the browser is open at.
+ *
+ * It rides in a search param rather than in the path, because an object key
+ * may contain any character at all - `#`, `?` and `%` included - and those
+ * survive a query string intact while a path segment has to be encoded twice
+ * to carry them.
+ */
 const bucketRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/s3/buckets/$bucket",
+  validateSearch: z.object({ prefix: z.string().max(1024).optional().catch(undefined) }),
   component: BucketRoute,
 });
 

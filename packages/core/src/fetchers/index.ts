@@ -15,3 +15,4 @@ export * from "./ecs/taskDefinitions.ts";
 export * from "./ecs/tasks.ts";
 export * from "./elb/targets.ts";
 export * from "./s3/buckets.ts";
+export * from "./s3/objects.ts";
