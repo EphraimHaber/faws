@@ -77,19 +77,22 @@ export function getS3ScanNamespace(): S3ScanNamespace | null {
 }
 
 /**
- * Drops every socket and stops accepting new ones.
+ * Disconnects every client and stops the server.
  *
- * Socket.IO holds its connections open independently of Fastify, so closing
- * the HTTP server alone waits for clients that are never going to leave: a
- * shutdown hangs for as long as one browser tab is still attached.
+ * Fastify's `close()` waits for open connections to drain, and a websocket
+ * never drains on its own - so without this a restart hangs on "waiting for
+ * graceful termination" for as long as one browser tab is open. Interactive
+ * terminals and streamed key walks make that the normal case rather than the
+ * unlucky one.
  */
 export async function closeSocketIO(): Promise<void> {
-  const instance = ioInstance;
-  if (!instance) return;
+  const io = ioInstance;
+  if (!io) return;
   ioInstance = null;
   execNs = null;
   s3ScanNs = null;
-  await new Promise<void>((resolve) => instance.close(() => resolve()));
+  setLogBroadcaster(null);
+  await new Promise<void>((resolve) => io.close(() => resolve()));
 }
 
 /** Fan-out helper used by the menu/nav bridge in the desktop shell. */

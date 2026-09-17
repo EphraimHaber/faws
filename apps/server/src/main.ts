@@ -20,6 +20,7 @@ import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/a
 import Fastify, { type FastifyBaseLogger, type FastifyError } from "fastify";
 
 import { attachExecNamespace } from "./api/exec/exec.service.ts";
+import { registerExecDrivers } from "./api/exec/index.ts";
 import { s3BytesRoutes } from "./api/s3/bytes.routes.ts";
 import { attachS3ScanNamespace } from "./api/s3/scan.service.ts";
 import { appRouter, type AppRouter } from "./router.ts";
@@ -130,6 +131,7 @@ const address = await server.listen({ host: HOST, port: PORT });
 const resolvedPort = (server.server.address() as { port: number } | null)?.port ?? PORT;
 
 setupSocketIO(server);
+registerExecDrivers();
 const execNs = getExecNamespace();
 if (execNs) attachExecNamespace(execNs);
 const scanNs = getS3ScanNamespace();
@@ -139,8 +141,8 @@ console.log(`faws-server-port: ${resolvedPort}`);
 console.log(`faws-server-url: ${address.replace(/\/$/, "")}/trpc`);
 
 const shutdown = async () => {
-  // Sockets first: they keep the HTTP server listening, so closing the other
-  // way round waits for every attached tab to leave of its own accord.
+  // Sockets first: they hold the HTTP server open, so closing in the other
+  // order waits forever on a connection that will never drain itself.
   await closeSocketIO();
   await server.close();
   process.exit(0);
