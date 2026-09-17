@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "faws-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev:webapp"],
+      "port": 5741
+    }
+  ]
+}

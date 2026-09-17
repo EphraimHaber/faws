@@ -11,6 +11,7 @@ import { CopyButton } from "~/components/ui/copy-button";
 import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows } from "~/components/ui/spinner";
+import { ResizeHandle } from "~/components/ui/resize-handle";
 import { LogFilterBar } from "~/features/ecs/components/LogFilterBar";
 import { LogLine } from "~/features/ecs/components/LogLine";
 import { MIN_LOG_GUTTER, useAwsScope, useScope } from "~/contexts/ScopeContext";
@@ -38,58 +39,6 @@ const TAIL_INTERVAL_MS = 10_000;
  *  drag handles sit on top of the lines, so they need both. */
 const LOG_PANE_PADDING = 12;
 const LOG_COLUMN_GAP = 10;
-
-/**
- * The draggable trailing edge of one of the leading columns.
- *
- * Full timestamps are wider than clock times and a task id is longer than the
- * column that shows its tail, so how much of the line each takes is the
- * reader's choice. The strip runs the height of the scrolled content, so it
- * can be grabbed beside whatever line you happen to be reading, and the width
- * it writes is the app-wide setting rather than this pane's own state.
- */
-function GutterHandle({
-  label,
-  edge,
-  width,
-  onResize,
-}: {
-  label: string;
-  /** Distance from the pane's left edge to this column's trailing edge. */
-  edge: number;
-  width: number;
-  onResize: (next: number) => void;
-}) {
-  return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      aria-label={`Resize the ${label} column`}
-      title={`Drag to resize the ${label} column`}
-      // The strip straddles the column's edge.
-      style={{ left: edge - 4 }}
-      onPointerDown={(event) => {
-        event.preventDefault();
-        const start = event.clientX;
-        const from = width;
-        const handle = event.currentTarget;
-        handle.setPointerCapture(event.pointerId);
-
-        const move = (moveEvent: PointerEvent) =>
-          onResize(Math.max(MIN_LOG_GUTTER, from + (moveEvent.clientX - start)));
-        const stop = () => {
-          handle.removeEventListener("pointermove", move);
-          handle.removeEventListener("pointerup", stop);
-          handle.removeEventListener("pointercancel", stop);
-        };
-        handle.addEventListener("pointermove", move);
-        handle.addEventListener("pointerup", stop);
-        handle.addEventListener("pointercancel", stop);
-      }}
-      className="absolute inset-y-0 z-10 w-2 cursor-col-resize touch-none after:absolute after:inset-y-0 after:left-[3px] after:w-px after:bg-transparent after:transition-colors hover:after:bg-primary/60"
-    />
-  );
-}
 
 export function LogsPane({
   taskDefinition,
@@ -341,17 +290,29 @@ export function LogsPane({
           ref={bodyRef}
           className="relative min-h-0 flex-1 overflow-auto p-3 font-mono text-[11.5px] leading-relaxed"
         >
-          <GutterHandle
-            label="timestamp"
-            edge={LOG_PANE_PADDING + logGutter}
-            width={logGutter}
+          {/* Full timestamps are wider than clock times and a task id is
+              longer than the column showing its tail, so how much of the line
+              each takes is the reader's choice. The strips run the height of
+              the scrolled content, so one can be grabbed beside whatever line
+              you happen to be reading, and the width they write is the
+              app-wide setting rather than this pane's own state. */}
+          <ResizeHandle
+            label="the timestamp column"
+            orientation="vertical"
+            style={{ left: LOG_PANE_PADDING + logGutter - 4 }}
+            size={logGutter}
+            min={MIN_LOG_GUTTER}
             onResize={setLogGutter}
           />
           {!taskId && showStream ? (
-            <GutterHandle
-              label="task id"
-              edge={LOG_PANE_PADDING + logGutter + LOG_COLUMN_GAP + logTaskGutter}
-              width={logTaskGutter}
+            <ResizeHandle
+              label="the task id column"
+              orientation="vertical"
+              style={{
+                left: LOG_PANE_PADDING + logGutter + LOG_COLUMN_GAP + logTaskGutter - 4,
+              }}
+              size={logTaskGutter}
+              min={MIN_LOG_GUTTER}
               onResize={setLogTaskGutter}
             />
           ) : null}
