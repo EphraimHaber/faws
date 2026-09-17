@@ -27,6 +27,9 @@ import { EcsIndexPage } from "~/features/ecs/pages/EcsIndexPage";
 import { HomePage } from "~/pages/HomePage";
 import { LogsPage } from "~/pages/LogsPage";
 import { SERVICE_TABS, ServicePage } from "~/features/ecs/pages/ServicePage";
+import { BucketPage } from "~/features/s3/pages/BucketPage";
+import { BucketsPage } from "~/features/s3/pages/BucketsPage";
+import { S3IndexPage } from "~/features/s3/pages/S3IndexPage";
 import { SettingsPage } from "~/pages/SettingsPage";
 import { TaskDefinitionsPage } from "~/features/ecs/pages/TaskDefinitionsPage";
 import { TaskPage } from "~/features/ecs/pages/TaskPage";
@@ -116,6 +119,24 @@ const taskDefinitionsRoute = createRoute({
   component: TaskDefinitionsPage,
 });
 
+const s3IndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/s3",
+  component: S3IndexPage,
+});
+
+const bucketsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/s3/buckets",
+  component: BucketsPage,
+});
+
+const bucketRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/s3/buckets/$bucket",
+  component: BucketRoute,
+});
+
 const logsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/logs",
@@ -137,6 +158,9 @@ const routeTree = rootRoute.addChildren([
   serviceRoute,
   taskRoute,
   taskDefinitionsRoute,
+  s3IndexRoute,
+  bucketsRoute,
+  bucketRoute,
   logsRoute,
   settingsRoute,
 ]);
@@ -162,6 +186,11 @@ function ServiceRoute() {
 function TaskRoute() {
   const { cluster, taskId } = taskRoute.useParams();
   return <TaskPage cluster={cluster} taskId={taskId} />;
+}
+
+function BucketRoute() {
+  const { bucket } = bucketRoute.useParams();
+  return <BucketPage bucket={bucket} />;
 }
 
 function RootLayout() {

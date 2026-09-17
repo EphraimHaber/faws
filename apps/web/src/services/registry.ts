@@ -82,11 +82,11 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
   {
     id: "s3",
     label: "S3",
-    description: "Bucket browser",
+    description: "Buckets, objects and what they hold",
     icon: HardDrive,
-    status: "planned",
+    status: "available",
     basePath: "/s3",
-    sections: [{ id: "buckets", label: "Buckets", icon: Database }],
+    sections: [{ id: "buckets", label: "Buckets", icon: Database, to: "/s3/buckets" }],
   },
   {
     id: "lambda",

@@ -157,7 +157,12 @@ function buildMenu(): void {
           accelerator: "CmdOrCtrl+3",
           click: () => void navigate("/ecs/task-definitions"),
         },
-        { label: "Diagnostics", accelerator: "CmdOrCtrl+4", click: () => void navigate("/logs") },
+        {
+          label: "Buckets",
+          accelerator: "CmdOrCtrl+4",
+          click: () => void navigate("/s3/buckets"),
+        },
+        { label: "Diagnostics", accelerator: "CmdOrCtrl+5", click: () => void navigate("/logs") },
         { type: "separator" },
         { role: "reload" },
         { role: "toggleDevTools" },

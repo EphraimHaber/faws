@@ -2,6 +2,7 @@ import { awsRouter } from "./api/aws/aws.router.ts";
 import { desktopRouter } from "./api/desktop/desktop.router.ts";
 import { ecsActionsRouter } from "./api/ecs/actions.router.ts";
 import { ecsRouter } from "./api/ecs/ecs.router.ts";
+import { s3Router } from "./api/s3/s3.router.ts";
 import { router } from "./trpc/index.ts";
 
 /**
@@ -16,6 +17,7 @@ export const appRouter = router({
   desktop: desktopRouter,
   ecs: ecsRouter,
   ecsActions: ecsActionsRouter,
+  s3: s3Router,
 });
 
 export type AppRouter = typeof appRouter;
