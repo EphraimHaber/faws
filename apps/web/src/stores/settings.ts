@@ -71,7 +71,15 @@ export function settingsSnapshot(): Settings {
   return useSettings.getState().settings;
 }
 
-/** Applies a server snapshot unless it is our own echo or arrived out of order. */
+/**
+ * Applies a server snapshot unless it is our own echo or arrived out of order.
+ *
+ * "Our own echo" means a change this window already applied optimistically,
+ * which is only ever `updateSettings`. Everything else deliberately passes
+ * `null`: those changes were *not* applied locally first, so suppressing the
+ * echo would suppress the only copy of them this window will ever see - and
+ * the watermark would then drop the response too, for arriving second.
+ */
 function accept(snapshot: SettingsSnapshot, originId: string | null): void {
   const state = useSettings.getState();
   const verdict = reconcile(
@@ -130,36 +138,23 @@ function sendPending(): void {
  *
  * Not debounced: these are discrete, deliberate acts a few seconds apart, and
  * the maps are keyed by ARN so there is nothing to coalesce.
+ *
+ * No `originId`, for the reason set out above `accept`: the local state is not
+ * moved first, so `at` can come from the server's clock rather than being
+ * guessed here and shifting under the person a moment later.
  */
 export function applySilence(op: SilenceOp): void {
   void trpcClient.settings.silence
-    .mutate({ op, originId: ORIGIN_ID })
-    .then((snapshot) => {
-      // Applied from the response rather than optimistically: `at` is stamped
-      // with the server's clock, and guessing it here would mean the entry
-      // shifts under the person a moment after they created it.
-      useSettings.setState({
-        settings: snapshot.settings,
-        revision: Math.max(useSettings.getState().revision, snapshot.revision),
-        persistence: snapshot.persistence,
-      });
-      writeCache(snapshot.settings);
-    })
+    .mutate({ op })
+    .then((snapshot) => accept(snapshot, null))
     .catch(() => undefined);
 }
 
 /** Puts every preference back to its default, for everyone. */
 export function resetSettings(): void {
   void trpcClient.settings.reset
-    .mutate({ originId: ORIGIN_ID })
-    .then((snapshot) => {
-      useSettings.setState({
-        settings: snapshot.settings,
-        revision: Math.max(useSettings.getState().revision, snapshot.revision),
-        persistence: snapshot.persistence,
-      });
-      writeCache(snapshot.settings);
-    })
+    .mutate({})
+    .then((snapshot) => accept(snapshot, null))
     .catch(() => undefined);
 }
 
@@ -176,7 +171,7 @@ function importLegacySettings(): void {
   const legacy = collectLegacySettings();
   if (!legacy) return;
   void trpcClient.settings.importLegacy
-    .mutate({ patch: legacy.patch, silenced: legacy.silenced, originId: ORIGIN_ID })
+    .mutate({ patch: legacy.patch, silenced: legacy.silenced })
     .then((result) => {
       // Clear only on a real import: if the server had settings already, this
       // browser's copy is the stale one and worth keeping until it is stale
