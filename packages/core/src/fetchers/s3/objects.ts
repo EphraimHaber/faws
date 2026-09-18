@@ -1,15 +1,25 @@
-import { ListObjectsV2Command, type _Object, type CommonPrefix } from "@aws-sdk/client-s3";
+import type { Readable } from "node:stream";
+
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+  type _Object,
+  type CommonPrefix,
+} from "@aws-sdk/client-s3";
 import type {
   AwsScope,
   S3CommonPrefix,
   S3ListPage,
   S3ListObjectsInput,
+  S3ObjectHead,
   S3ObjectSummary,
 } from "@faws/contracts";
 import { keyName, toIso } from "@faws/shared";
 
 import { callAws } from "../../clients.ts";
 import { s3ClientForBucket } from "./buckets.ts";
+import { classifyOpenAs, isReadable } from "./openAs.ts";
 
 /**
  * One page of a listing, and the cursor for the next.
@@ -64,5 +74,107 @@ function toObject(object: _Object, listedPrefix: string): S3ObjectSummary {
     // Quoted by the API; the quotes are never what anyone wants to read or paste.
     etag: object.ETag ? object.ETag.replaceAll('"', "") : null,
     storageClass: object.StorageClass ?? "STANDARD",
+  };
+}
+
+/**
+ * What an object is, before deciding whether to fetch it.
+ *
+ * Every open starts here: the size decides whether the bytes are read whole,
+ * in a leading slice, or not at all, and the type decides what would render
+ * them. Fetching first and asking afterwards is how a viewer meets a multi
+ * gigabyte object.
+ */
+export async function headObject(
+  scope: AwsScope,
+  ref: { bucket: string; key: string; versionId?: string },
+): Promise<S3ObjectHead | null> {
+  const client = await s3ClientForBucket(scope, ref.bucket);
+
+  const head = await callAws("s3", async () => {
+    try {
+      return await client.send(
+        new HeadObjectCommand({
+          Bucket: ref.bucket,
+          Key: ref.key,
+          ...(ref.versionId ? { VersionId: ref.versionId } : {}),
+        }),
+      );
+    } catch (err) {
+      // A key that is not there is an answer, not a fault: the browser asks
+      // about rows that may have been deleted since the page was listed.
+      const name = (err as { name?: string }).name;
+      if (name === "NotFound" || name === "NoSuchKey") return null;
+      throw err;
+    }
+  });
+  if (!head) return null;
+
+  const storageClass = head.StorageClass ?? "STANDARD";
+  const restore = head.Restore ?? null;
+  const contentType = head.ContentType ?? null;
+
+  return {
+    bucket: ref.bucket,
+    key: ref.key,
+    size: head.ContentLength ?? 0,
+    contentType,
+    contentEncoding: head.ContentEncoding ?? null,
+    lastModified: toIso(head.LastModified),
+    etag: head.ETag ? head.ETag.replaceAll('"', "") : null,
+    versionId: head.VersionId ?? null,
+    storageClass,
+    serverSideEncryption: head.ServerSideEncryption ?? null,
+    kmsKeyId: head.SSEKMSKeyId ?? null,
+    metadata: head.Metadata ?? {},
+    openAs: classifyOpenAs(ref.key, contentType),
+    readable: isReadable(storageClass, restore),
+    restore,
+  };
+}
+
+/** A body, plus the headers a proxying response has to carry over. */
+export interface ObjectStream {
+  readonly body: Readable;
+  readonly contentLength: number | null;
+  readonly contentRange: string | null;
+  readonly contentType: string | null;
+  readonly contentEncoding: string | null;
+  readonly etag: string | null;
+}
+
+/**
+ * The bytes, or a slice of them.
+ *
+ * The body is a stream rather than a buffer, so an object larger than memory
+ * costs no more to serve than a small one, and an abandoned request tears the
+ * read down with it.
+ */
+export async function getObjectStream(
+  scope: AwsScope,
+  ref: { bucket: string; key: string; versionId?: string },
+  options: { range?: string; signal?: AbortSignal } = {},
+): Promise<ObjectStream> {
+  const client = await s3ClientForBucket(scope, ref.bucket);
+
+  const result = await callAws("s3", () =>
+    client.send(
+      new GetObjectCommand({
+        Bucket: ref.bucket,
+        Key: ref.key,
+        ...(ref.versionId ? { VersionId: ref.versionId } : {}),
+        ...(options.range ? { Range: options.range } : {}),
+      }),
+      { ...(options.signal ? { abortSignal: options.signal } : {}) },
+    ),
+  );
+
+  return {
+    body: result.Body as Readable,
+    contentLength: result.ContentLength ?? null,
+    contentRange: result.ContentRange ?? null,
+    contentType: result.ContentType ?? null,
+    contentEncoding: result.ContentEncoding ?? null,
+    etag: result.ETag ? result.ETag.replaceAll('"', "") : null,
   };
 }

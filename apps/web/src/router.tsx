@@ -142,7 +142,11 @@ const bucketsRoute = createRoute({
 const bucketRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/s3/buckets/$bucket",
-  validateSearch: z.object({ prefix: z.string().max(1024).optional().catch(undefined) }),
+  validateSearch: z.object({
+    prefix: z.string().max(1024).optional().catch(undefined),
+    /** The key open in the viewer, so a link can carry one object. */
+    object: z.string().max(1024).optional().catch(undefined),
+  }),
   component: BucketRoute,
 });
 

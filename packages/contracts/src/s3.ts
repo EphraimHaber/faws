@@ -49,3 +49,46 @@ export interface S3ListPage {
   readonly objects: ReadonlyArray<S3ObjectSummary>;
   readonly nextToken: string | null;
 }
+
+/**
+ * How the UI should open an object.
+ *
+ * Decided on the server from the stored content type, the key's extension and
+ * finally the leading bytes, because only the first of those is authoritative
+ * and it is the one most often wrong.
+ */
+export type S3OpenAs =
+  | "text"
+  | "json"
+  | "jsonl"
+  | "csv"
+  | "image"
+  | "audio"
+  | "video"
+  | "pdf"
+  | "binary";
+
+export interface S3ObjectHead {
+  readonly bucket: string;
+  readonly key: string;
+  readonly size: number;
+  readonly contentType: string | null;
+  /** Set when the stored object is compressed rather than the transfer. */
+  readonly contentEncoding: string | null;
+  readonly lastModified: string | null;
+  readonly etag: string | null;
+  readonly versionId: string | null;
+  readonly storageClass: string;
+  readonly serverSideEncryption: string | null;
+  readonly kmsKeyId: string | null;
+  readonly metadata: Readonly<Record<string, string>>;
+  readonly openAs: S3OpenAs;
+  /**
+   * False for archived storage with no completed restore. The bytes exist but
+   * cannot be read until a restore finishes, which is a different message from
+   * a failure.
+   */
+  readonly readable: boolean;
+  /** Present while an archived object is being restored, or once it has been. */
+  readonly restore: string | null;
+}

@@ -5,8 +5,8 @@
  * over superjson, which would base64 a body and hold the whole object in
  * memory on the way through; bytes travel over their own streaming routes.
  */
-import { s3ListObjectsSchema } from "@faws/contracts";
-import { bucketRegion, listBuckets, listObjectsPage } from "@faws/core";
+import { s3ListObjectsSchema, s3ObjectRefSchema } from "@faws/contracts";
+import { bucketRegion, headObject, listBuckets, listObjectsPage } from "@faws/core";
 import { z } from "zod";
 
 import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
@@ -26,4 +26,15 @@ export const s3Router = router({
   list: publicProcedure
     .input(scopeInput.and(s3ListObjectsSchema))
     .query(({ input }) => guard(() => listObjectsPage(input, input))),
+
+  /** What an object is, which decides whether and how its bytes are fetched. */
+  head: publicProcedure.input(scopeInput.and(s3ObjectRefSchema)).query(({ input }) =>
+    guard(() =>
+      headObject(input, {
+        bucket: input.bucket,
+        key: input.key,
+        ...(input.versionId ? { versionId: input.versionId } : {}),
+      }),
+    ),
+  ),
 });

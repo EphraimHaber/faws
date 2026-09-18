@@ -63,3 +63,12 @@ export const s3ListObjectsSchema = z.object({
 });
 
 export type S3ListObjectsInput = z.infer<typeof s3ListObjectsSchema>;
+
+/** One object, optionally a particular version of it. */
+export const s3ObjectRefSchema = z.object({
+  bucket: z.string().min(1),
+  key: z.string().min(1).max(1024),
+  versionId: z.string().optional(),
+});
+
+export type S3ObjectRef = z.infer<typeof s3ObjectRefSchema>;

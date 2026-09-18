@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import { ObjectBrowser } from "~/features/s3/components/ObjectBrowser";
+import { ObjectViewer } from "~/features/s3/components/ObjectViewer";
 import { Badge } from "~/components/ui/badge";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel } from "~/components/ui/panel";
@@ -20,7 +21,7 @@ export function BucketPage({ bucket }: { bucket: string }) {
   const scope = useAwsScope();
   const { region: scopeRegion } = useScope();
   const navigate = useNavigate();
-  const { prefix = "" } = useSearch({ from: "/s3/buckets/$bucket" });
+  const { prefix = "", object } = useSearch({ from: "/s3/buckets/$bucket" });
 
   const region = useQuery({
     ...trpc.s3.bucketRegion.queryOptions({ ...scope, bucket }),
@@ -46,17 +47,50 @@ export function BucketPage({ bucket }: { bucket: string }) {
         </div>
       ) : null}
 
-      <ObjectBrowser
-        bucket={bucket}
-        prefix={prefix}
-        onNavigate={(next) =>
-          void navigate({
-            to: "/s3/buckets/$bucket",
-            params: { bucket },
-            search: normalizePrefix(next).length > 0 ? { prefix: normalizePrefix(next) } : {},
-          })
-        }
-      />
+      {/* Side by side where there is room, and stacked where there is not:
+          below about a thousand pixels two panes leave neither one wide enough
+          to read a key in. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <ObjectBrowser
+            bucket={bucket}
+            prefix={prefix}
+            onNavigate={(next) => {
+              const normalized = normalizePrefix(next);
+              void navigate({
+                to: "/s3/buckets/$bucket",
+                params: { bucket },
+                search: normalized.length > 0 ? { prefix: normalized } : {},
+              });
+            }}
+            onOpenObject={(key) =>
+              void navigate({
+                to: "/s3/buckets/$bucket",
+                params: { bucket },
+                search: { ...(prefix.length > 0 ? { prefix } : {}), object: key },
+                replace: true,
+              })
+            }
+          />
+        </div>
+
+        {object ? (
+          <div className="flex min-h-0 flex-1 flex-col lg:w-[46%] lg:min-w-[22rem] lg:flex-none">
+            <ObjectViewer
+              bucket={bucket}
+              objectKey={object}
+              onClose={() =>
+                void navigate({
+                  to: "/s3/buckets/$bucket",
+                  params: { bucket },
+                  search: prefix.length > 0 ? { prefix } : {},
+                  replace: true,
+                })
+              }
+            />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

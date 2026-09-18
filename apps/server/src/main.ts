@@ -20,6 +20,7 @@ import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/a
 import Fastify, { type FastifyBaseLogger, type FastifyError } from "fastify";
 
 import { attachExecNamespace } from "./api/exec/exec.service.ts";
+import { s3BytesRoutes } from "./api/s3/bytes.routes.ts";
 import { appRouter, type AppRouter } from "./router.ts";
 import { getRootLogger } from "./shared/logger.ts";
 import { getExecNamespace, setupSocketIO } from "./shared/socket-io.ts";
@@ -33,6 +34,9 @@ const PORT = process.env["FAWS_PORT"] ? Number(process.env["FAWS_PORT"]) : 0;
 const server = Fastify({
   loggerInstance: getRootLogger() as unknown as FastifyBaseLogger,
   routerOptions: { maxParamLength: 5000 },
+  // Object bodies are streamed, and a stream that is still playing would hold
+  // a shutdown open indefinitely; closing takes the sockets with it.
+  forceCloseConnections: true,
 });
 
 server.addHook("onResponse", (request, reply, done) => {
@@ -58,7 +62,10 @@ await server.register(fastifyCors, {
   origin: true,
   credentials: true,
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["content-type", "x-trpc-source", "x-method-override"],
+  // `range` is what lets a viewer read a leading slice of a large object;
+  // `content-range` has to be exposed for the script that asked to see it.
+  allowedHeaders: ["content-type", "x-trpc-source", "x-method-override", "range"],
+  exposedHeaders: ["content-range", "accept-ranges", "content-length", "etag"],
 });
 
 await server.register(fastifyTRPCPlugin, {
@@ -72,6 +79,8 @@ await server.register(fastifyTRPCPlugin, {
   } satisfies FastifyTRPCPluginOptions<AppRouter>["trpcOptions"],
 });
 
+await server.register(s3BytesRoutes);
+
 server.get("/healthz", () => ({ ok: true }));
 
 const webDist = process.env["FAWS_WEB_DIST"];
@@ -80,7 +89,7 @@ if (webDist) {
   if (fs.existsSync(path.join(root, "index.html"))) {
     await server.register(fastifyStatic, { root, wildcard: false });
     server.setNotFoundHandler((request, reply) => {
-      if (request.url.startsWith("/trpc")) {
+      if (request.url.startsWith("/trpc") || request.url.startsWith("/s3/")) {
         return reply.status(404).send({ error: "Not Found", message: request.url });
       }
       return reply.type("text/html").sendFile("index.html");
