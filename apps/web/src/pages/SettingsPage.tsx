@@ -17,7 +17,7 @@ import {
 import { useTheme } from "~/contexts/ThemeContext";
 import { trpc } from "~/lib/trpc";
 import { type SilenceEntry, useSilenced } from "~/stores/silenced";
-import { resetSettings, updateSettings, useSettings } from "~/stores/settings";
+import { resetSettings, useSettings } from "~/stores/settings";
 import { cn } from "~/lib/utils";
 
 /**
@@ -74,7 +74,6 @@ export function SettingsPage() {
     setLogTaskGutter,
   } = useScope();
   const { theme, toggle } = useTheme();
-  const recordByDefault = useSettings((state) => state.settings.terminal.recordByDefault);
   const persistence = useSettings((state) => state.persistence);
 
   const whoami = useQuery({ ...trpc.aws.whoami.queryOptions(scope), retry: false });
@@ -183,19 +182,6 @@ export function SettingsPage() {
                 onReset={() => setLogTaskGutter(DEFAULT_LOG_TASK_GUTTER)}
               />
             </div>
-          </Setting>
-
-          <Setting
-            title="Record terminal sessions"
-            hint="Writes an asciicast transcript of every new shell to the recordings directory. Already-open sessions keep whatever they started with."
-          >
-            <button
-              type="button"
-              onClick={() => updateSettings({ terminal: { recordByDefault: !recordByDefault } })}
-              className="cursor-pointer rounded border border-border px-2.5 py-1 text-[12px] transition-colors hover:bg-accent"
-            >
-              {recordByDefault ? "On" : "Off"}
-            </button>
           </Setting>
 
           <Setting title="Appearance" hint="Dark is the default; both themes are first-class.">

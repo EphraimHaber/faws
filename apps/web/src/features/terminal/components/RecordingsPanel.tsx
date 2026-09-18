@@ -8,7 +8,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
-import { useSessions } from "~/stores/sessions";
+import { updateSettings, useSettings } from "~/stores/settings";
 
 function sizeLabel(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -28,8 +28,7 @@ function sizeLabel(bytes: number): string {
 export function RecordingsPanel() {
   const recordings = useQuery(trpc.exec.recordings.queryOptions());
   const queryClient = useQueryClient();
-  const recordByDefault = useSessions((state) => state.recordByDefault);
-  const setRecordByDefault = useSessions((state) => state.setRecordByDefault);
+  const recordByDefault = useSettings((state) => state.settings.terminal.recordByDefault);
 
   const remove = useMutation({
     ...trpc.exec.deleteRecording.mutationOptions(),
@@ -47,7 +46,9 @@ export function RecordingsPanel() {
           <input
             type="checkbox"
             checked={recordByDefault}
-            onChange={(event) => setRecordByDefault(event.target.checked)}
+            onChange={(event) =>
+              updateSettings({ terminal: { recordByDefault: event.target.checked } })
+            }
           />
           Record new sessions
         </label>
