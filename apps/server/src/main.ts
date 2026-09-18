@@ -8,7 +8,7 @@
  *   FAWS_HOST      - bind host (default 127.0.0.1)
  *   FAWS_PORT      - bind port (default 0 = OS-assigned)
  *   FAWS_WEB_DIST  - when set, serve the web SPA from this directory at /
- *   FAWS_DATA_DIR  - where logs are written
+ *   FAWS_DATA_DIR  - where logs, recordings and settings are written
  *   FAWS_READ_ONLY - "1" starts the app with mutations blocked
  */
 import * as fs from "node:fs";
@@ -24,6 +24,8 @@ import { registerExecDrivers } from "./api/exec/index.ts";
 import { closeAllSessions } from "./api/exec/session.registry.ts";
 import { s3BytesRoutes } from "./api/s3/bytes.routes.ts";
 import { attachS3ScanNamespace } from "./api/s3/scan.service.ts";
+import { attachSettingsBroadcast } from "./api/settings/settings.events.ts";
+import { flushSettings, loadSettings } from "./api/settings/settings.instance.ts";
 import { appRouter, type AppRouter } from "./router.ts";
 import { getRootLogger } from "./shared/logger.ts";
 import {
@@ -128,10 +130,15 @@ if (webDist) {
   }
 }
 
+// Before listen, so the very first request already sees the stored values
+// rather than defaults it would have to correct a moment later.
+await loadSettings();
+
 const address = await server.listen({ host: HOST, port: PORT });
 const resolvedPort = (server.server.address() as { port: number } | null)?.port ?? PORT;
 
 setupSocketIO(server);
+attachSettingsBroadcast();
 registerExecDrivers();
 const execNs = getExecNamespace();
 if (execNs) attachExecNamespace(execNs);
@@ -145,6 +152,9 @@ const shutdown = async () => {
   // Sessions first: a plugin child or an SSH connection must not outlive the
   // server that spawned it. Then sockets, which hold the HTTP server open - a
   // websocket never drains itself, so closing in the other order waits forever.
+  // Settings first and fastest: a preference set a second ago is still only
+  // in memory, and losing it is silent in a way a dropped session is not.
+  await flushSettings();
   await closeAllSessions("the server is shutting down");
   await closeSocketIO();
   await server.close();

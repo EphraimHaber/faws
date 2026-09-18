@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "main": "dist-electron/main.cjs",
-  "productName": "faws",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "tsdown",
@@ -24,5 +23,6 @@
     "tsdown": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
-  }
+  },
+  "productName": "faws"
 }

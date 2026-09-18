@@ -66,7 +66,7 @@ export interface SettingsStore {
    */
   importLegacy(
     patch: SettingsPatch,
-    silenced: Partial<SilencedSettings>,
+    silenced: { [K in keyof SilencedSettings]?: SilencedSettings[K] | undefined },
     originId?: string | null,
   ): { snapshot: SettingsSnapshot; imported: boolean };
   reset(originId?: string | null): SettingsSnapshot;

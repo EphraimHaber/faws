@@ -14,6 +14,7 @@ import type {
   S3ObjectSummary,
   S3PrefixRollup,
   S3ScanProgress,
+  SettingsChangedPayload,
 } from "@faws/contracts";
 
 export interface ServerToClientEvents {
@@ -23,6 +24,15 @@ export interface ServerToClientEvents {
   /** Tail of a CloudWatch log group the renderer subscribed to. */
   "logs:event": (payload: { subscriptionId: string; events: ReadonlyArray<LogEvent> }) => void;
   "logs:error": (payload: { subscriptionId: string; message: string }) => void;
+  /**
+   * Preferences changed, from this window or another one.
+   *
+   * The whole settings object, not a delta: it is small, and it makes a
+   * reconnect and an update indistinguishable on the client, which removes
+   * the entire class of "patch applied to the wrong base". `originId` is the
+   * window that caused it, so that window can ignore its own echo.
+   */
+  "settings:changed": (payload: SettingsChangedPayload) => void;
 }
 
 export interface ClientToServerEvents {
