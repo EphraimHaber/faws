@@ -12,6 +12,7 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from "@faws/socket-io-events";
+import type { SettingsChangedPayload } from "@faws/contracts";
 import type { FastifyInstance } from "fastify";
 import { Namespace, Server } from "socket.io";
 
@@ -98,4 +99,9 @@ export async function closeSocketIO(): Promise<void> {
 /** Fan-out helper used by the menu/nav bridge in the desktop shell. */
 export function emitNav(target: string): void {
   ioInstance?.emit("nav", { target });
+}
+
+/** Fan-out helper for preference changes; see `api/settings/settings.events.ts`. */
+export function emitSettingsChanged(payload: SettingsChangedPayload): void {
+  ioInstance?.emit("settings:changed", payload);
 }

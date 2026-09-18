@@ -1,6 +1,6 @@
-import type { EcsService, EcsTask } from "@faws/contracts";
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import type { EcsService, EcsTask, SilencedSettings, SilenceEntry } from "@faws/contracts";
+
+import { applySilence, useSettings } from "./settings";
 
 /**
  * Warnings the operator has chosen not to see.
@@ -19,52 +19,37 @@ import { persist } from "zustand/middleware";
  * Both are per-ARN, so they are implicitly scoped to an account and region.
  * Nothing is hidden silently: every surface that filters shows how many it
  * hid, and Settings lists every entry with a way to restore it.
+ *
+ * The list lives on the server. A mute list is the product of real
+ * operational knowledge about which alarms are somebody else's, and keeping it
+ * in `localStorage` meant it did not follow the person from the browser to the
+ * desktop app and vanished with a browser-data clear.
  */
-export interface SilenceEntry {
-  readonly arn: string;
-  readonly label: string;
-  readonly context: string;
-  /** Present for dismissals; absent for mutes. */
-  readonly fingerprint?: string;
-  readonly at: string;
-}
+export type { SilenceEntry };
 
-interface SilencedState {
-  readonly dismissed: Record<string, SilenceEntry>;
-  readonly muted: Record<string, SilenceEntry>;
+interface SilencedActions {
   dismiss(entry: Omit<SilenceEntry, "at">): void;
   mute(entry: Omit<SilenceEntry, "at" | "fingerprint">): void;
   restore(arn: string): void;
   restoreAll(): void;
 }
 
-export const useSilenced = create<SilencedState>()(
-  persist(
-    (set) => ({
-      dismissed: {},
-      muted: {},
-      dismiss: (entry) =>
-        set((state) => ({
-          dismissed: {
-            ...state.dismissed,
-            [entry.arn]: { ...entry, at: new Date().toISOString() },
-          },
-        })),
-      mute: (entry) =>
-        set((state) => ({
-          muted: { ...state.muted, [entry.arn]: { ...entry, at: new Date().toISOString() } },
-        })),
-      restore: (arn) =>
-        set((state) => {
-          const { [arn]: _dismissed, ...dismissed } = state.dismissed;
-          const { [arn]: _muted, ...muted } = state.muted;
-          return { dismissed, muted };
-        }),
-      restoreAll: () => set({ dismissed: {}, muted: {} }),
-    }),
-    { name: "faws:silenced" },
-  ),
-);
+const actions: SilencedActions = {
+  dismiss: (entry) => applySilence({ op: "dismiss", entry }),
+  mute: (entry) => applySilence({ op: "mute", entry }),
+  restore: (arn) => applySilence({ op: "restore", arn }),
+  restoreAll: () => applySilence({ op: "restoreAll" }),
+};
+
+type SilencedState = SilencedSettings & SilencedActions;
+
+/**
+ * Kept as a selector hook with the shape callers already use, so the change of
+ * where these live did not ripple through every menu and page that reads them.
+ */
+export function useSilenced<T>(selector: (state: SilencedState) => T): T {
+  return useSettings((state) => selector({ ...state.settings.silenced, ...actions }));
+}
 
 /**
  * Identity of a service's *current* failure state.
@@ -92,7 +77,7 @@ export interface SilenceCheck {
 }
 
 export function checkSilence(
-  state: Pick<SilencedState, "dismissed" | "muted">,
+  state: SilencedSettings,
   arn: string,
   fingerprint: string,
 ): SilenceCheck {
@@ -106,14 +91,13 @@ export function checkSilence(
 
 /** Hook form for the common case: "should this service's warning show?" */
 export function useServiceSilence(service: EcsService): SilenceCheck {
-  const dismissed = useSilenced((state) => state.dismissed);
-  const muted = useSilenced((state) => state.muted);
-  return checkSilence({ dismissed, muted }, service.arn, serviceFingerprint(service));
+  const silenced = useSettings((state) => state.settings.silenced);
+  return checkSilence(silenced, service.arn, serviceFingerprint(service));
 }
 
 /** Partitions services into those still worth showing and those silenced. */
 export function partitionSilenced(
-  state: Pick<SilencedState, "dismissed" | "muted">,
+  state: SilencedSettings,
   services: ReadonlyArray<EcsService>,
 ): { visible: EcsService[]; hidden: EcsService[] } {
   const visible: EcsService[] = [];

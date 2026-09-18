@@ -4,6 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>faws · ECS control room</title>
+    <!--faws:settings-->
+    <!--
+      No injected settings (the Vite dev server, or a browser tab served
+      before this build's server): fall back to the cached copy of the last
+      known theme, then to the OS. Inline and synchronous because React
+      cannot run early enough to avoid a flash of the wrong colour scheme.
+    -->
+    <script>
+      (function () {
+        if (window.fawsSettings) return;
+        var theme;
+        try {
+          theme = JSON.parse(localStorage.getItem("faws:settings-cache")).appearance.theme;
+        } catch (e) {
+          /* no cache, or storage blocked */
+        }
+        if (theme !== "light" && theme !== "dark") {
+          theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        }
+        document.documentElement.classList.toggle("dark", theme === "dark");
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

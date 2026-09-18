@@ -32,6 +32,30 @@ the bucket name to be typed, and says whether the bucket keeps versions, so
 
 The ECS mutations remain stubs that return `NOT_IMPLEMENTED`.
 
+## Settings
+
+Preferences - the AWS profile and region, the refresh interval, the log
+columns, the theme, the terminal dock, and the list of silenced warnings -
+belong to the machine, not to a browser. The server keeps them in
+`$FAWS_DATA_DIR/settings/settings.json`, alongside `logs/` and `recordings/`,
+and writes it atomically with `0600`.
+
+`FAWS_DATA_DIR` defaults to `~/.faws`; the dev runner uses `~/.faws-dev`, and
+the desktop shell passes Electron's userData path. Web and desktop on one
+machine therefore share one file, and a change in either shows up in every
+open window immediately over the existing Socket.IO connection.
+
+The file carries a `version`. An older file is migrated on read and written
+back once. A file written by a **newer** faws is served as far as this build
+understands it and never written back, so downgrading cannot discard the
+preferences the newer install made - the Settings page says so while that
+lasts. An unreadable file is moved aside as `settings.json.corrupt-<time>`
+rather than deleted, and the app starts from defaults.
+
+If the file cannot be written at all, everything still works from memory for
+the life of the server, including the sync between windows; only survival
+across a restart is lost, and the Settings page says which errno caused it.
+
 ## Layout
 
 | | |

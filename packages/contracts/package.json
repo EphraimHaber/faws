@@ -13,11 +13,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
+  "dependencies": {
+    "zod": "^4.0.0"
+  },
   "devDependencies": {
     "typescript": "catalog:",
     "vitest": "catalog:"
-  },
-  "dependencies": {
-    "zod": "^4.0.0"
   }
 }

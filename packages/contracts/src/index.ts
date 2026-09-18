@@ -4,3 +4,4 @@ export * from "./errors.ts";
 export * from "./exec.ts";
 export * from "./s3.ts";
 export * from "./schemas.ts";
+export * from "./settings.ts";

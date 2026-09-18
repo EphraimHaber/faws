@@ -13,11 +13,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
+  "dependencies": {
+    "@faws/contracts": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "catalog:",
     "vitest": "catalog:"
-  },
-  "dependencies": {
-    "@faws/contracts": "workspace:*"
   }
 }
