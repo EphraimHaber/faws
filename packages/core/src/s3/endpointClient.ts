@@ -116,7 +116,12 @@ class PinnedAgent extends https.Agent {
   }
 }
 
-/** The TLS options a connection describes, ready for an agent or a probe. */
+/**
+ * The TLS options a connection describes.
+ *
+ * Trust as configured, with no allowance for a pin: the pin is applied by the
+ * agent that also enforces it.
+ */
 export async function tlsOptionsFor(
   connection: S3Connection,
   supplied: S3Credential | null = null,
@@ -131,11 +136,7 @@ export async function tlsOptionsFor(
   const passphrase = (await credentialOrStored(connection, supplied))?.clientKeyPassphrase;
 
   return {
-    // A pin decides on its own which certificate is acceptable, and it is set
-    // for endpoints whose chain nothing can vouch for. Leaving the chain check
-    // on as well would refuse the pinned certificate before it is ever
-    // compared, which is the opposite of what pinning one was asked for.
-    rejectUnauthorized: config.pinnedSha256 === null && config.verify,
+    rejectUnauthorized: config.verify,
     // Node replaces the default roots when `ca` is given rather than adding to
     // them, so a private CA would otherwise make every public one unknown -
     // which breaks an endpoint whose chain ends at a public root.
@@ -157,9 +158,16 @@ async function agentFor(
   // Reused sockets are what keep a listing of a thousand keys from being a
   // thousand handshakes against an endpoint that may be doing mTLS.
   const agentOptions: https.AgentOptions = { keepAlive: true, ...options };
-  return connection.tls.pinnedSha256
-    ? new PinnedAgent(agentOptions, connection.tls.pinnedSha256)
-    : new https.Agent(agentOptions);
+
+  const pinned = connection.tls.pinnedSha256;
+  if (!pinned) return new https.Agent(agentOptions);
+
+  // Relaxing the chain check and checking the pin are one decision, made here
+  // rather than in the options, so nothing can end up with the first and not
+  // the second. A pin is set for endpoints whose chain nothing can vouch for,
+  // and leaving that check on would refuse the pinned certificate before it is
+  // ever compared.
+  return new PinnedAgent({ ...agentOptions, rejectUnauthorized: false }, pinned);
 }
 
 /**

@@ -15,6 +15,7 @@
 import type { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
+import { toS3Scope } from "@faws/contracts";
 import { getObjectStream, putObject, uploadPart } from "@faws/core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -177,11 +178,7 @@ export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
     let stream;
     try {
       stream = await getObjectStream(
-        {
-          profile: query.profile,
-          region: query.region,
-          ...(query.connectionId ? { connectionId: query.connectionId } : {}),
-        },
+        toS3Scope(query),
         {
           bucket: query.bucket,
           key: query.key,

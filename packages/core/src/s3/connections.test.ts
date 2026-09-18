@@ -1,13 +1,7 @@
 import { s3ConnectionInputSchema, type S3ConnectionInput } from "@faws/contracts";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import {
-  capabilitiesFor,
-  credentialFor,
-  deleteConnection,
-  getConnection,
-  saveConnection,
-} from "./connections.ts";
+import { credentialFor, deleteConnection, getConnection, saveConnection } from "./connections.ts";
 import {
   createMemoryConnectionStore,
   createMemoryCredentialStore,
@@ -104,24 +98,6 @@ describe("credential summaries", () => {
         hasClientKeyPassphrase: false,
       },
     ]);
-  });
-});
-
-describe("capabilitiesFor", () => {
-  it("offers everything when the scope points at AWS", async () => {
-    expect(await capabilitiesFor({ profile: "default", region: "us-east-1" })).toEqual({
-      bucketRegions: true,
-      storageMetrics: true,
-      presign: true,
-    });
-  });
-
-  it("withholds what only AWS answers when the scope points at an endpoint", async () => {
-    const saved = await saveConnection(input());
-
-    expect(
-      await capabilitiesFor({ profile: "default", region: "us-east-1", connectionId: saved.id }),
-    ).toEqual({ bucketRegions: false, storageMetrics: false, presign: true });
   });
 });
 

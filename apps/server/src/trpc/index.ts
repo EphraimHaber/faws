@@ -4,7 +4,6 @@ import {
   EndpointTrustError,
   ProfileNotFoundError,
   ReadOnlyModeError,
-  s3ScopeSchema,
 } from "@faws/contracts";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
@@ -69,15 +68,6 @@ export const scopeInput = z.object({
   profile: z.string(),
   region: z.string().min(1),
 });
-
-/**
- * The scope an S3 call takes.
- *
- * S3 is the one service that can be pointed somewhere other than AWS, so it
- * carries a connection the others have no notion of; without one this is the
- * same profile and region as everything else.
- */
-export const s3ScopeInput = s3ScopeSchema;
 
 export function toTrpcError(err: unknown): TRPCError {
   if (err instanceof ConnectionNotFoundError) {

@@ -1,4 +1,4 @@
-import type { S3PrefixRollup } from "@faws/contracts";
+import { type S3PrefixRollup, toS3Scope } from "@faws/contracts";
 import { byteSize } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Ruler, Square } from "lucide-react";
@@ -111,9 +111,7 @@ function PrefixSize({ bucket, prefix }: { bucket: string; prefix: string }) {
     handle.current = startScan(
       {
         scanId: crypto.randomUUID(),
-        profile: scope.profile,
-        region: scope.region,
-        ...(scope.connectionId ? { connectionId: scope.connectionId } : {}),
+        ...toS3Scope(scope),
         bucket,
         prefix,
         maxObjects: MAX_OBJECTS,

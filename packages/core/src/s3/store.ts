@@ -13,6 +13,21 @@
  */
 import type { S3Connection, S3Credential, S3CredentialSummary } from "@faws/contracts";
 
+/**
+ * What a credential looks like from outside the store.
+ *
+ * Written once so no implementation can decide for itself how much of a
+ * credential a summary carries.
+ */
+export function toCredentialSummary(ref: string, credential: S3Credential): S3CredentialSummary {
+  return {
+    ref,
+    accessKeyId: credential.accessKeyId,
+    hasSessionToken: Boolean(credential.sessionToken),
+    hasClientKeyPassphrase: Boolean(credential.clientKeyPassphrase),
+  };
+}
+
 /** The endpoint records, which carry no key material. */
 export interface S3ConnectionStore {
   list(): Promise<S3Connection[]>;
@@ -64,12 +79,7 @@ export function createMemoryCredentialStore(): S3CredentialStore {
     },
     summaries: () =>
       Promise.resolve(
-        [...credentials].map(([ref, credential]) => ({
-          ref,
-          accessKeyId: credential.accessKeyId,
-          hasSessionToken: Boolean(credential.sessionToken),
-          hasClientKeyPassphrase: Boolean(credential.clientKeyPassphrase),
-        })),
+        [...credentials].map(([ref, credential]) => toCredentialSummary(ref, credential)),
       ),
   };
 }

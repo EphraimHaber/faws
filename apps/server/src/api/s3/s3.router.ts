@@ -5,7 +5,7 @@
  * over superjson, which would base64 a body and hold the whole object in
  * memory on the way through; bytes travel over their own streaming routes.
  */
-import { s3ListObjectsSchema, s3ObjectRefSchema } from "@faws/contracts";
+import { s3ListObjectsSchema, s3ObjectRefSchema, s3ScopeSchema } from "@faws/contracts";
 import {
   bucketConfig,
   bucketRegion,
@@ -18,16 +18,16 @@ import {
 } from "@faws/core";
 import { z } from "zod";
 
-import { guard, publicProcedure, router, s3ScopeInput } from "../../trpc/index.ts";
+import { guard, publicProcedure, router } from "../../trpc/index.ts";
 
 export const s3Router = router({
   buckets: publicProcedure
-    .input(s3ScopeInput)
+    .input(s3ScopeSchema)
     .query(({ input }) => guard(() => listBuckets(input))),
 
   /** Resolved on demand, because a bucket is addressed in its own region. */
   bucketRegion: publicProcedure
-    .input(s3ScopeInput.extend({ bucket: z.string().min(1) }))
+    .input(s3ScopeSchema.extend({ bucket: z.string().min(1) }))
     .query(({ input }) => guard(() => bucketRegion(input, input.bucket))),
 
   /**
@@ -35,23 +35,23 @@ export const s3Router = router({
    * this returns, rather than the server walking the whole prefix.
    */
   list: publicProcedure
-    .input(s3ScopeInput.and(s3ListObjectsSchema))
+    .input(s3ScopeSchema.and(s3ListObjectsSchema))
     .query(({ input }) => guard(() => listObjectsPage(input, input))),
 
   /** Whether a delete on this bucket writes a recoverable marker. */
   versioning: publicProcedure
-    .input(s3ScopeInput.extend({ bucket: z.string().min(1) }))
+    .input(s3ScopeSchema.extend({ bucket: z.string().min(1) }))
     .query(({ input }) => guard(() => bucketVersioning(input, input.bucket))),
 
   /** Everything the properties pane shows, degrading per field. */
   config: publicProcedure
-    .input(s3ScopeInput.extend({ bucket: z.string().min(1) }))
+    .input(s3ScopeSchema.extend({ bucket: z.string().min(1) }))
     .query(({ input }) => guard(() => bucketConfig(input, input.bucket))),
 
   /** Versions and delete markers; this listing pages on two markers. */
   versions: publicProcedure
     .input(
-      s3ScopeInput.extend({
+      s3ScopeSchema.extend({
         bucket: z.string().min(1),
         prefix: z.string().max(1024).default(""),
         keyMarker: z.string().optional(),
@@ -72,7 +72,7 @@ export const s3Router = router({
   /** Daily size and object count, which is cheaper than counting. */
   storageMetrics: publicProcedure
     .input(
-      s3ScopeInput.extend({
+      s3ScopeSchema.extend({
         bucket: z.string().min(1),
         days: z.number().int().positive().max(365).optional(),
       }),
@@ -88,7 +88,7 @@ export const s3Router = router({
     ),
 
   /** What an object is, which decides whether and how its bytes are fetched. */
-  head: publicProcedure.input(s3ScopeInput.and(s3ObjectRefSchema)).query(({ input }) =>
+  head: publicProcedure.input(s3ScopeSchema.and(s3ObjectRefSchema)).query(({ input }) =>
     guard(() =>
       headObject(input, {
         bucket: input.bucket,

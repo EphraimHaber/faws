@@ -8,7 +8,6 @@
  * caller that is only describing endpoints never sees one.
  */
 import type {
-  S3Capabilities,
   S3Connection,
   S3ConnectionCredentials,
   S3ConnectionInput,
@@ -19,11 +18,6 @@ import type {
 import { AwsRequestError, ConnectionNotFoundError } from "@faws/contracts";
 
 import { connectionStore, credentialStore } from "./store.ts";
-
-export async function listConnections(): Promise<S3Connection[]> {
-  const stored = await connectionStore().list();
-  return stored.toSorted((a, b) => a.name.localeCompare(b.name));
-}
 
 export async function getConnection(id: string): Promise<S3Connection> {
   const stored = await connectionStore().get(id);
@@ -176,21 +170,4 @@ export async function deleteConnection(id: string): Promise<void> {
   if (existing?.credentials.mode === "stored") {
     await credentialStore().remove(existing.credentials.ref);
   }
-}
-
-/**
- * What the UI may offer for a scope.
- *
- * A bucket outside AWS has no home region to resolve and no CloudWatch behind
- * it, and both of those drive panes that would otherwise spend a request per
- * open only to report a failure.
- */
-export async function capabilitiesFor(scope: S3Scope): Promise<S3Capabilities> {
-  const connection = await connectionFor(scope);
-  if (!connection) return { bucketRegions: true, storageMetrics: true, presign: true };
-  return {
-    bucketRegions: false,
-    storageMetrics: connection.features.storageMetrics,
-    presign: connection.features.presign,
-  };
 }

@@ -7,29 +7,21 @@
  * protecting. What they do carry is a key on the way in and never on the way
  * out.
  */
+import { s3ConnectionInputSchema, s3ConnectionRefSchema } from "@faws/contracts";
 import {
-  s3ConnectionInputSchema,
-  s3ConnectionProbeSchema,
-  s3ConnectionRefSchema,
-} from "@faws/contracts";
-import {
-  capabilitiesFor,
   credentialStore,
   deleteConnection,
   invalidateConnection,
-  listConnections,
   probeConnection,
   saveConnection,
 } from "@faws/core";
 
 import { createLogger } from "../../shared/logger.ts";
-import { guard, publicProcedure, router, s3ScopeInput } from "../../trpc/index.ts";
+import { guard, publicProcedure, router } from "../../trpc/index.ts";
 
 const log = createLogger("s3-connections");
 
 export const s3ConnectionsRouter = router({
-  list: publicProcedure.query(() => guard(() => listConnections())),
-
   /**
    * Which credentials exist, and which key id each one is.
    *
@@ -37,11 +29,6 @@ export const s3ConnectionsRouter = router({
    * "this endpoint signs as AKIA..." and nothing more.
    */
   credentials: publicProcedure.query(() => guard(() => credentialStore().summaries())),
-
-  /** What the panes for this scope can offer, which AWS alone answers fully. */
-  capabilities: publicProcedure
-    .input(s3ScopeInput)
-    .query(({ input }) => guard(() => capabilitiesFor(input))),
 
   save: publicProcedure.input(s3ConnectionInputSchema).mutation(({ input }) =>
     guard(async () => {
@@ -73,6 +60,6 @@ export const s3ConnectionsRouter = router({
    * pinning this one certificate, and turning verification off.
    */
   test: publicProcedure
-    .input(s3ConnectionProbeSchema)
+    .input(s3ConnectionInputSchema)
     .mutation(({ input }) => guard(() => probeConnection(input))),
 });

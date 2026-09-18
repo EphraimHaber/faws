@@ -4,6 +4,8 @@ import {
   type LogTimestamps,
   MIN_LOG_GUTTER,
   REFRESH_CHOICES,
+  type S3Scope,
+  toS3Scope,
 } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -123,10 +125,10 @@ export function useAwsScope(): { profile: string; region: string } {
  * invalidates the buckets, the listings and the object in view together rather
  * than leaving one pane showing another storage system's contents.
  */
-export function useS3Scope(): { profile: string; region: string; connectionId?: string } {
+export function useS3Scope(): S3Scope {
   const { profile, region, connectionId } = useScope();
   return React.useMemo(
-    () => ({ profile, region, ...(connectionId ? { connectionId } : {}) }),
+    () => toS3Scope({ profile, region, connectionId }),
     [profile, region, connectionId],
   );
 }

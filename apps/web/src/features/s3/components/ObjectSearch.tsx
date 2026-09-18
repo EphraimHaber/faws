@@ -1,4 +1,4 @@
-import type { S3ObjectSummary, S3ScanProgress } from "@faws/contracts";
+import { type S3ObjectSummary, type S3ScanProgress, toS3Scope } from "@faws/contracts";
 import { byteSize, requiresDeep } from "@faws/shared";
 import { Download, Search, Square, Telescope } from "lucide-react";
 import * as React from "react";
@@ -69,9 +69,7 @@ export function ObjectSearch({
     running.current = startScan(
       {
         scanId: crypto.randomUUID(),
-        profile: scope.profile,
-        region: scope.region,
-        ...(scope.connectionId ? { connectionId: scope.connectionId } : {}),
+        ...toS3Scope(scope),
         bucket,
         prefix,
         pattern,

@@ -125,9 +125,6 @@ export interface S3Connection {
   readonly updatedAt: string;
 }
 
-/** The fields of a credential, for the ones a form may replace one at a time. */
-export type S3CredentialField = keyof S3Credential;
-
 /**
  * Where an S3 call is pointed.
  *
@@ -146,6 +143,45 @@ export interface S3Capabilities {
   readonly bucketRegions: boolean;
   readonly storageMetrics: boolean;
   readonly presign: boolean;
+}
+
+/**
+ * What a connection can answer, decided in one place.
+ *
+ * A pure function of the record, so the server and the renderer cannot come to
+ * different conclusions about which panes exist: a bucket outside AWS has no
+ * home region to resolve and no CloudWatch behind it unless the endpoint says
+ * it is fronting some.
+ */
+export function s3CapabilitiesFor(connection: S3Connection | null): S3Capabilities {
+  if (!connection) return { bucketRegions: true, storageMetrics: true, presign: true };
+  return {
+    bucketRegions: false,
+    storageMetrics: connection.features.storageMetrics,
+    presign: connection.features.presign,
+  };
+}
+
+/**
+ * An S3 scope, with an absent connection left out rather than set to
+ * undefined.
+ *
+ * Every caller that builds one from a request or a form was writing the same
+ * conditional spread, which this workspace's optionality requires and which is
+ * easy to drop by accident - and dropping it points S3 at AWS.
+ */
+export function toS3Scope(source: {
+  profile: string;
+  region: string;
+  connectionId?: string | null | undefined;
+  // Narrower than `S3Scope`, whose connection may also be null because that is
+  // what arrives over the wire: what comes out of here is set or absent.
+}): { profile: string; region: string; connectionId?: string } {
+  return {
+    profile: source.profile,
+    region: source.region,
+    ...(source.connectionId ? { connectionId: source.connectionId } : {}),
+  };
 }
 
 /**
@@ -245,7 +281,7 @@ const pemBlock = z
  * reading that as a value rather than as absence is how a blank field ends up
  * stored as an empty path or an empty name.
  */
-function optional<Out, In>(inner: z.ZodType<Out, In>): z.ZodType<Out | null, unknown> {
+function blankToNull<Out, In>(inner: z.ZodType<Out, In>): z.ZodType<Out | null, unknown> {
   return z.preprocess(
     (value) => (typeof value === "string" && value.trim().length === 0 ? null : value),
     inner.nullish().transform((value) => value ?? null),
@@ -259,11 +295,11 @@ export const s3ConnectionTlsSchema = z.object({
     .max(8)
     .transform((paths) => paths.filter((path) => path.trim().length > 0))
     .default([]),
-  caPem: optional(pemBlock),
-  clientCertPath: optional(z.string()),
-  clientKeyPath: optional(z.string()),
-  servername: optional(z.string()),
-  pinnedSha256: optional(fingerprint),
+  caPem: blankToNull(pemBlock),
+  clientCertPath: blankToNull(z.string()),
+  clientKeyPath: blankToNull(z.string()),
+  servername: blankToNull(z.string()),
+  pinnedSha256: blankToNull(fingerprint),
 });
 
 /** What a connection starts as: verified TLS, no extra trust, no mTLS. */
@@ -428,9 +464,6 @@ export function applyS3ConnectionOp(
   const without = current.filter((entry) => entry.id !== op.connection.id);
   return [...without, op.connection];
 }
-
-/** Testing an unsaved form, which is the only time it is worth testing. */
-export const s3ConnectionProbeSchema = s3ConnectionInputSchema;
 
 /**
  * The scope an S3 procedure takes.
