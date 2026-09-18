@@ -15,7 +15,7 @@ import { CommandPalette } from "~/components/CommandPalette";
 import { KeyboardHelp } from "~/components/KeyboardHelp";
 import { StatusBar } from "~/components/StatusBar";
 import { installTrafficLightInset } from "~/lib/desktop";
-import { useOverlaysOpen } from "~/stores/overlays";
+import { useShortcutsSuspended } from "~/lib/shortcut-scope";
 import { describe } from "~/lib/hotkeys";
 import { useLogIngest } from "~/lib/log-store";
 import { getSocket } from "~/lib/socket";
@@ -25,6 +25,9 @@ import { ClustersPage } from "~/features/ecs/pages/ClustersPage";
 import { DeploymentsPage } from "~/features/ecs/pages/DeploymentsPage";
 import { EcsIndexPage } from "~/features/ecs/pages/EcsIndexPage";
 import { HomePage } from "~/pages/HomePage";
+import { TerminalDock } from "~/features/terminal/components/TerminalDock";
+import { blurTerminal } from "~/lib/terminal/xterm";
+import { useSessions } from "~/stores/sessions";
 import { LogsPage } from "~/pages/LogsPage";
 import { SERVICE_TABS, ServicePage } from "~/features/ecs/pages/ServicePage";
 import { BUCKET_TABS, BucketPage } from "~/features/s3/pages/BucketPage";
@@ -235,7 +238,16 @@ function RootLayout() {
     return match?.[1] ? decodeURIComponent(match[1]) : null;
   }, [location.pathname]);
 
-  const overlayOpen = useOverlaysOpen();
+  const overlayOpen = useShortcutsSuspended();
+
+  const dockSessions = useSessions((state) => state.sessions);
+  const dockActiveId = useSessions((state) => state.activeId);
+  const dockOpen = useSessions((state) => state.dockOpen);
+  const toggleDock = useSessions((state) => state.toggleDock);
+  const toggleFullscreen = useSessions((state) => state.toggleFullscreen);
+  const activateRelative = useSessions((state) => state.activateRelative);
+  const closeSession = useSessions((state) => state.close);
+  const hasSessions = dockSessions.length > 0;
 
   useHotkeys(
     [
@@ -282,6 +294,68 @@ function RootLayout() {
         callback: () => void router.history.back(),
         options: { enabled: !overlayOpen, meta: describe("Navigation", "Back one level") },
       },
+      // Every terminal binding sets `ignoreInputs: false`, because xterm's
+      // input sink is a real textarea and these have to work from inside it.
+      {
+        // Backtick is shifted punctuation on some layouts, so the typed hotkey
+        // strings exclude it - declared raw, exactly as `?` is above.
+        hotkey: { key: "`", ctrl: true },
+        callback: () => toggleDock(),
+        options: {
+          ignoreInputs: false,
+          enabled: hasSessions,
+          meta: describe("Terminal", "Show or hide the terminal dock"),
+        },
+      },
+      {
+        hotkey: "Mod+Escape",
+        callback: () => {
+          if (dockActiveId) blurTerminal(dockActiveId);
+        },
+        options: {
+          ignoreInputs: false,
+          enabled: hasSessions,
+          meta: describe("Terminal", "Leave the terminal", "Returns focus to the page"),
+        },
+      },
+      {
+        hotkey: "Mod+Alt+]",
+        callback: () => activateRelative(1),
+        options: {
+          ignoreInputs: false,
+          enabled: hasSessions,
+          meta: describe("Terminal", "Next terminal tab"),
+        },
+      },
+      {
+        hotkey: "Mod+Alt+[",
+        callback: () => activateRelative(-1),
+        options: {
+          ignoreInputs: false,
+          enabled: hasSessions,
+          meta: describe("Terminal", "Previous terminal tab"),
+        },
+      },
+      {
+        hotkey: "Mod+Alt+Enter",
+        callback: () => toggleFullscreen(),
+        options: {
+          ignoreInputs: false,
+          enabled: hasSessions && dockOpen,
+          meta: describe("Terminal", "Fill the window with the terminal"),
+        },
+      },
+      {
+        hotkey: "Mod+Alt+W",
+        callback: () => {
+          if (dockActiveId) closeSession(dockActiveId);
+        },
+        options: {
+          ignoreInputs: false,
+          enabled: hasSessions,
+          meta: describe("Terminal", "Close this terminal tab"),
+        },
+      },
     ],
     { preventDefault: true },
   );
@@ -295,6 +369,7 @@ function RootLayout() {
           <Outlet />
         </main>
       </div>
+      <TerminalDock />
       <StatusBar onShowHelp={() => setHelpOpen(true)} />
       <CommandPalette
         open={paletteOpen}

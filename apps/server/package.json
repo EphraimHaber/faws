@@ -23,6 +23,7 @@
     "postinstall": "node scripts/fix-native-perms.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-ecs": "catalog:",
     "@aws-sdk/client-ssm": "catalog:",
     "@fastify/cors": "^11.0.0",
     "@fastify/static": "^10.1.3",

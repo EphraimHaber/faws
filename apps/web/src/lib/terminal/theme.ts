@@ -49,3 +49,18 @@ export function buildTerminalTheme(
 export function terminalTheme(): ITheme {
   return buildTerminalTheme(cssColor);
 }
+
+/**
+ * The mono stack, as a concrete font-family string.
+ *
+ * xterm measures glyph width on a canvas, and a canvas font string cannot
+ * contain `var()` - passing one through yields nonsense metrics and a terminal
+ * whose characters are spaced as if each were several columns wide. So the
+ * variable is resolved here, with the same stack as a fallback.
+ */
+export function terminalFontFamily(): string {
+  const resolved = getComputedStyle(document.documentElement)
+    .getPropertyValue("--font-mono")
+    .trim();
+  return resolved || '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+}

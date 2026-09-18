@@ -6,6 +6,7 @@ import * as React from "react";
 
 import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { LogsPane } from "~/features/ecs/components/LogsPane";
+import { useSessions } from "~/stores/sessions";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { CopyIcon } from "~/components/ui/copy-button";
@@ -22,6 +23,7 @@ import { trpc } from "~/lib/trpc";
 /** Bottom of the drill-down: one task and each of its containers. */
 export function TaskPage({ cluster, taskId }: { cluster: string; taskId: string }) {
   const scope = useAwsScope();
+  const openSession = useSessions((state) => state.open);
   const task = useQuery(trpc.ecs.task.queryOptions({ ...scope, cluster, taskId }));
 
   if (task.isPending)
@@ -131,6 +133,16 @@ export function TaskPage({ cluster, taskId }: { cluster: string; taskId: string 
                     data.enableExecuteCommand
                       ? "Open a shell in this container"
                       : "ECS Exec is not enabled on this task"
+                  }
+                  onClick={() =>
+                    openSession({
+                      kind: "ecs",
+                      profile: scope.profile,
+                      region: scope.region,
+                      cluster,
+                      taskId,
+                      containerName: container.name,
+                    })
                   }
                 >
                   <Terminal className="size-3" /> Shell

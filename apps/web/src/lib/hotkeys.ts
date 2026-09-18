@@ -7,7 +7,7 @@
  */
 import type { HotkeyMeta } from "@tanstack/react-hotkeys";
 
-export const HOTKEY_CATEGORIES = ["Navigation", "Table", "Context"] as const;
+export const HOTKEY_CATEGORIES = ["Navigation", "Table", "Terminal", "Context"] as const;
 
 export type HotkeyCategory = (typeof HOTKEY_CATEGORIES)[number];
 
