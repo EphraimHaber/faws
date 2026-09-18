@@ -21,9 +21,10 @@ import Fastify, { type FastifyBaseLogger, type FastifyError } from "fastify";
 
 import { attachExecNamespace } from "./api/exec/exec.service.ts";
 import { s3BytesRoutes } from "./api/s3/bytes.routes.ts";
+import { attachS3ScanNamespace } from "./api/s3/scan.service.ts";
 import { appRouter, type AppRouter } from "./router.ts";
 import { getRootLogger } from "./shared/logger.ts";
-import { getExecNamespace, setupSocketIO } from "./shared/socket-io.ts";
+import { getExecNamespace, getS3ScanNamespace, setupSocketIO } from "./shared/socket-io.ts";
 
 const HOST = process.env["FAWS_HOST"] ?? "127.0.0.1";
 const PORT = process.env["FAWS_PORT"] ? Number(process.env["FAWS_PORT"]) : 0;
@@ -105,6 +106,8 @@ const resolvedPort = (server.server.address() as { port: number } | null)?.port 
 setupSocketIO(server);
 const execNs = getExecNamespace();
 if (execNs) attachExecNamespace(execNs);
+const scanNs = getS3ScanNamespace();
+if (scanNs) attachS3ScanNamespace(scanNs);
 
 console.log(`faws-server-port: ${resolvedPort}`);
 console.log(`faws-server-url: ${address.replace(/\/$/, "")}/trpc`);

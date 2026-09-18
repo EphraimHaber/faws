@@ -92,3 +92,24 @@ export interface S3ObjectHead {
   /** Present while an archived object is being restored, or once it has been. */
   readonly restore: string | null;
 }
+
+/** How far a recursive scan has got, and whether it stopped early. */
+export interface S3ScanProgress {
+  readonly scanned: number;
+  readonly matched: number;
+  /** Bytes seen, matched or not, which is what a rollup counts. */
+  readonly bytes: number;
+  /** The last key read, so a running scan can say where it is. */
+  readonly currentPrefix: string;
+  readonly done: boolean;
+  /** True when a ceiling stopped the walk before the prefix ran out. */
+  readonly truncated: boolean;
+}
+
+/** Size and count under a prefix, accumulated as the scan walks it. */
+export interface S3PrefixRollup {
+  readonly prefix: string;
+  readonly objectCount: number;
+  readonly totalBytes: number;
+  readonly byStorageClass: Readonly<Record<string, number>>;
+}

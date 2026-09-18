@@ -17,3 +17,4 @@ export * from "./elb/targets.ts";
 export * from "./s3/buckets.ts";
 export * from "./s3/objects.ts";
 export * from "./s3/openAs.ts";
+export * from "./s3/scan.ts";

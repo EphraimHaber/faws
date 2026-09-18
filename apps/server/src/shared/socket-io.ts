@@ -5,6 +5,10 @@ import type {
   ExecServerToClientEvents,
   ExecSocketData,
   InterServerEvents,
+  S3ScanClientToServerEvents,
+  S3ScanInterServerEvents,
+  S3ScanServerToClientEvents,
+  S3ScanSocketData,
   ServerToClientEvents,
   SocketData,
 } from "@faws/socket-io-events";
@@ -22,10 +26,18 @@ export type ExecNamespace = Namespace<
   ExecSocketData
 >;
 
+export type S3ScanNamespace = Namespace<
+  S3ScanClientToServerEvents,
+  S3ScanServerToClientEvents,
+  S3ScanInterServerEvents,
+  S3ScanSocketData
+>;
+
 const log = createLogger("socket-io");
 
 let ioInstance: IOServer | null = null;
 let execNs: ExecNamespace | null = null;
+let s3ScanNs: S3ScanNamespace | null = null;
 
 export function setupSocketIO(fastify: FastifyInstance): IOServer {
   ioInstance = new Server(fastify.server, {
@@ -50,6 +62,7 @@ export function setupSocketIO(fastify: FastifyInstance): IOServer {
   // Socket.IO has no `.of<T>()` overload for per-namespace event types yet,
   // so the cast is how we attach the `/exec` contract.
   execNs = ioInstance.of("/exec") as unknown as ExecNamespace;
+  s3ScanNs = ioInstance.of("/s3-scan") as unknown as S3ScanNamespace;
 
   log.info("Socket.IO attached (in-memory adapter)");
   return ioInstance;
@@ -57,6 +70,10 @@ export function setupSocketIO(fastify: FastifyInstance): IOServer {
 
 export function getExecNamespace(): ExecNamespace | null {
   return execNs;
+}
+
+export function getS3ScanNamespace(): S3ScanNamespace | null {
+  return s3ScanNs;
 }
 
 /** Fan-out helper used by the menu/nav bridge in the desktop shell. */
