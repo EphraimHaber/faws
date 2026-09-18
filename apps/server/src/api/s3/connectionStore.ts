@@ -12,9 +12,8 @@
  * SDK's provider chain finds them and where rotating them is one place rather
  * than two.
  */
-import * as fs from "node:fs/promises";
-
 import type { S3Credential, S3CredentialSummary } from "@faws/contracts";
+import { AwsRequestError } from "@faws/contracts";
 import {
   registerConnectionStores,
   type S3ConnectionStore,
@@ -23,7 +22,11 @@ import {
 import { s3CredentialsFile } from "@faws/shared/dataDir";
 
 import { createLogger } from "../../shared/logger.ts";
-import { writeSettingsFileAtomic } from "../settings/settings.file.ts";
+import {
+  describeError,
+  readSettingsFile,
+  writeSettingsFileAtomic,
+} from "../settings/settings.file.ts";
 import { settingsStore } from "../settings/settings.instance.ts";
 import type { SettingsStore } from "../settings/settings.store.ts";
 
@@ -79,24 +82,43 @@ export function createFileCredentialStore(file: string = s3CredentialsFile()): S
    */
   let credentials: Map<string, S3Credential> | null = null;
 
+  /**
+   * Everything the file holds, or a failure that refuses to guess.
+   *
+   * The one thing this must never do is answer "no credentials" for a file it
+   * could not read: the next save writes what is in memory, so a wrong empty
+   * answer here is every other endpoint's key deleted. Unreadable JSON is
+   * moved aside first - the path then really is empty, and the original is
+   * still there to hand back - and a file that cannot be opened at all fails
+   * the call instead.
+   */
   async function loaded(): Promise<Map<string, S3Credential>> {
     if (credentials) return credentials;
-    const entries = new Map<string, S3Credential>();
+
+    let result;
     try {
-      const parsed: unknown = JSON.parse(await fs.readFile(file, "utf8"));
-      if (parsed !== null && typeof parsed === "object") {
-        for (const [ref, raw] of Object.entries(parsed as Record<string, unknown>)) {
-          const credential = readCredential(raw);
-          if (credential) entries.set(ref, credential);
-        }
-      }
+      result = await readSettingsFile(file);
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
-        // An unreadable credentials file must not take the endpoints with it:
-        // they still list, and the one that needed a key says what is missing.
-        log.error({ err, file }, "could not read stored S3 credentials");
-      }
+      throw new AwsRequestError(`Could not read the stored S3 credentials: ${describeError(err)}`, {
+        code: "BadConfiguration",
+        service: "s3",
+      });
     }
+
+    if (result.corruptedTo) {
+      log.error(
+        { file, movedTo: result.corruptedTo },
+        "S3 credentials file was unreadable and has been moved aside",
+      );
+    }
+
+    const entries = new Map<string, S3Credential>();
+    for (const [ref, raw] of Object.entries(result.raw ?? {})) {
+      const credential = readCredential(raw);
+      if (credential) entries.set(ref, credential);
+      else log.warn({ file, ref }, "dropped an unreadable S3 credential entry");
+    }
+
     credentials = entries;
     return credentials;
   }

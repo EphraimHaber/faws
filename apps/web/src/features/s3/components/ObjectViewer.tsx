@@ -25,6 +25,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Spinner } from "~/components/ui/spinner";
 import { useS3Scope } from "~/contexts/ScopeContext";
+import { scopeKey } from "~/features/s3/scopeKey";
 import { fullTimestamp } from "~/lib/format";
 import { downloadObject, fetchRange, fetchText, objectUrl } from "~/lib/s3-bytes";
 import { trpc } from "~/lib/trpc";
@@ -216,8 +217,7 @@ function TextualObject({
   const content = useQuery({
     queryKey: [
       "s3:content",
-      scope.profile,
-      scope.region,
+      ...scopeKey(scope),
       head.bucket,
       head.key,
       head.etag,
@@ -349,7 +349,7 @@ function BinaryObject({ head }: { head: S3ObjectHead }) {
 function HeadBytes({ head }: { head: S3ObjectHead }) {
   const scope = useS3Scope();
   const slice = useQuery({
-    queryKey: ["s3:hex", scope.profile, scope.region, head.bucket, head.key, head.etag],
+    queryKey: ["s3:hex", ...scopeKey(scope), head.bucket, head.key, head.etag],
     queryFn: ({ signal }) =>
       fetchRange(
         scope,

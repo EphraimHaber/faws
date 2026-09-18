@@ -13,6 +13,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useS3Scope } from "~/contexts/ScopeContext";
+import { scopeKey } from "~/features/s3/scopeKey";
 import { fullTimestamp } from "~/lib/format";
 import { trpcClient } from "~/lib/trpc";
 
@@ -51,7 +52,7 @@ export function VersionsPane({
   );
 
   const listing = useInfiniteQuery({
-    queryKey: ["s3:versions", scope.profile, scope.region, bucket, prefix],
+    queryKey: ["s3:versions", ...scopeKey(scope), bucket, prefix],
     initialPageParam: { keyMarker: undefined, versionIdMarker: undefined } as {
       keyMarker: string | undefined;
       versionIdMarker: string | undefined;

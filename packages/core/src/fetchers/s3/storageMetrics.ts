@@ -22,10 +22,12 @@ export async function bucketStorageMetrics(
   bucket: string,
   options: { days?: number } = {},
 ): Promise<MetricSeries[]> {
-  // These come from CloudWatch, which an S3 compatible endpoint has no
-  // counterpart to; asking AWS about a bucket it does not have would answer
-  // with an empty series that reads like a bucket of nothing.
-  if (await connectionFor(scope)) {
+  // These come from CloudWatch, which most S3 compatible endpoints have no
+  // counterpart to - asking AWS about a bucket it does not have answers with
+  // an empty series that reads like a bucket of nothing. An endpoint fronting
+  // real AWS is the exception, and says so on the connection.
+  const connection = await connectionFor(scope);
+  if (connection && !connection.features.storageMetrics) {
     throw new AwsRequestError("This endpoint does not publish storage metrics.", {
       code: "NotImplemented",
       service: "s3",

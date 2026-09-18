@@ -179,3 +179,22 @@ describe("s3ConnectionInputSchema", () => {
     expect(parsed.success).toBe(false);
   });
 });
+
+describe("switching an endpoint to stored keys", () => {
+  it("refuses to save a credential with nothing in it", async () => {
+    const saved = await saveConnection(
+      input({ credentialMode: "anonymous", accessKeyId: undefined, secretAccessKey: undefined }),
+    );
+
+    await expect(
+      saveConnection(
+        input({
+          id: saved.id,
+          credentialMode: "stored",
+          accessKeyId: undefined,
+          secretAccessKey: undefined,
+        }),
+      ),
+    ).rejects.toThrow(/access key id/i);
+  });
+});

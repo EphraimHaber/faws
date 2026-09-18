@@ -245,7 +245,7 @@ export function ConnectionDialog({
           <CheckboxField
             name="features.storageMetrics"
             label="Daily storage metrics"
-            hint="Only AWS publishes these; a bucket elsewhere is measured by walking it."
+            hint="Off for storage that is not AWS, which publishes none. Tick it only for an endpoint fronting real AWS buckets, where CloudWatch has them."
           />
           <CheckboxField
             name="features.presign"

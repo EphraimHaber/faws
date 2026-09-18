@@ -14,7 +14,7 @@ import { ListBucketsCommand } from "@aws-sdk/client-s3";
 import type { S3ConnectionInput, S3ConnectionProbe, S3ProbeTls } from "@faws/contracts";
 
 import { credentialFor, draftConnection, mergeCredential } from "./connections.ts";
-import { buildEndpointClient, tlsOptionsFor } from "./endpointClient.ts";
+import { buildEndpointClient, normalizeFingerprint, tlsOptionsFor } from "./endpointClient.ts";
 
 /** Long enough for a busy endpoint, short enough to fail a wrong host fast. */
 const TIMEOUT_MS = 8000;
@@ -43,10 +43,11 @@ async function probeTls(
       () => {
         const cert = socket.getPeerCertificate();
         const fingerprint = cert.fingerprint256 ?? "";
+        // The same comparison the agent makes, so the verdict shown here and
+        // the handshake that follows cannot disagree about one certificate.
         const pinMatches =
           pinnedSha256 !== null &&
-          fingerprint.replaceAll(":", "").toUpperCase() ===
-            pinnedSha256.replaceAll(":", "").toUpperCase();
+          normalizeFingerprint(fingerprint) === normalizeFingerprint(pinnedSha256);
 
         resolve({
           // A pin answers the question the chain would otherwise answer, so a

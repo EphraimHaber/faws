@@ -67,7 +67,7 @@ function readPem(path: string, what: string): Buffer {
 }
 
 /** Colon hex, upper case, which is the form a pin is stored in. */
-function normalizeFingerprint(value: string): string {
+export function normalizeFingerprint(value: string): string {
   return value.replaceAll(/[^0-9A-Fa-f]/g, "").toUpperCase();
 }
 

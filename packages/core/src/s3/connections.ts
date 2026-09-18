@@ -16,7 +16,7 @@ import type {
   S3Credential,
   S3Scope,
 } from "@faws/contracts";
-import { ConnectionNotFoundError } from "@faws/contracts";
+import { AwsRequestError, ConnectionNotFoundError } from "@faws/contracts";
 
 import { connectionStore, credentialStore } from "./store.ts";
 
@@ -134,7 +134,17 @@ export async function saveConnection(input: S3ConnectionInput): Promise<S3Connec
 
   if (credentials.mode === "stored") {
     const current = existing ? await credentialFor(existing) : null;
-    await credentialStore().write(credentials.ref, mergeCredential(input, current));
+    const credential = mergeCredential(input, current);
+    // The schema can only require both halves for a connection that has no id;
+    // an endpoint switching to stored keys has one and nothing stored behind
+    // it, and saving that writes a credential no request can use.
+    if (!credential.accessKeyId || !credential.secretAccessKey) {
+      throw new AwsRequestError("Enter an access key id and a secret access key.", {
+        code: "BadConfiguration",
+        service: "s3",
+      });
+    }
+    await credentialStore().write(credentials.ref, credential);
   } else if (existing?.credentials.mode === "stored") {
     // The endpoint no longer signs with it, and a credential nothing points at
     // is a key kept for no one.

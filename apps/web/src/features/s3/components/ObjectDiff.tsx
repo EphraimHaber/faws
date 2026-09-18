@@ -7,6 +7,7 @@ import { Button } from "~/components/ui/button";
 import { ErrorState } from "~/components/ui/error-state";
 import { Spinner } from "~/components/ui/spinner";
 import { useS3Scope } from "~/contexts/ScopeContext";
+import { scopeKey } from "~/features/s3/scopeKey";
 import { fetchRange } from "~/lib/s3-bytes";
 import { cn } from "~/lib/utils";
 
@@ -42,8 +43,7 @@ export function ObjectDiff({
   const sides = useQuery({
     queryKey: [
       "s3:diff",
-      scope.profile,
-      scope.region,
+      ...scopeKey(scope),
       bucket,
       left.key,
       left.versionId,

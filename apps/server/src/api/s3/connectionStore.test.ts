@@ -137,6 +137,23 @@ describe("credentials", () => {
     expect((await store.read("cred-2"))?.secretAccessKey).toBe("other");
   });
 
+  it("moves an unreadable file aside rather than writing over it", async () => {
+    const store = credentials();
+    await store.write("cred-1", credential);
+    fs.appendFileSync(credentialsPath, "x");
+
+    const afterCorruption = credentials();
+    await afterCorruption.write("cred-2", { accessKeyId: "AKIAOTHER", secretAccessKey: "other" });
+
+    const quarantined = fs
+      .readdirSync(path.dirname(credentialsPath))
+      .filter((name) => name.includes(".corrupt-"));
+    expect(quarantined).toHaveLength(1);
+    expect(
+      fs.readFileSync(path.join(path.dirname(credentialsPath), quarantined[0]!), "utf8"),
+    ).toContain("s3cret");
+  });
+
   it("serves endpoints even when the credentials cannot be read", async () => {
     await records().put(connection);
     fs.mkdirSync(path.dirname(credentialsPath), { recursive: true });

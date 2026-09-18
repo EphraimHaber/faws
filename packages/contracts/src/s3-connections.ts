@@ -211,6 +211,16 @@ const endpointUrl = z
     if (url.search || url.hash) {
       ctx.addIssue({ code: "custom", message: "Drop the query; the endpoint is the origin only." });
     }
+    // A key in the URL would be stored as part of the endpoint, which is the
+    // one field of a connection that is written to the settings file, logged
+    // and quoted back in error messages. Keys go in the fields below, which
+    // none of that touches.
+    if (url.username || url.password) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Leave the keys out of the URL; enter them under Credentials.",
+      });
+    }
   });
 
 /** Colon separated hex, the form `openssl x509 -fingerprint -sha256` prints. */
@@ -381,7 +391,10 @@ export const s3ConnectionSchema: z.ZodType<S3Connection, unknown> = z.object({
       clientCertPath: z.string().nullable().catch(null),
       clientKeyPath: z.string().nullable().catch(null),
       servername: z.string().nullable().catch(null),
-      pinnedSha256: z.string().nullable().catch(null),
+      // Read with the form's own rule: anything else becomes "no pin", because
+      // a pin is what decides whether the chain is consulted, and one that
+      // cannot be compared must not be able to answer that question.
+      pinnedSha256: fingerprint.nullable().catch(null),
     })
     .catch(() => ({ ...DEFAULT_TLS, caPaths: [] })),
   features: z
