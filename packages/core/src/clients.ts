@@ -10,6 +10,7 @@ import { CloudWatchClient } from "@aws-sdk/client-cloudwatch";
 import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import { ECSClient } from "@aws-sdk/client-ecs";
 import { S3Client } from "@aws-sdk/client-s3";
+import { SSMClient } from "@aws-sdk/client-ssm";
 import { STSClient } from "@aws-sdk/client-sts";
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 import type { AwsScope } from "@faws/contracts";
@@ -21,6 +22,7 @@ type ClientBundle = {
   readonly cloudwatch: CloudWatchClient;
   readonly logs: CloudWatchLogsClient;
   readonly s3: S3Client;
+  readonly ssm: SSMClient;
 };
 
 const bundles = new Map<string, ClientBundle>();
@@ -53,6 +55,7 @@ function bundleFor(scope: AwsScope): ClientBundle {
       // TLS covers the transfer and the etag is compared at completion.
       requestChecksumCalculation: "WHEN_REQUIRED",
     }),
+    ssm: new SSMClient(config),
   };
   bundles.set(key, bundle);
   return bundle;
@@ -78,6 +81,10 @@ export function s3Client(scope: AwsScope): S3Client {
   return bundleFor(scope).s3;
 }
 
+export function ssmClient(scope: AwsScope): SSMClient {
+  return bundleFor(scope).ssm;
+}
+
 /** Drops cached clients for a scope so the next call re-resolves credentials. */
 export function invalidateScope(scope: AwsScope): void {
   const key = scopeKey(scope);
@@ -87,6 +94,8 @@ export function invalidateScope(scope: AwsScope): void {
   bundle.sts.destroy();
   bundle.cloudwatch.destroy();
   bundle.logs.destroy();
+  bundle.s3.destroy();
+  bundle.ssm.destroy();
   bundles.delete(key);
 }
 

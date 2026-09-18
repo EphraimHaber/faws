@@ -15,12 +15,12 @@ import { execHandshakeSchema, execPromptResponseSchema } from "@faws/contracts";
 
 import { createLogger } from "../../shared/logger.ts";
 import type { ExecNamespace } from "../../shared/socket-io.ts";
+import { isExecSessionError } from "./errors.ts";
 import {
   answerSessionPrompt,
   attachSession,
   closeSession,
   detachSession,
-  ExecSessionError,
   resizeSession,
   writeToSession,
   type SessionClient,
@@ -154,7 +154,7 @@ export function attachExecNamespace(namespace: ExecNamespace): void {
     void attachSession(auth, client, factory)
       .then(({ resumed }) => socket.emit("exec:ready", { sessionId: auth.sessionId, resumed }))
       .catch((err: unknown) => {
-        const code = err instanceof ExecSessionError ? err.code : "Internal";
+        const code = isExecSessionError(err) ? err.code : "Internal";
         const userMessage = err instanceof Error ? err.message : String(err);
         log.warn({ err, sessionId: auth.sessionId }, "exec session failed to start");
         socket.emit("exec:error", { code, userMessage });

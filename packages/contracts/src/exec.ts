@@ -179,6 +179,7 @@ export type ExecErrorCode =
   | "ExecuteCommandDisabled"
   | "ExecAgentNotRunning"
   | "TargetNotConnected"
+  | "InvalidInstanceId"
   | "AccessDenied"
   | "HostKeyChanged"
   | "HostKeyRejected"

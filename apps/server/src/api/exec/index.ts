@@ -8,6 +8,7 @@
  */
 import { createLogger } from "../../shared/logger.ts";
 import { echoDriverFactory } from "./drivers/echo.driver.ts";
+import { ssmDriverFactory } from "./drivers/ssm.driver.ts";
 import { registerExecDriver } from "./exec.service.ts";
 import { sweepRecordings } from "./recorder.ts";
 
@@ -25,5 +26,8 @@ export function registerExecDrivers(): void {
     registerExecDriver("ssm", echoDriverFactory);
     registerExecDriver("ssh", echoDriverFactory);
     log.warn("FAWS_EXEC_DEV_ECHO=1 - every exec session is a local echo, nothing will connect");
+    return;
   }
+
+  registerExecDriver("ssm", ssmDriverFactory);
 }

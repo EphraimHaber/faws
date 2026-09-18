@@ -23,6 +23,7 @@
     "@aws-sdk/client-ecs": "catalog:",
     "@aws-sdk/client-elastic-load-balancing-v2": "^3.1132.0",
     "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/client-ssm": "catalog:",
     "@aws-sdk/client-sts": "catalog:",
     "@aws-sdk/credential-providers": "catalog:",
     "@aws-sdk/s3-request-presigner": "catalog:",

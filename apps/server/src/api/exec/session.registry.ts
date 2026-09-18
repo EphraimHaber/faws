@@ -14,6 +14,7 @@ import type { ExecHandshakeAuth, ExecPrompt, ExecPromptResponse } from "@faws/co
 
 import { createLogger } from "../../shared/logger.ts";
 import type { ExecDriver, ExecDriverFactory, ExecSink } from "./exec.service.ts";
+import { ExecSessionError } from "./errors.ts";
 import { PromptBroker } from "./prompts.ts";
 import { startRecording, type Recorder } from "./recorder.ts";
 import { OutputRingBuffer } from "./ringBuffer.ts";
@@ -57,16 +58,6 @@ export interface SessionClient {
   error(code: string, userMessage: string): void;
   status(message: string): void;
   prompt(prompt: ExecPrompt): void;
-}
-
-export class ExecSessionError extends Error {
-  readonly code: string;
-
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = "ExecSessionError";
-    this.code = code;
-  }
 }
 
 interface Session {
