@@ -41,6 +41,7 @@ import {
 
 const HEIGHT_KEY = "faws:terminal:height";
 const RECORD_KEY = "faws:terminal:record";
+const OPEN_KEY = "faws:terminal:open";
 
 /** Tall enough for a shell prompt and a few lines of output. */
 export const MIN_DOCK_HEIGHT = 120;
@@ -54,6 +55,39 @@ const storedRecord = z
 
 /** Sockets, kept out of state for the same reason terminals are. */
 const sockets = new Map<string, ExecSocket>();
+
+/** What each tab is connected to, so a retry can rebuild the same handshake. */
+const targets = new Map<string, ExecTarget>();
+
+/**
+ * The tabs that were open, so a reload can pick them back up.
+ *
+ * Only the id and what it was connected to - never a socket, never a key,
+ * never any of the scrollback. The server holds the session itself for its
+ * grace window; this is just the note of which ones to ask for.
+ */
+const openTabSchema = z.array(
+  z.object({
+    id: z.string().min(1),
+    target: z.unknown(),
+    title: z.string(),
+    subtitle: z.string(),
+    kind: z.enum(["ecs", "ssm", "ssh"]),
+  }),
+);
+
+const storedOpen = z
+  .string()
+  .transform((raw) => openTabSchema.parse(JSON.parse(raw)))
+  .catch([]);
+
+function rememberOpenTabs(): void {
+  const entries = [...targets.entries()].map(([id, target]) => {
+    const { title, subtitle } = describeTarget(target);
+    return { id, target, kind: target.kind, title, subtitle };
+  });
+  writeStored(OPEN_KEY, JSON.stringify(entries));
+}
 
 interface SessionsStore extends SessionsState {
   readonly height: number;
@@ -75,6 +109,8 @@ interface SessionsStore extends SessionsState {
   answerPrompt(id: string, response: ExecPromptResponse): void;
   /** Reconnects a tab to the same target, reusing the tab. */
   retry(id: string): void;
+  /** Re-asks the server for the tabs that were open before a reload. */
+  restore(): void;
   byId(id: string): TerminalSession | undefined;
 }
 
@@ -83,7 +119,7 @@ export const useSessions = create<SessionsStore>((set, get) => {
     set((state) => ({ ...state, ...next(state) }));
   }
 
-  function connect(id: string, target: ExecTarget): void {
+  function connect(id: string, target: ExecTarget, attach = false): void {
     const runtime = createTerminal(id, {
       onData: (chunk) => sockets.get(id)?.emit("exec:input", { chunk }),
       onResize: (cols, rows) => sockets.get(id)?.emit("exec:resize", { cols, rows }),
@@ -96,6 +132,7 @@ export const useSessions = create<SessionsStore>((set, get) => {
         cols: runtime.term.cols,
         rows: runtime.term.rows,
         record: get().recordByDefault,
+        attach,
       }),
     );
     sockets.set(id, socket);
@@ -143,6 +180,21 @@ export const useSessions = create<SessionsStore>((set, get) => {
       patch((state) => applyStatus(state, id, "errored", { error: { code, userMessage } }));
     });
 
+    // A handshake that never completes - the server is down, the origin is
+    // wrong, the payload was rejected - otherwise leaves a tab connecting
+    // forever with nothing to say. The socket does not retry by design, so
+    // this is the end of the road rather than a transient state.
+    socket.on("connect_error", (err: Error & { data?: { code?: string } }) => {
+      patch((state) =>
+        applyStatus(state, id, "errored", {
+          error: {
+            code: err.data?.code ?? "ConnectFailed",
+            userMessage: `Could not reach the faws server: ${err.message}`,
+          },
+        }),
+      );
+    });
+
     socket.on("disconnect", () => {
       const session = get().sessions.find((entry) => entry.id === id);
       if (!session || session.status === "exited" || session.status === "errored") return;
@@ -165,6 +217,7 @@ export const useSessions = create<SessionsStore>((set, get) => {
       const id = crypto.randomUUID();
       const { title, subtitle } = describeTarget(target);
       targets.set(id, target);
+      rememberOpenTabs();
       patch((state) =>
         addSession(state, {
           id,
@@ -180,6 +233,38 @@ export const useSessions = create<SessionsStore>((set, get) => {
       return id;
     },
 
+    /**
+     * Picks up tabs that were open before a reload.
+     *
+     * Each asks the server to resume, and a session whose grace window lapsed
+     * comes back as SessionGone - which lands the tab in the same exited state
+     * a finished session does, with the same Restart button. Reopening is
+     * never automatic: it would mean a reload silently starting shells on
+     * hosts nobody asked to be on again.
+     */
+    restore() {
+      if (get().sessions.length > 0) return;
+      const remembered = readStored(OPEN_KEY, storedOpen);
+      if (remembered.length === 0) return;
+
+      for (const entry of remembered) {
+        const target = entry.target as ExecTarget;
+        targets.set(entry.id, target);
+        patch((state) =>
+          addSession(state, {
+            id: entry.id,
+            kind: entry.kind,
+            title: entry.title,
+            subtitle: entry.subtitle,
+            recordingPath: null,
+            statusMessage: "Picking this session back up...",
+          }),
+        );
+        connect(entry.id, target, true);
+      }
+      set({ dockOpen: true });
+    },
+
     close(id) {
       const socket = sockets.get(id);
       // Order matters: tell the server before dropping the socket, or the
@@ -188,6 +273,7 @@ export const useSessions = create<SessionsStore>((set, get) => {
       socket?.disconnect();
       sockets.delete(id);
       targets.delete(id);
+      rememberOpenTabs();
       disposeTerminal(id);
       patch((state) => closeInModel(state, id));
       if (get().sessions.length === 0) set({ dockOpen: false, fullscreen: false });
@@ -248,9 +334,6 @@ export const useSessions = create<SessionsStore>((set, get) => {
     },
   };
 });
-
-/** What each tab is connected to, so a retry can rebuild the same handshake. */
-const targets = new Map<string, ExecTarget>();
 
 /** True while a terminal has focus, so page shortcuts can stand down. */
 export function useTerminalFocused(): boolean {

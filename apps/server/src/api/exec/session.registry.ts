@@ -132,11 +132,15 @@ function admitStart(): void {
 }
 
 /**
- * Binds a client to a session, resuming an existing one when the id matches.
+ * Binds a client to a session.
  *
- * A reattach that finds nothing starts fresh rather than erroring: reloading
- * the page after a session genuinely ended should just work, not present a
- * failure the user has to dismiss.
+ * `attach` is the difference between "resume this" and "open this". A tab
+ * restored after a page reload asks to resume, and if the session is gone -
+ * the grace window lapsed, or the server restarted - it is told so rather than
+ * quietly given a new one. Silently starting fresh would mean a reload with
+ * several tabs open opens that many new remote shells, on hosts the person did
+ * not ask to be on again, and bills the account for each. Reopening is a
+ * decision, so it stays a button.
  */
 export async function attachSession(
   auth: ExecHandshakeAuth,
@@ -147,6 +151,13 @@ export async function attachSession(
   if (existing && !existing.machine.isTerminal) {
     resume(existing, auth, client);
     return { resumed: true };
+  }
+
+  if (auth.attach) {
+    throw new ExecSessionError(
+      "SessionGone",
+      "That session is no longer running. It ended while this page was closed.",
+    );
   }
 
   admitStart();

@@ -258,6 +258,13 @@ function RootLayout() {
   const activateRelative = useSessions((state) => state.activateRelative);
   const closeSession = useSessions((state) => state.close);
   const hasSessions = dockSessions.length > 0;
+  const restoreSessions = useSessions((state) => state.restore);
+
+  // Tabs that were open before a reload ask the server to resume them. Run
+  // once, before anything can open a new one.
+  React.useEffect(() => {
+    restoreSessions();
+  }, [restoreSessions]);
 
   useHotkeys(
     [

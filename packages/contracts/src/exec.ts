@@ -173,6 +173,7 @@ export type ExecPromptResponse = z.infer<typeof execPromptResponseSchema>;
 export type ExecErrorCode =
   | "BadHandshake"
   | "NoDriver"
+  | "SessionGone"
   | "TooManySessions"
   | "SessionManagerPluginMissing"
   | "SessionManagerPluginFailed"
