@@ -1,14 +1,14 @@
 /**
- * Where settings live.
+ * Where saved S3 endpoints and their secrets are kept.
  *
- * Nothing in this package knows how a setting is persisted. It knows the two
+ * Nothing in this package knows how either is persisted. It knows the two
  * shapes it needs - a record it can send anywhere, and a secret it cannot -
  * and a host registers an implementation that puts them wherever that host
  * keeps such things, which for a secret is not the same place as the record.
  *
  * The default implementation holds both in memory, so a build with no host
- * store still runs: a connection can be added, used and tested, and is gone
- * on restart.
+ * store still runs: an endpoint can be added, used and tested, and is gone on
+ * restart.
  */
 import type { S3Connection, S3ConnectionSecret } from "@faws/contracts";
 
@@ -18,34 +18,34 @@ export interface SecretRef {
   readonly name: S3ConnectionSecret;
 }
 
-export interface SettingsStore {
-  listS3Connections(): Promise<S3Connection[]>;
-  getS3Connection(id: string): Promise<S3Connection | null>;
-  putS3Connection(connection: S3Connection): Promise<void>;
-  deleteS3Connection(id: string): Promise<void>;
+export interface S3ConnectionStore {
+  list(): Promise<S3Connection[]>;
+  get(id: string): Promise<S3Connection | null>;
+  put(connection: S3Connection): Promise<void>;
+  remove(id: string): Promise<void>;
 
   readSecret(ref: SecretRef): Promise<string | null>;
   /** A null value deletes the secret rather than storing an empty one. */
   writeSecret(ref: SecretRef, value: string | null): Promise<void>;
-  deleteSecrets(connectionId: string): Promise<void>;
+  removeSecrets(connectionId: string): Promise<void>;
 }
 
 function secretKey(ref: SecretRef): string {
   return `${ref.connectionId}::${ref.name}`;
 }
 
-export function createMemorySettingsStore(): SettingsStore {
+export function createMemoryConnectionStore(): S3ConnectionStore {
   const connections = new Map<string, S3Connection>();
   const secrets = new Map<string, string>();
 
   return {
-    listS3Connections: () => Promise.resolve([...connections.values()]),
-    getS3Connection: (id) => Promise.resolve(connections.get(id) ?? null),
-    putS3Connection: (connection) => {
+    list: () => Promise.resolve([...connections.values()]),
+    get: (id) => Promise.resolve(connections.get(id) ?? null),
+    put: (connection) => {
       connections.set(connection.id, connection);
       return Promise.resolve();
     },
-    deleteS3Connection: (id) => {
+    remove: (id) => {
       connections.delete(id);
       return Promise.resolve();
     },
@@ -55,7 +55,7 @@ export function createMemorySettingsStore(): SettingsStore {
       else secrets.set(secretKey(ref), value);
       return Promise.resolve();
     },
-    deleteSecrets: (connectionId) => {
+    removeSecrets: (connectionId) => {
       for (const key of secrets.keys()) {
         if (key.startsWith(`${connectionId}::`)) secrets.delete(key);
       }
@@ -64,7 +64,7 @@ export function createMemorySettingsStore(): SettingsStore {
   };
 }
 
-let store: SettingsStore = createMemorySettingsStore();
+let store: S3ConnectionStore = createMemoryConnectionStore();
 
 /**
  * Installs the store everything else reads through.
@@ -72,10 +72,10 @@ let store: SettingsStore = createMemorySettingsStore();
  * Called once during startup, before anything has been read; a later swap
  * would leave whatever was written in the meantime behind in the old one.
  */
-export function registerSettingsStore(next: SettingsStore): void {
+export function registerConnectionStore(next: S3ConnectionStore): void {
   store = next;
 }
 
-export function settingsStore(): SettingsStore {
+export function connectionStore(): S3ConnectionStore {
   return store;
 }

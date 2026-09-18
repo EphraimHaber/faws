@@ -105,7 +105,7 @@ export function BucketsPage() {
             <EmptyState
               icon={Database}
               title="No buckets"
-              hint="Nothing is listed here, or the credentials in use cannot list buckets."
+              hint="This account has no buckets, or the profile cannot list them."
             />
           }
         />

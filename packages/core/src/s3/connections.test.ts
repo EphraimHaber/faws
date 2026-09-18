@@ -1,15 +1,12 @@
 import { s3ConnectionInputSchema, type S3ConnectionInput } from "@faws/contracts";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import {
-  createMemorySettingsStore,
-  registerSettingsStore,
-  settingsStore,
-} from "../settings/store.ts";
+import { connectionStore, createMemoryConnectionStore, registerConnectionStore } from "./store.ts";
 import {
   capabilitiesFor,
   connectionSecret,
   deleteConnection,
+  listConnections,
   saveConnection,
 } from "./connections.ts";
 
@@ -25,7 +22,7 @@ function input(overrides: Partial<S3ConnectionInput> = {}): S3ConnectionInput {
 }
 
 beforeEach(() => {
-  registerSettingsStore(createMemorySettingsStore());
+  registerConnectionStore(createMemoryConnectionStore());
 });
 
 describe("saveConnection", () => {
@@ -55,7 +52,7 @@ describe("saveConnection", () => {
 
     expect(edited.secretKeys).toEqual([]);
     expect(
-      await settingsStore().readSecret({ connectionId: edited.id, name: "secretAccessKey" }),
+      await connectionStore().readSecret({ connectionId: edited.id, name: "secretAccessKey" }),
     ).toBeNull();
   });
 
@@ -73,8 +70,38 @@ describe("deleteConnection", () => {
     await deleteConnection(saved.id);
 
     expect(
-      await settingsStore().readSecret({ connectionId: saved.id, name: "secretAccessKey" }),
+      await connectionStore().readSecret({ connectionId: saved.id, name: "secretAccessKey" }),
     ).toBeNull();
+  });
+});
+
+describe("environment endpoints", () => {
+  it("offers one the environment describes without storing it", async () => {
+    process.env["FAWS_S3_ENDPOINT"] = "https://s3.env.internal:9000";
+    process.env["FAWS_S3_ACCESS_KEY_ID"] = "AKIAENV";
+    process.env["FAWS_S3_SECRET_ACCESS_KEY"] = "envsecret";
+    try {
+      const listed = await listConnections();
+      const fromEnv = listed.find((entry) => entry.source === "environment");
+
+      expect(fromEnv?.endpoint).toBe("https://s3.env.internal:9000");
+      expect(await connectionStore().list()).toEqual([]);
+      expect(fromEnv ? await connectionSecret(fromEnv, "secretAccessKey") : null).toBe("envsecret");
+    } finally {
+      delete process.env["FAWS_S3_ENDPOINT"];
+      delete process.env["FAWS_S3_ACCESS_KEY_ID"];
+      delete process.env["FAWS_S3_SECRET_ACCESS_KEY"];
+    }
+  });
+
+  it("refuses to edit or remove one, which a restart would undo anyway", async () => {
+    process.env["FAWS_S3_ENDPOINT"] = "https://s3.env.internal:9000";
+    try {
+      await expect(saveConnection(input({ id: "env" }))).rejects.toThrow(/environment/);
+      await expect(deleteConnection("env")).rejects.toThrow(/environment/);
+    } finally {
+      delete process.env["FAWS_S3_ENDPOINT"];
+    }
   });
 });
 

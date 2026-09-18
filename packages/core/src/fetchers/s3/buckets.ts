@@ -46,7 +46,7 @@ function toBucket(bucket: Bucket): S3Bucket {
 }
 
 /**
- * Regions keyed by `connection::profile::bucket`.
+ * Regions keyed by `profile::bucket`.
  *
  * A bucket's home region never changes, and every object call needs it, so the
  * lookup happens once per process rather than once per request.

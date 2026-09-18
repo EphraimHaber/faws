@@ -15,9 +15,9 @@ import type {
   S3ConnectionTls,
   S3Scope,
 } from "@faws/contracts";
-import { ConnectionNotFoundError } from "@faws/contracts";
+import { ConnectionNotFoundError, ReadOnlyModeError } from "@faws/contracts";
 
-import { settingsStore } from "../settings/store.ts";
+import { connectionStore } from "./store.ts";
 
 const SECRET_NAMES: readonly S3ConnectionSecret[] = [
   "secretAccessKey",
@@ -26,81 +26,86 @@ const SECRET_NAMES: readonly S3ConnectionSecret[] = [
 ];
 
 /**
- * A connection described by the environment.
+ * An endpoint described by the environment.
  *
  * It exists so a container or a CI run can be pointed at an on prem endpoint
- * without a UI, and so this works before anything has been saved. It is seeded
- * once and then editable like any other: a saved connection under this id
- * wins, because otherwise the environment would silently undo every edit.
+ * without a UI. It is offered alongside the saved ones and editable by nobody:
+ * it belongs to whoever started the process, and a change written over it
+ * would last until the next restart and then silently revert.
  */
 const ENV_ID = "env";
 
-function envConnection(): { connection: S3Connection; secret: string | null } | null {
+function envConnection(): S3Connection | null {
   const endpoint = process.env["FAWS_S3_ENDPOINT"];
   if (!endpoint) return null;
 
   const accessKeyId = process.env["FAWS_S3_ACCESS_KEY_ID"];
   const caPath = process.env["FAWS_S3_CA_BUNDLE"];
-  const now = new Date().toISOString();
+  // Fixed rather than the clock, so every read is the same record and nothing
+  // downstream sees it as having just changed.
+  const stamp = new Date(0).toISOString();
 
   return {
-    connection: {
-      id: ENV_ID,
-      name: process.env["FAWS_S3_NAME"] ?? "Environment",
-      endpoint,
-      region: process.env["FAWS_S3_REGION"] ?? "us-east-1",
-      forcePathStyle: process.env["FAWS_S3_FORCE_PATH_STYLE"] !== "0",
-      credentials: accessKeyId
-        ? { mode: "static", accessKeyId }
-        : { mode: "aws-profile", profile: process.env["AWS_PROFILE"] ?? "default" },
-      tls: {
-        verify: process.env["FAWS_S3_TLS_VERIFY"] !== "0",
-        caPaths: caPath ? [caPath] : [],
-        caPem: null,
-        clientCertPath: process.env["FAWS_S3_CLIENT_CERT"] ?? null,
-        clientKeyPath: process.env["FAWS_S3_CLIENT_KEY"] ?? null,
-        servername: process.env["FAWS_S3_TLS_SERVERNAME"] ?? null,
-        pinnedSha256: process.env["FAWS_S3_TLS_FINGERPRINT"] ?? null,
-      },
-      features: { storageMetrics: false, presign: true },
-      secretKeys: process.env["FAWS_S3_SECRET_ACCESS_KEY"] ? ["secretAccessKey"] : [],
-      revision: 1,
-      createdAt: now,
-      updatedAt: now,
+    id: ENV_ID,
+    source: "environment",
+    name: process.env["FAWS_S3_NAME"] ?? "Environment",
+    endpoint,
+    region: process.env["FAWS_S3_REGION"] ?? "us-east-1",
+    forcePathStyle: process.env["FAWS_S3_FORCE_PATH_STYLE"] !== "0",
+    credentials: accessKeyId
+      ? { mode: "static", accessKeyId }
+      : { mode: "aws-profile", profile: process.env["AWS_PROFILE"] ?? "default" },
+    tls: {
+      verify: process.env["FAWS_S3_TLS_VERIFY"] !== "0",
+      caPaths: caPath ? [caPath] : [],
+      caPem: null,
+      clientCertPath: process.env["FAWS_S3_CLIENT_CERT"] ?? null,
+      clientKeyPath: process.env["FAWS_S3_CLIENT_KEY"] ?? null,
+      servername: process.env["FAWS_S3_TLS_SERVERNAME"] ?? null,
+      pinnedSha256: process.env["FAWS_S3_TLS_FINGERPRINT"] ?? null,
     },
-    secret: process.env["FAWS_S3_SECRET_ACCESS_KEY"] ?? null,
+    features: { storageMetrics: false, presign: true },
+    secretKeys: process.env["FAWS_S3_SECRET_ACCESS_KEY"] ? ["secretAccessKey"] : [],
+    revision: 1,
+    createdAt: stamp,
+    updatedAt: stamp,
   };
 }
 
-let seeded = false;
-
-async function seedFromEnv(): Promise<void> {
-  if (seeded) return;
-  seeded = true;
-
-  const fromEnv = envConnection();
-  if (!fromEnv) return;
-
-  const store = settingsStore();
-  if (await store.getS3Connection(ENV_ID)) return;
-
-  await store.putS3Connection(fromEnv.connection);
-  if (fromEnv.secret) {
-    await store.writeSecret({ connectionId: ENV_ID, name: "secretAccessKey" }, fromEnv.secret);
+/** Secrets for the environment's endpoint come from the environment too. */
+function envSecret(name: S3ConnectionSecret): string | null {
+  switch (name) {
+    case "secretAccessKey":
+      return process.env["FAWS_S3_SECRET_ACCESS_KEY"] ?? null;
+    case "clientKeyPassphrase":
+      return process.env["FAWS_S3_CLIENT_KEY_PASSPHRASE"] ?? null;
+    default:
+      return process.env["FAWS_S3_SESSION_TOKEN"] ?? null;
   }
 }
 
 export async function listConnections(): Promise<S3Connection[]> {
-  await seedFromEnv();
-  const all = await settingsStore().listS3Connections();
+  const stored = await connectionStore().list();
+  const fromEnv = envConnection();
+  // A saved endpoint under the same id wins, so the environment cannot shadow
+  // one that someone curated.
+  const all =
+    fromEnv && !stored.some((entry) => entry.id === fromEnv.id) ? [...stored, fromEnv] : stored;
   return all.toSorted((a, b) => a.name.localeCompare(b.name));
 }
 
+/** Only the ones the environment provides, which nothing can edit. */
+export function environmentConnections(): S3Connection[] {
+  const fromEnv = envConnection();
+  return fromEnv ? [fromEnv] : [];
+}
+
 export async function getConnection(id: string): Promise<S3Connection> {
-  await seedFromEnv();
-  const connection = await settingsStore().getS3Connection(id);
-  if (!connection) throw new ConnectionNotFoundError(id);
-  return connection;
+  const stored = await connectionStore().get(id);
+  if (stored) return stored;
+  const fromEnv = envConnection();
+  if (fromEnv && fromEnv.id === id) return fromEnv;
+  throw new ConnectionNotFoundError(id);
 }
 
 /** The connection a scope points at, or null when it points at AWS. */
@@ -139,10 +144,11 @@ function tlsOf(input: S3ConnectionInput): S3ConnectionTls {
  * never been saved and an edit that has not been saved yet.
  */
 export async function draftConnection(input: S3ConnectionInput): Promise<S3Connection> {
-  const existing = input.id ? await settingsStore().getS3Connection(input.id) : null;
+  const existing = input.id ? await connectionStore().get(input.id) : null;
   const now = new Date().toISOString();
   return {
     id: existing?.id ?? "",
+    source: "stored",
     name: input.name,
     endpoint: input.endpoint,
     region: input.region,
@@ -166,9 +172,14 @@ export async function draftConnection(input: S3ConnectionInput): Promise<S3Conne
  * "unchanged" rather than "erase it".
  */
 export async function saveConnection(input: S3ConnectionInput): Promise<S3Connection> {
-  const store = settingsStore();
-  const existing = input.id ? await store.getS3Connection(input.id) : null;
-  if (input.id && !existing) throw new ConnectionNotFoundError(input.id);
+  const store = connectionStore();
+  const existing = input.id ? await store.get(input.id) : null;
+  if (input.id && !existing) {
+    if (envConnection()?.id === input.id) {
+      throw new ReadOnlyModeError("editing an endpoint the environment set");
+    }
+    throw new ConnectionNotFoundError(input.id);
+  }
 
   const id = existing?.id ?? crypto.randomUUID();
   const now = new Date().toISOString();
@@ -198,6 +209,7 @@ export async function saveConnection(input: S3ConnectionInput): Promise<S3Connec
 
   const connection: S3Connection = {
     id,
+    source: "stored",
     name: input.name,
     endpoint: input.endpoint,
     region: input.region,
@@ -211,14 +223,17 @@ export async function saveConnection(input: S3ConnectionInput): Promise<S3Connec
     updatedAt: now,
   };
 
-  await store.putS3Connection(connection);
+  await store.put(connection);
   return connection;
 }
 
 export async function deleteConnection(id: string): Promise<void> {
-  const store = settingsStore();
-  await store.deleteS3Connection(id);
-  await store.deleteSecrets(id);
+  const store = connectionStore();
+  if (!(await store.get(id)) && envConnection()?.id === id) {
+    throw new ReadOnlyModeError("removing an endpoint the environment set");
+  }
+  await store.remove(id);
+  await store.removeSecrets(id);
 }
 
 export async function connectionSecret(
@@ -226,7 +241,8 @@ export async function connectionSecret(
   name: S3ConnectionSecret,
 ): Promise<string | null> {
   if (!connection.secretKeys.includes(name)) return null;
-  return settingsStore().readSecret({ connectionId: connection.id, name });
+  if (connection.source === "environment") return envSecret(name);
+  return connectionStore().readSecret({ connectionId: connection.id, name });
 }
 
 /**

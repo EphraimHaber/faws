@@ -1,5 +1,5 @@
 import type { S3Connection } from "@faws/contracts";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Plus, ShieldAlert } from "lucide-react";
 import * as React from "react";
 
@@ -8,6 +8,7 @@ import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { useScope } from "~/contexts/ScopeContext";
 import { ConnectionDialog } from "~/features/s3/components/ConnectionDialog";
+import { useS3Connections } from "~/features/s3/useS3Connections";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -19,27 +20,20 @@ import { trpc } from "~/lib/trpc";
  * described per endpoint here.
  */
 export function ConnectionsPanel() {
-  const queryClient = useQueryClient();
   const { connectionId, setConnectionId } = useScope();
   const [editing, setEditing] = React.useState<S3Connection | null | "new">(null);
 
-  const connections = useQuery(trpc.s3Connections.list.queryOptions());
+  // Saving and removing land in the settings snapshot, which every window is
+  // already listening to, so neither needs a query to invalidate.
+  const remove = useMutation(trpc.s3Connections.remove.mutationOptions());
 
-  const remove = useMutation(
-    trpc.s3Connections.remove.mutationOptions({
-      onSuccess: () => void queryClient.invalidateQueries(),
-    }),
-  );
-
-  const rows = connections.data ?? [];
+  const rows = useS3Connections();
 
   return (
     <Panel className="shrink-0">
       <PanelHeader>
         <PanelTitle>S3 endpoints</PanelTitle>
-        <span className="font-mono text-[11px] text-muted-foreground tabular">
-          {connections.isPending ? "…" : rows.length}
-        </span>
+        <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
         <Button size="sm" className="ml-auto" onClick={() => setEditing("new")}>
           <Plus className="size-3" /> Add
         </Button>
@@ -58,6 +52,9 @@ export function ConnectionsPanel() {
                 <span className="flex items-center gap-2">
                   <span className="truncate text-[12.5px]">{connection.name}</span>
                   {connection.id === connectionId ? <Badge tone="primary">in use</Badge> : null}
+                  {connection.source === "environment" ? (
+                    <Badge tone="neutral">environment</Badge>
+                  ) : null}
                   {connection.tls.verify ? null : (
                     <Badge tone="warning">
                       <ShieldAlert className="size-3" strokeWidth={2} /> unverified
@@ -77,12 +74,26 @@ export function ConnectionsPanel() {
               >
                 {connection.id === connectionId ? "Leave" : "Use"}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setEditing(connection)}>
+              {/* An endpoint the environment set belongs to whoever started
+                  the process: an edit here would last until the next restart
+                  and then silently revert. */}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={connection.source === "environment"}
+                title={
+                  connection.source === "environment"
+                    ? "Set by the environment this server was started with."
+                    : undefined
+                }
+                onClick={() => setEditing(connection)}
+              >
                 Edit
               </Button>
               <Button
                 size="sm"
                 variant="danger"
+                disabled={connection.source === "environment"}
                 onClick={() => {
                   // The stored keys go with it, so the id in scope has to stop
                   // pointing at it in the same act.

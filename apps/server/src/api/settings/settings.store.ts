@@ -21,11 +21,13 @@
  */
 import {
   applyPatch,
+  applyS3ConnectionOp,
   DEFAULT_SETTINGS,
   pruneSilenced,
   SETTINGS_VERSION,
   type SettingsPatch,
   type Settings,
+  type S3ConnectionOp,
   type SettingsSnapshot,
   type SilenceEntry,
   type SilenceOp,
@@ -60,6 +62,14 @@ export interface SettingsStore {
   get(): SettingsSnapshot;
   update(patch: SettingsPatch, originId?: string | null): SettingsSnapshot;
   applySilence(op: SilenceOp, originId?: string | null): SettingsSnapshot;
+  /**
+   * Adds, replaces or removes one saved S3 endpoint.
+   *
+   * Its own mutator rather than a patch for the same reason the silence maps
+   * have one: a whole-list write would let two windows editing different
+   * endpoints clobber each other.
+   */
+  applyS3Connection(op: S3ConnectionOp, originId?: string | null): SettingsSnapshot;
   /**
    * Adopts preferences a browser had in `localStorage` before this existed.
    * A no-op unless the store is still pristine, so two tabs racing to import
@@ -277,6 +287,11 @@ export function createSettingsStore(options: SettingsStoreOptions): SettingsStor
     applySilence(op, originId = null) {
       const silenced = applySilenceOp(settings.silenced, op, now());
       return commit({ ...settings, silenced: pruneSilenced(silenced) }, originId);
+    },
+
+    applyS3Connection(op, originId = null) {
+      const connections = applyS3ConnectionOp(settings.s3.connections, op);
+      return commit({ ...settings, s3: { ...settings.s3, connections } }, originId);
     },
 
     importLegacy(patch, silenced, originId = null) {

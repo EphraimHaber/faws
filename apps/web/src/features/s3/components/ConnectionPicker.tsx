@@ -1,9 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import { Check, HardDrive, ShieldAlert } from "lucide-react";
 import * as React from "react";
 
 import { useScope } from "~/contexts/ScopeContext";
-import { trpc } from "~/lib/trpc";
+import { useS3Connections } from "~/features/s3/useS3Connections";
 import { cn } from "~/lib/utils";
 
 /**
@@ -18,19 +17,14 @@ export function ConnectionPicker() {
   const { connectionId, setConnectionId } = useScope();
   const [open, setOpen] = React.useState(false);
 
-  const connections = useQuery({
-    ...trpc.s3Connections.list.queryOptions(),
-    staleTime: 60_000,
-  });
-
-  const saved = connections.data ?? [];
+  const saved = useS3Connections();
   const active = saved.find((entry) => entry.id === connectionId) ?? null;
 
-  // A stored id whose connection has been deleted would otherwise leave every
-  // pane failing against something that no longer exists.
+  // An id whose endpoint has been deleted would otherwise leave every pane
+  // failing against something that no longer exists.
   React.useEffect(() => {
-    if (connectionId && connections.isSuccess && !active) setConnectionId("");
-  }, [connectionId, connections.isSuccess, active, setConnectionId]);
+    if (connectionId && !active) setConnectionId("");
+  }, [connectionId, active, setConnectionId]);
 
   if (saved.length === 0) return null;
 

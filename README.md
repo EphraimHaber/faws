@@ -28,8 +28,7 @@ whatever its certificate needs - a CA file or pasted PEM, a client certificate
 for mTLS, a name to verify against when the URL reaches it by IP. Test shows
 the certificate it presents before anything is trusted, so a self signed one
 can be pinned by fingerprint rather than met by turning verification off, which
-is also offered and says what it costs. Keys are stored apart from the endpoint
-and never sent back to the window that set them.
+is also offered and says what it costs.
 
 Panes that only AWS can fill - daily storage metrics, a bucket's home region -
 are absent rather than failing on an endpoint that has no answer for them.
@@ -48,10 +47,16 @@ The ECS mutations remain stubs that return `NOT_IMPLEMENTED`.
 ## Settings
 
 Preferences - the AWS profile and region, the refresh interval, the log
-columns, the theme, the terminal dock, and the list of silenced warnings -
-belong to the machine, not to a browser. The server keeps them in
-`$FAWS_DATA_DIR/settings/settings.json`, alongside `logs/` and `recordings/`,
+columns, the theme, the terminal dock, the saved S3 endpoints, and the list of
+silenced warnings - belong to the machine, not to a browser. The server keeps
+them in `$FAWS_DATA_DIR/settings/settings.json`, alongside `logs/` and `recordings/`,
 and writes it atomically with `0600`.
+
+An S3 endpoint's keys are the one thing that file does not hold. It is read by
+the renderer on first paint and broadcast to every window on every change, so
+the records live there and the keys live in `s3-secrets.json` beside it, which
+nothing broadcasts. A connection carries only which of its secrets are set, so
+a form can edit an endpoint without ever being handed what it is editing.
 
 `FAWS_DATA_DIR` defaults to `~/.faws`; the dev runner uses `~/.faws-dev`, and
 the desktop shell passes Electron's userData path. Web and desktop on one

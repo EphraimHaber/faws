@@ -8,9 +8,10 @@
  * `~/.aws`, and its certificate is often signed by a CA only that network
  * trusts.
  *
- * A record here is safe to send to a renderer: every secret it needs lives
- * outside it, under `secretKeys`, so the only thing that crosses the wire is
- * whether one is set.
+ * A record here is safe to send to a renderer, and safe to keep in the
+ * settings file: every secret it needs lives outside it, under `secretKeys`,
+ * so the only thing that crosses the wire or lands on disk is whether one is
+ * set.
  */
 import { z } from "zod";
 
@@ -71,6 +72,14 @@ export interface S3ConnectionFeatures {
 
 export interface S3Connection {
   readonly id: string;
+  /**
+   * Where the connection came from.
+   *
+   * An endpoint described by the environment belongs to whoever started the
+   * process, so it is offered but not editable: saving over it would last
+   * until the next restart and then silently revert.
+   */
+  readonly source: S3ConnectionSource;
   readonly name: string;
   /** Base URL of the endpoint, scheme included. */
   readonly endpoint: string;
@@ -92,6 +101,8 @@ export interface S3Connection {
   readonly createdAt: string;
   readonly updatedAt: string;
 }
+
+export type S3ConnectionSource = "stored" | "environment";
 
 /** The secrets a connection can hold, each stored under its own key. */
 export type S3ConnectionSecret = "secretAccessKey" | "sessionToken" | "clientKeyPassphrase";
@@ -310,6 +321,77 @@ export const s3ConnectionInputSchema = z
 export type S3ConnectionInput = z.infer<typeof s3ConnectionInputSchema>;
 
 export const s3ConnectionRefSchema = z.object({ id: z.string().min(1) });
+
+/**
+ * A stored connection, as the settings file holds it.
+ *
+ * Every leaf `catch`es: this is parsed out of a file that outlives the code
+ * that wrote it and that a person can edit, so one endpoint with a nonsense
+ * field costs that field rather than the whole list.
+ *
+ * Annotated with the interface rather than inferring one from it, so the type
+ * everything else passes around stays the single definition of the shape.
+ */
+export const s3ConnectionSchema: z.ZodType<S3Connection, unknown> = z.object({
+  id: z.string().min(1),
+  source: z.enum(["stored", "environment"]).catch("stored"),
+  name: z.string().min(1).catch("Unnamed"),
+  endpoint: z.string().min(1),
+  region: z.string().min(1).catch("us-east-1"),
+  forcePathStyle: z.boolean().catch(true),
+  credentials: z
+    .discriminatedUnion("mode", [
+      z.object({ mode: z.literal("aws-profile"), profile: z.string().min(1) }),
+      z.object({ mode: z.literal("static"), accessKeyId: z.string() }),
+      z.object({ mode: z.literal("anonymous") }),
+    ])
+    .catch({ mode: "anonymous" }),
+  tls: z
+    .object({
+      // Verification defaults on wherever a stored value cannot be read: the
+      // failure mode of guessing wrong the other way is a silently
+      // interceptable connection.
+      verify: z.boolean().catch(true),
+      caPaths: z.array(z.string()).catch([]),
+      caPem: z.string().nullable().catch(null),
+      clientCertPath: z.string().nullable().catch(null),
+      clientKeyPath: z.string().nullable().catch(null),
+      servername: z.string().nullable().catch(null),
+      pinnedSha256: z.string().nullable().catch(null),
+    })
+    .catch(() => ({ ...DEFAULT_TLS, caPaths: [] })),
+  features: z
+    .object({ storageMetrics: z.boolean().catch(false), presign: z.boolean().catch(true) })
+    .catch(() => ({ ...DEFAULT_FEATURES })),
+  secretKeys: z.array(z.enum(["secretAccessKey", "sessionToken", "clientKeyPassphrase"])).catch([]),
+  revision: z.number().int().nonnegative().catch(1),
+  createdAt: z.string().catch(""),
+  updatedAt: z.string().catch(""),
+});
+
+/**
+ * The two things that happen to the stored list.
+ *
+ * A whole-list write would make two windows editing different endpoints
+ * clobber each other, the same reason the silence maps have ops of their own
+ * rather than riding the settings patch.
+ */
+export const s3ConnectionOpSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("save"), connection: s3ConnectionSchema }),
+  z.object({ op: z.literal("remove"), id: z.string().min(1) }),
+]);
+
+export type S3ConnectionOp = z.infer<typeof s3ConnectionOpSchema>;
+
+/** Applies one op to the stored list, replacing an entry with the same id. */
+export function applyS3ConnectionOp(
+  current: ReadonlyArray<S3Connection>,
+  op: S3ConnectionOp,
+): S3Connection[] {
+  if (op.op === "remove") return current.filter((entry) => entry.id !== op.id);
+  const without = current.filter((entry) => entry.id !== op.connection.id);
+  return [...without, op.connection];
+}
 
 /** Testing an unsaved form, which is the only time it is worth testing. */
 export const s3ConnectionProbeSchema = s3ConnectionInputSchema;

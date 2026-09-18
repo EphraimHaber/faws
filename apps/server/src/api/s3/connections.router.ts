@@ -15,6 +15,7 @@ import {
 import {
   capabilitiesFor,
   deleteConnection,
+  environmentConnections,
   invalidateConnection,
   listConnections,
   probeConnection,
@@ -28,6 +29,15 @@ const log = createLogger("s3-connections");
 
 export const s3ConnectionsRouter = router({
   list: publicProcedure.query(() => guard(() => listConnections())),
+
+  /**
+   * The endpoints the environment describes.
+   *
+   * The saved ones reach the UI through the settings snapshot, which is live
+   * and needs no query; these are not in that file and cannot change while the
+   * process runs, so they are asked for once.
+   */
+  fromEnvironment: publicProcedure.query(() => environmentConnections()),
 
   /** What the panes for this scope can offer, which AWS alone answers fully. */
   capabilities: publicProcedure
