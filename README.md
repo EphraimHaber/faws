@@ -54,9 +54,14 @@ and writes it atomically with `0600`.
 
 An S3 endpoint's keys are the one thing that file does not hold. It is read by
 the renderer on first paint and broadcast to every window on every change, so
-the records live there and the keys live in `s3-secrets.json` beside it, which
-nothing broadcasts. A connection carries only which of its secrets are set, so
-a form can edit an endpoint without ever being handed what it is editing.
+the records live there and the keys live in `$FAWS_DATA_DIR/credentials/s3.json`,
+a directory of its own, written `0600`, that nothing broadcasts. A record names
+its credential rather than carrying one, so a form can edit an endpoint without
+ever being handed the key it is editing, and a blank key field means "leave it
+alone" rather than "erase it".
+
+AWS's own credentials are not copied anywhere: they stay in `~/.aws`, where the
+SDK's provider chain finds them, so rotating them is one place rather than two.
 
 `FAWS_DATA_DIR` defaults to `~/.faws`; the dev runner uses `~/.faws-dev`, and
 the desktop shell passes Electron's userData path. Web and desktop on one

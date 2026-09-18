@@ -13,8 +13,8 @@ import * as tls from "node:tls";
 import { ListBucketsCommand } from "@aws-sdk/client-s3";
 import type { S3ConnectionInput, S3ConnectionProbe, S3ProbeTls } from "@faws/contracts";
 
-import { draftConnection } from "./connections.ts";
-import { buildEndpointClient, type SecretOverrides, tlsOptionsFor } from "./endpointClient.ts";
+import { credentialFor, draftConnection, mergeCredential } from "./connections.ts";
+import { buildEndpointClient, tlsOptionsFor } from "./endpointClient.ts";
 
 /** Long enough for a busy endpoint, short enough to fail a wrong host fast. */
 const TIMEOUT_MS = 8000;
@@ -78,25 +78,14 @@ async function probeTls(
   });
 }
 
-/**
- * The keys the form carries, which are the ones being tested.
- *
- * A blank field means the stored secret is being kept, so it is left out
- * rather than passed on as an empty credential.
- */
-function suppliedSecrets(input: S3ConnectionInput): SecretOverrides {
-  return {
-    ...(input.secretAccessKey?.trim() ? { secretAccessKey: input.secretAccessKey.trim() } : {}),
-    ...(input.sessionToken?.trim() ? { sessionToken: input.sessionToken.trim() } : {}),
-    ...(input.clientKeyPassphrase?.trim()
-      ? { clientKeyPassphrase: input.clientKeyPassphrase.trim() }
-      : {}),
-  };
-}
-
 export async function probeConnection(input: S3ConnectionInput): Promise<S3ConnectionProbe> {
-  const overrides = suppliedSecrets(input);
   const connection = await draftConnection(input);
+  // What the form holds, over what is stored: a test is only worth anything if
+  // it tests the keys about to be saved.
+  const supplied =
+    connection.credentials.mode === "stored"
+      ? mergeCredential(input, await credentialFor(connection))
+      : null;
   const endpoint = new URL(connection.endpoint);
 
   let tlsResult: S3ProbeTls | null = null;
@@ -104,7 +93,7 @@ export async function probeConnection(input: S3ConnectionInput): Promise<S3Conne
 
   if (endpoint.protocol === "https:") {
     try {
-      const options = await tlsOptionsFor(connection, overrides);
+      const options = await tlsOptionsFor(connection, supplied);
       tlsResult = await probeTls(endpoint, options, connection.tls.pinnedSha256);
       reachable = true;
     } catch (err) {
@@ -121,7 +110,7 @@ export async function probeConnection(input: S3ConnectionInput): Promise<S3Conne
     }
   }
 
-  const client = await buildEndpointClient(connection, overrides);
+  const client = await buildEndpointClient(connection, supplied);
   try {
     const result = await client.send(new ListBucketsCommand({}));
     return {

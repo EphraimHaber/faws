@@ -12,28 +12,23 @@ import * as tls from "node:tls";
 
 import { S3Client } from "@aws-sdk/client-s3";
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
-import type { S3Connection, S3ConnectionSecret } from "@faws/contracts";
+import type { S3Connection, S3Credential } from "@faws/contracts";
 import { AwsRequestError, EndpointTrustError } from "@faws/contracts";
 import { NodeHttpHandler } from "@smithy/node-http-handler";
 
-import { connectionSecret } from "./connections.ts";
+import { credentialFor } from "./connections.ts";
 
 /**
- * Secrets supplied for this call rather than read from storage.
+ * The credential to use, when it is not the stored one.
  *
- * Testing a connection has to test the keys in the form, including the ones
- * that have not been saved and the ones that are about to replace what was.
+ * Testing an endpoint has to test the keys in the form, including ones that
+ * have never been saved and ones that are about to replace what was.
  */
-export type SecretOverrides = Partial<Record<S3ConnectionSecret, string>>;
-
-function secretFor(
+async function credentialOrStored(
   connection: S3Connection,
-  name: S3ConnectionSecret,
-  overrides: SecretOverrides,
-): Promise<string | null> {
-  const supplied = overrides[name];
-  if (supplied !== undefined) return Promise.resolve(supplied.length > 0 ? supplied : null);
-  return connectionSecret(connection, name);
+  supplied: S3Credential | null,
+): Promise<S3Credential | null> {
+  return supplied ?? (await credentialFor(connection));
 }
 
 /** OpenSSL's codes for "this chain was refused", as node reports them. */
@@ -124,20 +119,27 @@ class PinnedAgent extends https.Agent {
 /** The TLS options a connection describes, ready for an agent or a probe. */
 export async function tlsOptionsFor(
   connection: S3Connection,
-  overrides: SecretOverrides = {},
+  supplied: S3Credential | null = null,
 ): Promise<tls.SecureContextOptions & { rejectUnauthorized: boolean; servername?: string }> {
   const { tls: config } = connection;
 
-  const ca = [
+  const extraCa = [
     ...config.caPaths.map((path) => readPem(path, "CA certificate")),
     ...(config.caPem ? [Buffer.from(config.caPem)] : []),
   ];
 
-  const passphrase = await secretFor(connection, "clientKeyPassphrase", overrides);
+  const passphrase = (await credentialOrStored(connection, supplied))?.clientKeyPassphrase;
 
   return {
-    rejectUnauthorized: config.verify,
-    ...(ca.length > 0 ? { ca } : {}),
+    // A pin decides on its own which certificate is acceptable, and it is set
+    // for endpoints whose chain nothing can vouch for. Leaving the chain check
+    // on as well would refuse the pinned certificate before it is ever
+    // compared, which is the opposite of what pinning one was asked for.
+    rejectUnauthorized: config.pinnedSha256 === null && config.verify,
+    // Node replaces the default roots when `ca` is given rather than adding to
+    // them, so a private CA would otherwise make every public one unknown -
+    // which breaks an endpoint whose chain ends at a public root.
+    ...(extraCa.length > 0 ? { ca: [...tls.rootCertificates, ...extraCa] } : {}),
     ...(config.clientCertPath
       ? { cert: readPem(config.clientCertPath, "client certificate") }
       : {}),
@@ -149,9 +151,9 @@ export async function tlsOptionsFor(
 
 async function agentFor(
   connection: S3Connection,
-  overrides: SecretOverrides,
+  supplied: S3Credential | null,
 ): Promise<https.Agent> {
-  const options = await tlsOptionsFor(connection, overrides);
+  const options = await tlsOptionsFor(connection, supplied);
   // Reused sockets are what keep a listing of a thousand keys from being a
   // thousand handshakes against an endpoint that may be doing mTLS.
   const agentOptions: https.AgentOptions = { keepAlive: true, ...options };
@@ -170,7 +172,7 @@ async function agentFor(
  */
 async function credentialsFor(
   connection: S3Connection,
-  overrides: SecretOverrides,
+  supplied: S3Credential | null,
 ): Promise<
   | { credentials: { accessKeyId: string; secretAccessKey: string; sessionToken?: string } }
   | { credentials: ReturnType<typeof fromNodeProviderChain> }
@@ -182,19 +184,18 @@ async function credentialsFor(
     case "aws-profile":
       return { credentials: fromNodeProviderChain({ profile: connection.credentials.profile }) };
     default: {
-      const secretAccessKey = await secretFor(connection, "secretAccessKey", overrides);
-      if (!secretAccessKey) {
+      const credential = await credentialOrStored(connection, supplied);
+      if (!credential?.secretAccessKey) {
         throw new AwsRequestError(
-          `The connection "${connection.name}" has no secret access key stored.`,
+          `The credential for "${connection.name}" is missing; add its keys again.`,
           { code: "BadConfiguration", service: "s3" },
         );
       }
-      const sessionToken = await secretFor(connection, "sessionToken", overrides);
       return {
         credentials: {
-          accessKeyId: connection.credentials.accessKeyId,
-          secretAccessKey,
-          ...(sessionToken ? { sessionToken } : {}),
+          accessKeyId: credential.accessKeyId,
+          secretAccessKey: credential.secretAccessKey,
+          ...(credential.sessionToken ? { sessionToken: credential.sessionToken } : {}),
         },
       };
     }
@@ -225,9 +226,9 @@ function reportTrustFailures(client: S3Client, endpoint: string): void {
 
 export async function buildEndpointClient(
   connection: S3Connection,
-  overrides: SecretOverrides = {},
+  supplied: S3Credential | null = null,
 ): Promise<S3Client> {
-  const auth = await credentialsFor(connection, overrides);
+  const auth = await credentialsFor(connection, supplied);
   const isHttps = connection.endpoint.startsWith("https:");
 
   const client = new S3Client({
@@ -245,7 +246,7 @@ export async function buildEndpointClient(
     ...(isHttps
       ? {
           requestHandler: new NodeHttpHandler({
-            httpsAgent: await agentFor(connection, overrides),
+            httpsAgent: await agentFor(connection, supplied),
           }),
         }
       : {}),

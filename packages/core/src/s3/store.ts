@@ -1,43 +1,41 @@
 /**
- * Where saved S3 endpoints and their secrets are kept.
+ * Where saved S3 endpoints and their credentials are kept.
  *
- * Nothing in this package knows how either is persisted. It knows the two
- * shapes it needs - a record it can send anywhere, and a secret it cannot -
- * and a host registers an implementation that puts them wherever that host
- * keeps such things, which for a secret is not the same place as the record.
+ * Two stores, not one, because the two have different rules. A record is a
+ * preference: it can be broadcast to every window, written to a file someone
+ * quotes in a bug report, and read on first paint. A credential is none of
+ * those things - it is the key itself, and the record only names it.
  *
- * The default implementation holds both in memory, so a build with no host
- * store still runs: an endpoint can be added, used and tested, and is gone on
- * restart.
+ * Nothing in this package knows how either is persisted; a host registers an
+ * implementation of each. The defaults hold both in memory, so a build with no
+ * host store still runs: an endpoint can be added, used and tested, and is
+ * gone on restart.
  */
-import type { S3Connection, S3ConnectionSecret } from "@faws/contracts";
+import type { S3Connection, S3Credential, S3CredentialSummary } from "@faws/contracts";
 
-/** Secrets are addressed by connection so a host can group or scope them. */
-export interface SecretRef {
-  readonly connectionId: string;
-  readonly name: S3ConnectionSecret;
-}
-
+/** The endpoint records, which carry no key material. */
 export interface S3ConnectionStore {
   list(): Promise<S3Connection[]>;
   get(id: string): Promise<S3Connection | null>;
   put(connection: S3Connection): Promise<void>;
   remove(id: string): Promise<void>;
-
-  readSecret(ref: SecretRef): Promise<string | null>;
-  /** A null value deletes the secret rather than storing an empty one. */
-  writeSecret(ref: SecretRef, value: string | null): Promise<void>;
-  removeSecrets(connectionId: string): Promise<void>;
 }
 
-function secretKey(ref: SecretRef): string {
-  return `${ref.connectionId}::${ref.name}`;
+/**
+ * The credentials the records point at.
+ *
+ * `summaries` is what a form is allowed to see: which credentials exist and
+ * which key id each one is, never a secret half.
+ */
+export interface S3CredentialStore {
+  read(ref: string): Promise<S3Credential | null>;
+  write(ref: string, credential: S3Credential): Promise<void>;
+  remove(ref: string): Promise<void>;
+  summaries(): Promise<S3CredentialSummary[]>;
 }
 
 export function createMemoryConnectionStore(): S3ConnectionStore {
   const connections = new Map<string, S3Connection>();
-  const secrets = new Map<string, string>();
-
   return {
     list: () => Promise.resolve([...connections.values()]),
     get: (id) => Promise.resolve(connections.get(id) ?? null),
@@ -49,33 +47,54 @@ export function createMemoryConnectionStore(): S3ConnectionStore {
       connections.delete(id);
       return Promise.resolve();
     },
-    readSecret: (ref) => Promise.resolve(secrets.get(secretKey(ref)) ?? null),
-    writeSecret: (ref, value) => {
-      if (value === null) secrets.delete(secretKey(ref));
-      else secrets.set(secretKey(ref), value);
-      return Promise.resolve();
-    },
-    removeSecrets: (connectionId) => {
-      for (const key of secrets.keys()) {
-        if (key.startsWith(`${connectionId}::`)) secrets.delete(key);
-      }
-      return Promise.resolve();
-    },
   };
 }
 
-let store: S3ConnectionStore = createMemoryConnectionStore();
+export function createMemoryCredentialStore(): S3CredentialStore {
+  const credentials = new Map<string, S3Credential>();
+  return {
+    read: (ref) => Promise.resolve(credentials.get(ref) ?? null),
+    write: (ref, credential) => {
+      credentials.set(ref, credential);
+      return Promise.resolve();
+    },
+    remove: (ref) => {
+      credentials.delete(ref);
+      return Promise.resolve();
+    },
+    summaries: () =>
+      Promise.resolve(
+        [...credentials].map(([ref, credential]) => ({
+          ref,
+          accessKeyId: credential.accessKeyId,
+          hasSessionToken: Boolean(credential.sessionToken),
+          hasClientKeyPassphrase: Boolean(credential.clientKeyPassphrase),
+        })),
+      ),
+  };
+}
+
+let connections: S3ConnectionStore = createMemoryConnectionStore();
+let credentials: S3CredentialStore = createMemoryCredentialStore();
 
 /**
- * Installs the store everything else reads through.
+ * Installs the stores everything else reads through.
  *
  * Called once during startup, before anything has been read; a later swap
  * would leave whatever was written in the meantime behind in the old one.
  */
-export function registerConnectionStore(next: S3ConnectionStore): void {
-  store = next;
+export function registerConnectionStores(stores: {
+  connections: S3ConnectionStore;
+  credentials: S3CredentialStore;
+}): void {
+  connections = stores.connections;
+  credentials = stores.credentials;
 }
 
 export function connectionStore(): S3ConnectionStore {
-  return store;
+  return connections;
+}
+
+export function credentialStore(): S3CredentialStore {
+  return credentials;
 }

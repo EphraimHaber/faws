@@ -6,21 +6,20 @@ import type { S3Connection } from "@faws/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createSettingsStore, type SettingsStore } from "../settings/settings.store.ts";
-import { createServerConnectionStore } from "./connectionStore.ts";
+import { createFileCredentialStore, createSettingsConnectionStore } from "./connectionStore.ts";
 
 let dir: string;
 let settingsPath: string;
-let secretsPath: string;
+let credentialsPath: string;
 let settings: SettingsStore;
 
 const connection: S3Connection = {
   id: "abc",
-  source: "stored",
   name: "MinIO",
   endpoint: "https://s3.corp.internal:9000",
   region: "us-east-1",
   forcePathStyle: true,
-  credentials: { mode: "static", accessKeyId: "AKIALOCAL" },
+  credentials: { mode: "stored", ref: "cred-1" },
   tls: {
     verify: true,
     caPaths: [],
@@ -31,7 +30,6 @@ const connection: S3Connection = {
     pinnedSha256: null,
   },
   features: { storageMetrics: false, presign: true },
-  secretKeys: ["secretAccessKey"],
   revision: 1,
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
@@ -40,7 +38,7 @@ const connection: S3Connection = {
 beforeEach(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), "faws-s3-connections-"));
   settingsPath = path.join(dir, "settings", "settings.json");
-  secretsPath = path.join(dir, "settings", "s3-secrets.json");
+  credentialsPath = path.join(dir, "credentials", "s3.json");
   settings = createSettingsStore({ file: settingsPath });
   await settings.load();
 });
@@ -49,88 +47,112 @@ afterEach(() => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-function store() {
-  return createServerConnectionStore({ settings, secretsFile: secretsPath });
+function records() {
+  return createSettingsConnectionStore(() => settings);
+}
+
+function credentials() {
+  return createFileCredentialStore(credentialsPath);
 }
 
 describe("records", () => {
   it("keeps endpoints in the settings file, where every window already reads", async () => {
-    await store().put(connection);
+    await records().put(connection);
     await settings.flush();
 
     const onDisk = JSON.parse(fs.readFileSync(settingsPath, "utf8")) as {
       s3: { connections: S3Connection[] };
     };
     expect(onDisk.s3.connections).toEqual([connection]);
-    expect(await store().get("abc")).toEqual(connection);
+    expect(await records().get("abc")).toEqual(connection);
   });
 
   it("replaces an endpoint with the same id rather than adding a second", async () => {
-    const connections = store();
-    await connections.put(connection);
-    await connections.put({ ...connection, name: "MinIO (lab)", revision: 2 });
+    const store = records();
+    await store.put(connection);
+    await store.put({ ...connection, name: "MinIO (lab)", revision: 2 });
 
-    expect(await connections.list()).toHaveLength(1);
-    expect((await connections.get("abc"))?.name).toBe("MinIO (lab)");
+    expect(await store.list()).toHaveLength(1);
+    expect((await store.get("abc"))?.name).toBe("MinIO (lab)");
   });
 
   it("removes one without disturbing the others", async () => {
-    const connections = store();
-    await connections.put(connection);
-    await connections.put({ ...connection, id: "def", name: "Ceph" });
-    await connections.remove("abc");
+    const store = records();
+    await store.put(connection);
+    await store.put({ ...connection, id: "def", name: "Ceph" });
+    await store.remove("abc");
 
-    expect((await connections.list()).map((entry) => entry.id)).toEqual(["def"]);
+    expect((await store.list()).map((entry) => entry.id)).toEqual(["def"]);
   });
 });
 
-describe("secrets", () => {
-  it("writes keys to their own file, not the one that is broadcast", async () => {
-    await store().put(connection);
-    await store().writeSecret({ connectionId: "abc", name: "secretAccessKey" }, "s3cret");
+describe("credentials", () => {
+  const credential = { accessKeyId: "AKIALOCAL", secretAccessKey: "s3cret" };
+
+  it("writes keys to their own directory, not the file that is broadcast", async () => {
+    await records().put(connection);
+    await credentials().write("cred-1", credential);
     await settings.flush();
 
     expect(fs.readFileSync(settingsPath, "utf8")).not.toContain("s3cret");
-    expect(fs.readFileSync(secretsPath, "utf8")).toContain("s3cret");
+    expect(fs.readFileSync(settingsPath, "utf8")).not.toContain("AKIALOCAL");
+    expect(fs.readFileSync(credentialsPath, "utf8")).toContain("s3cret");
   });
 
   it("writes them only the owner can read", async () => {
-    await store().writeSecret({ connectionId: "abc", name: "secretAccessKey" }, "s3cret");
+    await credentials().write("cred-1", credential);
 
-    expect(fs.statSync(secretsPath).mode & 0o777).toBe(0o600);
+    expect(fs.statSync(credentialsPath).mode & 0o777).toBe(0o600);
   });
 
   it("reads back what a previous process wrote", async () => {
-    await store().writeSecret({ connectionId: "abc", name: "secretAccessKey" }, "s3cret");
+    await credentials().write("cred-1", { ...credential, sessionToken: "temporary" });
 
-    expect(await store().readSecret({ connectionId: "abc", name: "secretAccessKey" })).toBe(
-      "s3cret",
-    );
+    expect(await credentials().read("cred-1")).toEqual({
+      ...credential,
+      sessionToken: "temporary",
+    });
   });
 
-  it("drops every key of a connection, and leaves other connections' alone", async () => {
-    const connections = store();
-    await connections.writeSecret({ connectionId: "abc", name: "secretAccessKey" }, "one");
-    await connections.writeSecret({ connectionId: "def", name: "secretAccessKey" }, "two");
-    await connections.removeSecrets("abc");
+  it("summarises which key is in use without the half that proves it", async () => {
+    await credentials().write("cred-1", credential);
 
-    expect(
-      await connections.readSecret({ connectionId: "abc", name: "secretAccessKey" }),
-    ).toBeNull();
-    expect(await connections.readSecret({ connectionId: "def", name: "secretAccessKey" })).toBe(
-      "two",
-    );
+    expect(await credentials().summaries()).toEqual([
+      {
+        ref: "cred-1",
+        accessKeyId: "AKIALOCAL",
+        hasSessionToken: false,
+        hasClientKeyPassphrase: false,
+      },
+    ]);
   });
 
-  it("serves endpoints even when the keys cannot be read", async () => {
-    await store().put(connection);
-    fs.mkdirSync(path.dirname(secretsPath), { recursive: true });
-    fs.writeFileSync(secretsPath, "{ not json");
+  it("drops one without disturbing the others", async () => {
+    const store = credentials();
+    await store.write("cred-1", credential);
+    await store.write("cred-2", { accessKeyId: "AKIAOTHER", secretAccessKey: "other" });
+    await store.remove("cred-1");
 
-    const connections = store();
-    expect(await connections.list()).toHaveLength(1);
-    expect(
-      await connections.readSecret({ connectionId: "abc", name: "secretAccessKey" }),
-    ).toBeNull();
+    expect(await store.read("cred-1")).toBeNull();
+    expect((await store.read("cred-2"))?.secretAccessKey).toBe("other");
+  });
+
+  it("serves endpoints even when the credentials cannot be read", async () => {
+    await records().put(connection);
+    fs.mkdirSync(path.dirname(credentialsPath), { recursive: true });
+    fs.writeFileSync(credentialsPath, "{ not json");
+
+    expect(await records().list()).toHaveLength(1);
+    expect(await credentials().read("cred-1")).toBeNull();
+  });
+
+  it("keeps the entries it understands when one of them is nonsense", async () => {
+    fs.mkdirSync(path.dirname(credentialsPath), { recursive: true });
+    fs.writeFileSync(
+      credentialsPath,
+      JSON.stringify({ "cred-1": credential, "cred-2": { accessKeyId: 7 } }),
+    );
+
+    expect((await credentials().summaries()).map((entry) => entry.ref)).toEqual(["cred-1"]);
   });
 });

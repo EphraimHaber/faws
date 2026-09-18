@@ -9,23 +9,56 @@
  * trusts.
  *
  * A record here is safe to send to a renderer, and safe to keep in the
- * settings file: every secret it needs lives outside it, under `secretKeys`,
- * so the only thing that crosses the wire or lands on disk is whether one is
- * set.
+ * settings file: it names a credential rather than carrying one, so the only
+ * thing that crosses the wire is which credential an endpoint uses.
  */
 import { z } from "zod";
 
 /**
  * How the client proves who it is.
  *
+ * `stored` names an entry in the credential store rather than holding any part
+ * of it, so a settings file that is read on first paint and broadcast to every
+ * window never carries a key.
+ *
  * `aws-profile` exists because an S3 compatible endpoint can still be fronting
  * real AWS credentials (a gateway, an accelerator), and re-typing keys that
- * `~/.aws` already holds is how they end up in two places.
+ * `~/.aws` already holds is how they end up in two places to rotate.
  */
 export type S3ConnectionCredentials =
   | { readonly mode: "aws-profile"; readonly profile: string }
-  | { readonly mode: "static"; readonly accessKeyId: string }
+  | { readonly mode: "stored"; readonly ref: string }
   | { readonly mode: "anonymous" };
+
+/**
+ * One credential, as the credential store holds it.
+ *
+ * Everything secret about reaching an endpoint is here, in one entry, in one
+ * file that nothing broadcasts: this type is never part of a settings
+ * snapshot, a tRPC response or a log line.
+ */
+export interface S3Credential {
+  readonly accessKeyId: string;
+  readonly secretAccessKey: string;
+  /** Only for temporary credentials. */
+  readonly sessionToken?: string | undefined;
+  /** Only when the client key file for mTLS is encrypted. */
+  readonly clientKeyPassphrase?: string | undefined;
+}
+
+/**
+ * What a form may know about a stored credential.
+ *
+ * The access key id identifies which key is in use without being the key, so
+ * an endpoint can be edited, and its credential recognised, without the secret
+ * half ever leaving the machine's credential store.
+ */
+export interface S3CredentialSummary {
+  readonly ref: string;
+  readonly accessKeyId: string;
+  readonly hasSessionToken: boolean;
+  readonly hasClientKeyPassphrase: boolean;
+}
 
 export interface S3ConnectionTls {
   /**
@@ -72,14 +105,6 @@ export interface S3ConnectionFeatures {
 
 export interface S3Connection {
   readonly id: string;
-  /**
-   * Where the connection came from.
-   *
-   * An endpoint described by the environment belongs to whoever started the
-   * process, so it is offered but not editable: saving over it would last
-   * until the next restart and then silently revert.
-   */
-  readonly source: S3ConnectionSource;
   readonly name: string;
   /** Base URL of the endpoint, scheme included. */
   readonly endpoint: string;
@@ -94,18 +119,14 @@ export interface S3Connection {
   readonly credentials: S3ConnectionCredentials;
   readonly tls: S3ConnectionTls;
   readonly features: S3ConnectionFeatures;
-  /** Which secrets are set, never the secrets. */
-  readonly secretKeys: ReadonlyArray<S3ConnectionSecret>;
   /** Bumped on every save, so a cached client can tell it is stale. */
   readonly revision: number;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
 
-export type S3ConnectionSource = "stored" | "environment";
-
-/** The secrets a connection can hold, each stored under its own key. */
-export type S3ConnectionSecret = "secretAccessKey" | "sessionToken" | "clientKeyPassphrase";
+/** The fields of a credential, for the ones a form may replace one at a time. */
+export type S3CredentialField = keyof S3Credential;
 
 /**
  * Where an S3 call is pointed.
@@ -259,9 +280,10 @@ export const s3ConnectionFeaturesSchema = z.object({
 /**
  * Saving a connection.
  *
- * Secrets are write only and optional on an update: an absent one leaves what
- * is stored alone, so editing the name of a connection does not require
- * re-typing its keys, and an empty string is how one is cleared.
+ * Secrets are write only: a blank one leaves what is stored alone, so editing
+ * the name of a connection does not require re-typing its keys, and a form
+ * that was never shown a key cannot erase it by submitting the empty field it
+ * was given.
  */
 export const s3ConnectionInputSchema = z
   .object({
@@ -271,7 +293,7 @@ export const s3ConnectionInputSchema = z
     endpoint: endpointUrl,
     region: z.string().trim().min(1).max(64).default("us-east-1"),
     forcePathStyle: z.boolean().default(true),
-    credentialMode: z.enum(["static", "aws-profile", "anonymous"]).default("static"),
+    credentialMode: z.enum(["stored", "aws-profile", "anonymous"]).default("stored"),
     profile: z.string().min(1).optional(),
     accessKeyId: z.string().trim().optional(),
     /**
@@ -288,13 +310,14 @@ export const s3ConnectionInputSchema = z
     if (input.credentialMode === "aws-profile" && !input.profile) {
       ctx.addIssue({ code: "custom", path: ["profile"], message: "Pick a profile." });
     }
-    if (input.credentialMode === "static") {
-      if (!input.accessKeyId) {
+    // A new connection has nothing stored to fall back on, so both halves are
+    // required exactly when there is no id. On an edit, blank means the stored
+    // one stands, which is what a form that was never shown a key submits.
+    if (input.credentialMode === "stored" && input.id === undefined) {
+      if (!input.accessKeyId?.trim()) {
         ctx.addIssue({ code: "custom", path: ["accessKeyId"], message: "Enter an access key id." });
       }
-      // A new connection has nothing stored to fall back on, so the secret is
-      // required exactly when there is no id.
-      if (input.id === undefined && !input.secretAccessKey?.trim()) {
+      if (!input.secretAccessKey?.trim()) {
         ctx.addIssue({
           code: "custom",
           path: ["secretAccessKey"],
@@ -334,7 +357,6 @@ export const s3ConnectionRefSchema = z.object({ id: z.string().min(1) });
  */
 export const s3ConnectionSchema: z.ZodType<S3Connection, unknown> = z.object({
   id: z.string().min(1),
-  source: z.enum(["stored", "environment"]).catch("stored"),
   name: z.string().min(1).catch("Unnamed"),
   endpoint: z.string().min(1),
   region: z.string().min(1).catch("us-east-1"),
@@ -342,9 +364,11 @@ export const s3ConnectionSchema: z.ZodType<S3Connection, unknown> = z.object({
   credentials: z
     .discriminatedUnion("mode", [
       z.object({ mode: z.literal("aws-profile"), profile: z.string().min(1) }),
-      z.object({ mode: z.literal("static"), accessKeyId: z.string() }),
+      z.object({ mode: z.literal("stored"), ref: z.string().min(1) }),
       z.object({ mode: z.literal("anonymous") }),
     ])
+    // Anonymous rather than a guess at which credential was meant: reaching
+    // for the wrong key is worse than reaching for none.
     .catch({ mode: "anonymous" }),
   tls: z
     .object({
@@ -363,7 +387,6 @@ export const s3ConnectionSchema: z.ZodType<S3Connection, unknown> = z.object({
   features: z
     .object({ storageMetrics: z.boolean().catch(false), presign: z.boolean().catch(true) })
     .catch(() => ({ ...DEFAULT_FEATURES })),
-  secretKeys: z.array(z.enum(["secretAccessKey", "sessionToken", "clientKeyPassphrase"])).catch([]),
   revision: z.number().int().nonnegative().catch(1),
   createdAt: z.string().catch(""),
   updatedAt: z.string().catch(""),

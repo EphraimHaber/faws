@@ -1,20 +1,25 @@
 import { s3ConnectionInputSchema, type S3ConnectionInput } from "@faws/contracts";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { connectionStore, createMemoryConnectionStore, registerConnectionStore } from "./store.ts";
 import {
   capabilitiesFor,
-  connectionSecret,
+  credentialFor,
   deleteConnection,
-  listConnections,
+  getConnection,
   saveConnection,
 } from "./connections.ts";
+import {
+  createMemoryConnectionStore,
+  createMemoryCredentialStore,
+  credentialStore,
+  registerConnectionStores,
+} from "./store.ts";
 
 function input(overrides: Partial<S3ConnectionInput> = {}): S3ConnectionInput {
   return s3ConnectionInputSchema.parse({
     name: "MinIO",
     endpoint: "https://s3.corp.internal:9000",
-    credentialMode: "static",
+    credentialMode: "stored",
     accessKeyId: "AKIALOCAL",
     secretAccessKey: "s3cret",
     ...overrides,
@@ -22,38 +27,51 @@ function input(overrides: Partial<S3ConnectionInput> = {}): S3ConnectionInput {
 }
 
 beforeEach(() => {
-  registerConnectionStore(createMemoryConnectionStore());
+  registerConnectionStores({
+    connections: createMemoryConnectionStore(),
+    credentials: createMemoryCredentialStore(),
+  });
 });
 
 describe("saveConnection", () => {
-  it("keeps the secret out of the record and says only that one is set", async () => {
+  it("stores the keys under a reference, and keeps neither in the record", async () => {
     const saved = await saveConnection(input());
 
     expect(JSON.stringify(saved)).not.toContain("s3cret");
-    expect(saved.secretKeys).toEqual(["secretAccessKey"]);
-    expect(await connectionSecret(saved, "secretAccessKey")).toBe("s3cret");
+    expect(JSON.stringify(saved)).not.toContain("AKIALOCAL");
+    expect(saved.credentials).toEqual({ mode: "stored", ref: expect.any(String) });
+    expect(await credentialFor(saved)).toEqual({
+      accessKeyId: "AKIALOCAL",
+      secretAccessKey: "s3cret",
+    });
   });
 
-  it("leaves a stored secret alone when the field comes back blank", async () => {
+  it("leaves a stored key alone when the field comes back blank", async () => {
     const saved = await saveConnection(input());
     const edited = await saveConnection(
       input({ id: saved.id, name: "MinIO (lab)", secretAccessKey: "" }),
     );
 
     expect(edited.name).toBe("MinIO (lab)");
-    expect(await connectionSecret(edited, "secretAccessKey")).toBe("s3cret");
+    expect((await credentialFor(edited))?.secretAccessKey).toBe("s3cret");
   });
 
-  it("drops keys the connection no longer signs with", async () => {
+  it("keeps the same reference across edits, so no credential is stranded", async () => {
+    const saved = await saveConnection(input());
+    const edited = await saveConnection(input({ id: saved.id, secretAccessKey: "" }));
+
+    expect(edited.credentials).toEqual(saved.credentials);
+    expect(await credentialStore().summaries()).toHaveLength(1);
+  });
+
+  it("drops the credential when the endpoint stops signing with one", async () => {
     const saved = await saveConnection(input());
     const edited = await saveConnection(
       input({ id: saved.id, credentialMode: "anonymous", accessKeyId: undefined }),
     );
 
-    expect(edited.secretKeys).toEqual([]);
-    expect(
-      await connectionStore().readSecret({ connectionId: edited.id, name: "secretAccessKey" }),
-    ).toBeNull();
+    expect(edited.credentials).toEqual({ mode: "anonymous" });
+    expect(await credentialStore().summaries()).toEqual([]);
   });
 
   it("bumps the revision, so a cached client can tell it is stale", async () => {
@@ -65,43 +83,27 @@ describe("saveConnection", () => {
 });
 
 describe("deleteConnection", () => {
-  it("takes the secrets with it", async () => {
+  it("takes the credential with it", async () => {
     const saved = await saveConnection(input());
     await deleteConnection(saved.id);
 
-    expect(
-      await connectionStore().readSecret({ connectionId: saved.id, name: "secretAccessKey" }),
-    ).toBeNull();
+    expect(await credentialStore().summaries()).toEqual([]);
+    await expect(getConnection(saved.id)).rejects.toThrow();
   });
 });
 
-describe("environment endpoints", () => {
-  it("offers one the environment describes without storing it", async () => {
-    process.env["FAWS_S3_ENDPOINT"] = "https://s3.env.internal:9000";
-    process.env["FAWS_S3_ACCESS_KEY_ID"] = "AKIAENV";
-    process.env["FAWS_S3_SECRET_ACCESS_KEY"] = "envsecret";
-    try {
-      const listed = await listConnections();
-      const fromEnv = listed.find((entry) => entry.source === "environment");
+describe("credential summaries", () => {
+  it("name the key in use without the half that proves it", async () => {
+    await saveConnection(input({ sessionToken: "temporary" }));
 
-      expect(fromEnv?.endpoint).toBe("https://s3.env.internal:9000");
-      expect(await connectionStore().list()).toEqual([]);
-      expect(fromEnv ? await connectionSecret(fromEnv, "secretAccessKey") : null).toBe("envsecret");
-    } finally {
-      delete process.env["FAWS_S3_ENDPOINT"];
-      delete process.env["FAWS_S3_ACCESS_KEY_ID"];
-      delete process.env["FAWS_S3_SECRET_ACCESS_KEY"];
-    }
-  });
-
-  it("refuses to edit or remove one, which a restart would undo anyway", async () => {
-    process.env["FAWS_S3_ENDPOINT"] = "https://s3.env.internal:9000";
-    try {
-      await expect(saveConnection(input({ id: "env" }))).rejects.toThrow(/environment/);
-      await expect(deleteConnection("env")).rejects.toThrow(/environment/);
-    } finally {
-      delete process.env["FAWS_S3_ENDPOINT"];
-    }
+    expect(await credentialStore().summaries()).toEqual([
+      {
+        ref: expect.any(String),
+        accessKeyId: "AKIALOCAL",
+        hasSessionToken: true,
+        hasClientKeyPassphrase: false,
+      },
+    ]);
   });
 });
 
@@ -128,7 +130,7 @@ describe("s3ConnectionInputSchema", () => {
     const create = s3ConnectionInputSchema.safeParse({
       name: "MinIO",
       endpoint: "https://s3.corp.internal:9000",
-      credentialMode: "static",
+      credentialMode: "stored",
       accessKeyId: "AKIALOCAL",
     });
     expect(create.success).toBe(false);
@@ -137,7 +139,7 @@ describe("s3ConnectionInputSchema", () => {
       id: "abc",
       name: "MinIO",
       endpoint: "https://s3.corp.internal:9000",
-      credentialMode: "static",
+      credentialMode: "stored",
       accessKeyId: "AKIALOCAL",
     });
     expect(edit.success).toBe(true);

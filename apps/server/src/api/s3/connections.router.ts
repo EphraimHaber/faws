@@ -4,8 +4,8 @@
  * These procedures edit local configuration rather than anything in a bucket,
  * so the write switches do not apply to them: refusing to save an endpoint
  * while in read only mode would leave no way to reach the endpoint the mode is
- * protecting. What they do carry is a secret on the way in and never on the
- * way out.
+ * protecting. What they do carry is a key on the way in and never on the way
+ * out.
  */
 import {
   s3ConnectionInputSchema,
@@ -14,8 +14,8 @@ import {
 } from "@faws/contracts";
 import {
   capabilitiesFor,
+  credentialStore,
   deleteConnection,
-  environmentConnections,
   invalidateConnection,
   listConnections,
   probeConnection,
@@ -31,13 +31,12 @@ export const s3ConnectionsRouter = router({
   list: publicProcedure.query(() => guard(() => listConnections())),
 
   /**
-   * The endpoints the environment describes.
+   * Which credentials exist, and which key id each one is.
    *
-   * The saved ones reach the UI through the settings snapshot, which is live
-   * and needs no query; these are not in that file and cannot change while the
-   * process runs, so they are asked for once.
+   * The half that proves the key is never part of this: a form needs to say
+   * "this endpoint signs as AKIA..." and nothing more.
    */
-  fromEnvironment: publicProcedure.query(() => environmentConnections()),
+  credentials: publicProcedure.query(() => guard(() => credentialStore().summaries())),
 
   /** What the panes for this scope can offer, which AWS alone answers fully. */
   capabilities: publicProcedure

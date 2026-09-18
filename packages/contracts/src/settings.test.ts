@@ -76,3 +76,47 @@ describe("pruneSilenced", () => {
     expect(pruned[`arn-${MAX_SILENCE_ENTRIES + 9}`]).toBeDefined();
   });
 });
+
+describe("s3 endpoints", () => {
+  const endpoint = {
+    id: "abc",
+    name: "MinIO",
+    endpoint: "https://s3.corp.internal:9000",
+    region: "us-east-1",
+    forcePathStyle: true,
+    credentials: { mode: "stored", ref: "cred-1" },
+    tls: {
+      verify: true,
+      caPaths: [],
+      caPem: null,
+      clientCertPath: null,
+      clientKeyPath: null,
+      servername: null,
+      pinnedSha256: null,
+    },
+    features: { storageMetrics: false, presign: true },
+    revision: 1,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+
+  it("keeps the endpoints it can read and drops only the ones it cannot", () => {
+    const parsed = settingsSchema.parse({
+      s3: { connections: [endpoint, { id: "broken" }, { ...endpoint, id: "def", name: "Ceph" }] },
+    });
+
+    expect(parsed.s3.connections.map((entry) => entry.id)).toEqual(["abc", "def"]);
+  });
+
+  it("turns an endpoint with an unreadable section back into a safe default", () => {
+    const parsed = settingsSchema.parse({
+      s3: { connections: [{ ...endpoint, tls: "nonsense" }] },
+    });
+
+    expect(parsed.s3.connections[0]?.tls.verify).toBe(true);
+  });
+
+  it("has no endpoints in a file written before they existed", () => {
+    expect(settingsSchema.parse({ scope: { profile: "prod" } }).s3.connections).toEqual([]);
+  });
+});

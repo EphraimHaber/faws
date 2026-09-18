@@ -1,5 +1,5 @@
 import type { S3Connection } from "@faws/contracts";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, ShieldAlert } from "lucide-react";
 import * as React from "react";
 
@@ -25,9 +25,23 @@ export function ConnectionsPanel() {
 
   // Saving and removing land in the settings snapshot, which every window is
   // already listening to, so neither needs a query to invalidate.
-  const remove = useMutation(trpc.s3Connections.remove.mutationOptions());
+  const queryClient = useQueryClient();
+  const remove = useMutation(
+    trpc.s3Connections.remove.mutationOptions({
+      // The record leaves through the settings snapshot; the credential
+      // listing is a query and has to be told.
+      onSuccess: () => void queryClient.invalidateQueries(),
+    }),
+  );
 
   const rows = useS3Connections();
+  // Which key each endpoint signs as, by its id alone; the half that proves it
+  // never leaves the machine's credential store.
+  const credentials = useQuery(trpc.s3Connections.credentials.queryOptions());
+  const keys = React.useMemo(
+    () => new Map((credentials.data ?? []).map((entry) => [entry.ref, entry.accessKeyId])),
+    [credentials.data],
+  );
 
   return (
     <Panel className="shrink-0">
@@ -52,9 +66,6 @@ export function ConnectionsPanel() {
                 <span className="flex items-center gap-2">
                   <span className="truncate text-[12.5px]">{connection.name}</span>
                   {connection.id === connectionId ? <Badge tone="primary">in use</Badge> : null}
-                  {connection.source === "environment" ? (
-                    <Badge tone="neutral">environment</Badge>
-                  ) : null}
                   {connection.tls.verify ? null : (
                     <Badge tone="warning">
                       <ShieldAlert className="size-3" strokeWidth={2} /> unverified
@@ -63,7 +74,7 @@ export function ConnectionsPanel() {
                   {connection.tls.pinnedSha256 ? <Badge tone="info">pinned</Badge> : null}
                 </span>
                 <span className="block truncate font-mono text-[10.5px] text-muted-foreground">
-                  {connection.endpoint} · {describeCredentials(connection)}
+                  {connection.endpoint} · {describeCredentials(connection, keys)}
                 </span>
               </span>
 
@@ -74,26 +85,12 @@ export function ConnectionsPanel() {
               >
                 {connection.id === connectionId ? "Leave" : "Use"}
               </Button>
-              {/* An endpoint the environment set belongs to whoever started
-                  the process: an edit here would last until the next restart
-                  and then silently revert. */}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={connection.source === "environment"}
-                title={
-                  connection.source === "environment"
-                    ? "Set by the environment this server was started with."
-                    : undefined
-                }
-                onClick={() => setEditing(connection)}
-              >
+              <Button size="sm" variant="outline" onClick={() => setEditing(connection)}>
                 Edit
               </Button>
               <Button
                 size="sm"
                 variant="danger"
-                disabled={connection.source === "environment"}
                 onClick={() => {
                   // The stored keys go with it, so the id in scope has to stop
                   // pointing at it in the same act.
@@ -118,10 +115,10 @@ export function ConnectionsPanel() {
   );
 }
 
-function describeCredentials(connection: S3Connection): string {
+function describeCredentials(connection: S3Connection, keys: Map<string, string>): string {
   switch (connection.credentials.mode) {
-    case "static":
-      return connection.credentials.accessKeyId;
+    case "stored":
+      return keys.get(connection.credentials.ref) ?? "a stored key";
     case "aws-profile":
       return `profile ${connection.credentials.profile}`;
     default:

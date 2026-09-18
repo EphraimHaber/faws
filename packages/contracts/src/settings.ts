@@ -123,7 +123,20 @@ export const terminalSettingsSchema = z.object({
  * every open window.
  */
 export const s3SettingsSchema = z.object({
-  connections: z.array(s3ConnectionSchema).catch([]),
+  /**
+   * Parsed one entry at a time, because `array(...).catch([])` would answer a
+   * single unreadable endpoint by dropping every endpoint. One that cannot be
+   * read costs itself.
+   */
+  connections: z
+    .array(z.unknown())
+    .catch([])
+    .transform((entries) =>
+      entries.flatMap((entry) => {
+        const parsed = s3ConnectionSchema.safeParse(entry);
+        return parsed.success ? [parsed.data] : [];
+      }),
+    ),
 });
 
 export const silencedSettingsSchema = z.object({

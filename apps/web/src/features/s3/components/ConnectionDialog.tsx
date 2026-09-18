@@ -3,9 +3,9 @@ import {
   DEFAULT_TLS,
   s3ConnectionInputSchema,
   type S3Connection,
-  type S3ConnectionInput,
   type S3ConnectionProbe,
 } from "@faws/contracts";
+import type { z } from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShieldAlert, ShieldCheck } from "lucide-react";
 import * as React from "react";
@@ -46,6 +46,11 @@ export function ConnectionDialog({
   const [probe, setProbe] = React.useState<S3ConnectionProbe | null>(null);
 
   const profiles = useQuery({ ...trpc.aws.profiles.queryOptions(), staleTime: 5 * 60_000 });
+  const credentials = useQuery(trpc.s3Connections.credentials.queryOptions());
+
+  /** What is already stored for this endpoint, so the form can say so. */
+  const ref = connection?.credentials.mode === "stored" ? connection.credentials.ref : null;
+  const stored = ref === null ? undefined : (credentials.data ?? []).find((e) => e.ref === ref);
 
   const form = useZodForm(s3ConnectionInputSchema, {
     defaultValues: defaultsFor(connection),
@@ -66,6 +71,7 @@ export function ConnectionDialog({
 
   const credentialMode = form.watch("credentialMode");
   const verify = form.watch("tls.verify");
+  const pinned = form.watch("tls.pinnedSha256");
 
   /** Testing uses the same values the save would, validated the same way. */
   const runTest = () =>
@@ -74,9 +80,9 @@ export function ConnectionDialog({
       test.mutate(values);
     })();
 
+  /** The pin is the whole trust decision, so nothing else has to be relaxed. */
   const trustPresented = (fingerprint: string) => {
     form.setValue("tls.pinnedSha256", fingerprint, { shouldDirty: true });
-    form.setValue("tls.verify", true, { shouldDirty: true });
   };
 
   return (
@@ -116,20 +122,29 @@ export function ConnectionDialog({
             name="credentialMode"
             label="Source"
             options={[
-              { value: "static", label: "Access key stored here" },
+              { value: "stored", label: "Access key stored here" },
               { value: "aws-profile", label: "An AWS profile" },
               { value: "anonymous", label: "None (public buckets)" },
             ]}
           />
 
-          {credentialMode === "static" ? (
+          {credentialMode === "stored" ? (
             <>
-              <TextField name="accessKeyId" label="Access key id" mono />
+              <TextField
+                name="accessKeyId"
+                label="Access key id"
+                hint={
+                  stored
+                    ? `Currently ${stored.accessKeyId}. Leave this empty to keep it.`
+                    : "Kept with the secret half, outside the settings file."
+                }
+                mono
+              />
               <TextField
                 name="secretAccessKey"
                 label="Secret access key"
                 hint={
-                  connection?.secretKeys.includes("secretAccessKey")
+                  stored
                     ? "One is stored. Leave this empty to keep it."
                     : "Stored outside this window and never sent back to it."
                 }
@@ -139,7 +154,11 @@ export function ConnectionDialog({
               <TextField
                 name="sessionToken"
                 label="Session token"
-                hint="Only for temporary credentials."
+                hint={
+                  stored?.hasSessionToken
+                    ? "One is stored. Leave this empty to keep it."
+                    : "Only for temporary credentials."
+                }
                 secret
                 mono
               />
@@ -165,7 +184,13 @@ export function ConnectionDialog({
             label="Verify the certificate"
             hint="Off accepts any certificate on this endpoint, including one swapped in by something between you and it."
           />
-          {verify ? null : (
+          {pinned ? (
+            <p className="flex items-start gap-2 rounded-md border border-border bg-card/40 px-2.5 py-2 text-[11.5px] text-muted-foreground">
+              <ShieldCheck className="mt-px size-3.5 shrink-0 text-success" strokeWidth={1.7} />
+              A pinned fingerprint is what this endpoint is checked against, whether or not the
+              chain would vouch for it.
+            </p>
+          ) : verify ? null : (
             <p className="flex items-start gap-2 rounded-md border border-warning/35 bg-warning/8 px-2.5 py-2 text-[11.5px] text-foreground">
               <ShieldAlert className="mt-px size-3.5 shrink-0 text-warning" strokeWidth={1.7} />
               Nothing is checked against the certificate. Pinning the one this endpoint presents, or
@@ -195,7 +220,7 @@ export function ConnectionDialog({
           <TextField
             name="tls.pinnedSha256"
             label="Pinned fingerprint"
-            hint="SHA-256, colon separated. Set it and only that certificate is accepted."
+            hint="SHA-256, colon separated. Set it and only that certificate is accepted, whatever the chain says."
             mono
           />
 
@@ -207,7 +232,7 @@ export function ConnectionDialog({
             name="clientKeyPassphrase"
             label="Client key passphrase"
             hint={
-              connection?.secretKeys.includes("clientKeyPassphrase")
+              stored?.hasClientKeyPassphrase
                 ? "One is stored. Leave this empty to keep it."
                 : "Only if the key file is encrypted."
             }
@@ -322,19 +347,22 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function defaultsFor(connection: S3Connection | null): S3ConnectionInput {
+/** What the fields hold, which is the schema's input rather than its output. */
+type FormValues = z.input<typeof s3ConnectionInputSchema>;
+
+function defaultsFor(connection: S3Connection | null): FormValues {
   if (!connection) {
     return {
       name: "",
       endpoint: "",
       region: "us-east-1",
       forcePathStyle: true,
-      credentialMode: "static",
+      credentialMode: "stored",
       accessKeyId: "",
       secretAccessKey: "",
       tls: { ...DEFAULT_TLS, caPaths: [] },
       features: { ...DEFAULT_FEATURES },
-    } as S3ConnectionInput;
+    };
   }
 
   return {
@@ -347,11 +375,10 @@ function defaultsFor(connection: S3Connection | null): S3ConnectionInput {
     ...(connection.credentials.mode === "aws-profile"
       ? { profile: connection.credentials.profile }
       : {}),
-    ...(connection.credentials.mode === "static"
-      ? { accessKeyId: connection.credentials.accessKeyId }
-      : {}),
-    // Left out rather than blanked: an empty string would clear what is stored.
+
+    // The secret fields are absent rather than blank: nothing was sent to fill
+    // them, and a form that submits them untouched means "leave them alone".
     tls: { ...connection.tls, caPaths: [...connection.tls.caPaths] },
     features: { ...connection.features },
-  } as S3ConnectionInput;
+  };
 }
