@@ -113,3 +113,61 @@ export interface S3PrefixRollup {
   readonly totalBytes: number;
   readonly byStorageClass: Readonly<Record<string, number>>;
 }
+
+/** The parts of a bucket's configuration, each its own call and permission. */
+export type S3BucketConfigField =
+  | "versioning"
+  | "encryption"
+  | "publicAccessBlock"
+  | "policy"
+  | "lifecycle"
+  | "tags"
+  | "owner";
+
+export interface S3LifecycleRule {
+  readonly id: string;
+  readonly status: string;
+  readonly prefix: string;
+  readonly expiresAfterDays: number | null;
+  readonly transitions: ReadonlyArray<{ storageClass: string; afterDays: number | null }>;
+}
+
+export interface S3BucketConfig {
+  readonly versioning: "Enabled" | "Suspended" | "Disabled";
+  readonly mfaDelete: boolean;
+  readonly encryption: { algorithm: string; kmsKeyId: string | null } | null;
+  readonly publicAccessBlock: {
+    blockPublicAcls: boolean;
+    ignorePublicAcls: boolean;
+    blockPublicPolicy: boolean;
+    restrictPublicBuckets: boolean;
+  } | null;
+  readonly policyJson: string | null;
+  readonly lifecycleRules: ReadonlyArray<S3LifecycleRule>;
+  readonly tags: Readonly<Record<string, string>>;
+  readonly ownerName: string | null;
+  /**
+   * Fields the caller may not read. Reported rather than thrown, because a
+   * bucket where everything but the policy is visible is the common case.
+   */
+  readonly denied: ReadonlyArray<S3BucketConfigField>;
+}
+
+/** One version of a key, or the marker left where a delete happened. */
+export interface S3VersionEntry {
+  readonly key: string;
+  readonly versionId: string;
+  readonly isLatest: boolean;
+  readonly isDeleteMarker: boolean;
+  readonly size: number;
+  readonly lastModified: string | null;
+  readonly etag: string | null;
+  readonly storageClass: string;
+}
+
+/** A page of versions. This API pages on two markers rather than one token. */
+export interface S3VersionPage {
+  readonly versions: ReadonlyArray<S3VersionEntry>;
+  readonly nextKeyMarker: string | null;
+  readonly nextVersionIdMarker: string | null;
+}

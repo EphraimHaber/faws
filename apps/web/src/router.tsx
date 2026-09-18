@@ -27,7 +27,7 @@ import { EcsIndexPage } from "~/features/ecs/pages/EcsIndexPage";
 import { HomePage } from "~/pages/HomePage";
 import { LogsPage } from "~/pages/LogsPage";
 import { SERVICE_TABS, ServicePage } from "~/features/ecs/pages/ServicePage";
-import { BucketPage } from "~/features/s3/pages/BucketPage";
+import { BUCKET_TABS, BucketPage } from "~/features/s3/pages/BucketPage";
 import { BucketsPage } from "~/features/s3/pages/BucketsPage";
 import { S3IndexPage } from "~/features/s3/pages/S3IndexPage";
 import { SettingsPage } from "~/pages/SettingsPage";
@@ -146,6 +146,7 @@ const bucketRoute = createRoute({
     prefix: z.string().max(1024).optional().catch(undefined),
     /** The key open in the viewer, so a link can carry one object. */
     object: z.string().max(1024).optional().catch(undefined),
+    tab: z.enum(BUCKET_TABS).optional().catch(undefined),
   }),
   component: BucketRoute,
 });

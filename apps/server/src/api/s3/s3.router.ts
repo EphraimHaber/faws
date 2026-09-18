@@ -7,11 +7,14 @@
  */
 import { s3ListObjectsSchema, s3ObjectRefSchema } from "@faws/contracts";
 import {
+  bucketConfig,
   bucketRegion,
+  bucketStorageMetrics,
   bucketVersioning,
   headObject,
   listBuckets,
   listObjectsPage,
+  listObjectVersions,
 } from "@faws/core";
 import { z } from "zod";
 
@@ -37,6 +40,50 @@ export const s3Router = router({
   versioning: publicProcedure
     .input(scopeInput.extend({ bucket: z.string().min(1) }))
     .query(({ input }) => guard(() => bucketVersioning(input, input.bucket))),
+
+  /** Everything the properties pane shows, degrading per field. */
+  config: publicProcedure
+    .input(scopeInput.extend({ bucket: z.string().min(1) }))
+    .query(({ input }) => guard(() => bucketConfig(input, input.bucket))),
+
+  /** Versions and delete markers; this listing pages on two markers. */
+  versions: publicProcedure
+    .input(
+      scopeInput.extend({
+        bucket: z.string().min(1),
+        prefix: z.string().max(1024).default(""),
+        keyMarker: z.string().optional(),
+        versionIdMarker: z.string().optional(),
+      }),
+    )
+    .query(({ input }) =>
+      guard(() =>
+        listObjectVersions(input, {
+          bucket: input.bucket,
+          prefix: input.prefix,
+          ...(input.keyMarker ? { keyMarker: input.keyMarker } : {}),
+          ...(input.versionIdMarker ? { versionIdMarker: input.versionIdMarker } : {}),
+        }),
+      ),
+    ),
+
+  /** Daily size and object count, which is cheaper than counting. */
+  storageMetrics: publicProcedure
+    .input(
+      scopeInput.extend({
+        bucket: z.string().min(1),
+        days: z.number().int().positive().max(365).optional(),
+      }),
+    )
+    .query(({ input }) =>
+      guard(() =>
+        bucketStorageMetrics(
+          input,
+          input.bucket,
+          input.days === undefined ? {} : { days: input.days },
+        ),
+      ),
+    ),
 
   /** What an object is, which decides whether and how its bytes are fetched. */
   head: publicProcedure.input(scopeInput.and(s3ObjectRefSchema)).query(({ input }) =>

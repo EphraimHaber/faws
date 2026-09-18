@@ -16,10 +16,19 @@ export function MetricChart({
   series,
   height = 132,
   className,
+  label: labelProp,
+  format = percent,
+  /** Charts of unrelated things should not share one ceiling. */
+  peakFloor = 10,
 }: {
   series: MetricSeries;
   height?: number;
   className?: string;
+  /** Defaults to a name for the ECS metrics this was first drawn for. */
+  label?: string;
+  /** How a value reads: a percentage, a byte count, a plain number. */
+  format?: (value: number | null) => string;
+  peakFloor?: number;
 }) {
   const [hover, setHover] = React.useState<number | null>(null);
   const points = series.points;
@@ -27,7 +36,7 @@ export function MetricChart({
   const geometry = React.useMemo(() => {
     if (points.length < 2) return null;
     const values = points.flatMap((p) => [p.average ?? 0, p.maximum ?? 0]);
-    const peak = Math.max(10, Math.ceil(Math.max(...values) / 10) * 10);
+    const peak = Math.max(peakFloor, Math.ceil(Math.max(...values) / 10) * 10);
     const stepX = 100 / (points.length - 1);
     const toY = (value: number | null) => 100 - ((value ?? 0) / peak) * 100;
     const path = (pick: (index: number) => number | null) =>
@@ -40,9 +49,9 @@ export function MetricChart({
       maxPath: path((i) => points[i]?.maximum ?? null),
       areaPath: `${avgPath} L 100 100 L 0 100 Z`,
     };
-  }, [points]);
+  }, [points, peakFloor]);
 
-  const label = series.metric === "CPUUtilization" ? "CPU" : "Memory";
+  const label = labelProp ?? (series.metric === "CPUUtilization" ? "CPU" : "Memory");
   const active = hover === null ? points.at(-1) : points[hover];
 
   if (!geometry) {
@@ -66,10 +75,10 @@ export function MetricChart({
           {label}
         </span>
         <span className="font-mono text-[12.5px] text-foreground tabular">
-          {percent(active?.average ?? null)}
+          {format(active?.average ?? null)}
         </span>
         <span className="font-mono text-[10.5px] text-muted-foreground tabular">
-          max {percent(active?.maximum ?? null)}
+          max {format(active?.maximum ?? null)}
         </span>
         <span className="ml-auto font-mono text-[10px] text-muted-foreground/70 tabular">
           {active ? clockTime(active.timestamp) : ""}
