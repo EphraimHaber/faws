@@ -8,6 +8,7 @@
     "dev:server": "node scripts/dev-runner.ts dev:server",
     "dev:web": "node scripts/dev-runner.ts dev:web",
     "dev:desktop": "node scripts/dev-runner.ts dev:desktop",
+    "dev:stop": "lsof -ti tcp:${FAWS_DEV_SERVER_PORT:-4741} -i tcp:${FAWS_DEV_WEB_PORT:-5741} | xargs -r kill",
     "build": "turbo run build",
     "build:desktop": "turbo run build --filter=@faws/desktop",
     "start:desktop": "turbo run start --filter=@faws/desktop",
