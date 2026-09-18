@@ -82,6 +82,18 @@ export function deriveCrumbs(pathname: string): Crumb[] {
     return crumbs;
   }
 
+  // /s3/buckets and /s3/buckets/$bucket
+  if (segments[1] === "buckets") {
+    crumbs.push({ label: "Buckets", to: `${service.basePath}/buckets` });
+    if (segments[2]) {
+      crumbs.push({
+        label: decodeURIComponent(segments[2]),
+        to: `${service.basePath}/buckets/${segments[2]}`,
+      });
+    }
+    return crumbs;
+  }
+
   // /ecs/clusters and /ecs/clusters/$cluster/...
   if (segments[1] === "clusters") {
     crumbs.push({ label: "Clusters", to: `${service.basePath}/clusters` });

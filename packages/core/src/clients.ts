@@ -9,6 +9,7 @@
 import { CloudWatchClient } from "@aws-sdk/client-cloudwatch";
 import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import { ECSClient } from "@aws-sdk/client-ecs";
+import { S3Client } from "@aws-sdk/client-s3";
 import { STSClient } from "@aws-sdk/client-sts";
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 import type { AwsScope } from "@faws/contracts";
@@ -19,6 +20,7 @@ type ClientBundle = {
   readonly sts: STSClient;
   readonly cloudwatch: CloudWatchClient;
   readonly logs: CloudWatchLogsClient;
+  readonly s3: S3Client;
 };
 
 const bundles = new Map<string, ClientBundle>();
@@ -41,6 +43,16 @@ function bundleFor(scope: AwsScope): ClientBundle {
     sts: new STSClient(config),
     cloudwatch: new CloudWatchClient(config),
     logs: new CloudWatchLogsClient(config),
+    s3: new S3Client({
+      ...config,
+      // A bucket answers only in its own region; without this a request to the
+      // wrong one fails with a redirect the caller would have to chase.
+      followRegionRedirects: true,
+      // A checksum computed at signing time is computed over no body, and S3
+      // then rejects the real bytes against it, so presigned uploads fail.
+      // TLS covers the transfer and the etag is compared at completion.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+    }),
   };
   bundles.set(key, bundle);
   return bundle;
@@ -60,6 +72,10 @@ export function cloudWatchClient(scope: AwsScope): CloudWatchClient {
 
 export function logsClient(scope: AwsScope): CloudWatchLogsClient {
   return bundleFor(scope).logs;
+}
+
+export function s3Client(scope: AwsScope): S3Client {
+  return bundleFor(scope).s3;
 }
 
 /** Drops cached clients for a scope so the next call re-resolves credentials. */
@@ -89,6 +105,17 @@ export async function callAws<T>(service: string, fn: () => Promise<T>): Promise
     }
     throw new AwsRequestError(message, { code: name, service });
   }
+}
+
+/**
+ * One page of a listing, with the cursor for the next one.
+ *
+ * The counterpart to `collectPages` for APIs whose result sets are unbounded:
+ * the token is handed to the caller instead of being followed here.
+ */
+export interface Page<T> {
+  readonly items: ReadonlyArray<T>;
+  readonly nextToken: string | null;
 }
 
 /** Walks a paginated ECS list API, collecting every page's items. */

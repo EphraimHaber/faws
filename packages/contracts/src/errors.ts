@@ -22,10 +22,21 @@ export class AwsRequestError extends Error {
   }
 }
 
-/** Raised by the read-only guard when a mutating call is attempted. */
+/**
+ * Raised when a guard refuses an operation.
+ *
+ * The reason is part of the message because the two switches fail
+ * differently: one is "this build cannot write at all", the other is "it can
+ * write, but this would destroy something". Telling them apart is what makes
+ * the refusal actionable.
+ */
 export class ReadOnlyModeError extends Error {
-  constructor(operation: string) {
-    super(`Read-only mode is on; "${operation}" was blocked.`);
+  constructor(operation: string, reason: "read-only" | "destructive" = "read-only") {
+    super(
+      reason === "read-only"
+        ? `Read-only mode is on; "${operation}" was blocked.`
+        : `"${operation}" destroys data, and deletion is not armed for this session.`,
+    );
     this.name = "ReadOnlyModeError";
   }
 }

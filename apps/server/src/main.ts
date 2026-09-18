@@ -20,9 +20,16 @@ import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/a
 import Fastify, { type FastifyBaseLogger, type FastifyError } from "fastify";
 
 import { attachExecNamespace } from "./api/exec/exec.service.ts";
+import { s3BytesRoutes } from "./api/s3/bytes.routes.ts";
+import { attachS3ScanNamespace } from "./api/s3/scan.service.ts";
 import { appRouter, type AppRouter } from "./router.ts";
 import { getRootLogger } from "./shared/logger.ts";
-import { getExecNamespace, setupSocketIO } from "./shared/socket-io.ts";
+import {
+  closeSocketIO,
+  getExecNamespace,
+  getS3ScanNamespace,
+  setupSocketIO,
+} from "./shared/socket-io.ts";
 
 const HOST = process.env["FAWS_HOST"] ?? "127.0.0.1";
 const PORT = process.env["FAWS_PORT"] ? Number(process.env["FAWS_PORT"]) : 0;
@@ -33,6 +40,9 @@ const PORT = process.env["FAWS_PORT"] ? Number(process.env["FAWS_PORT"]) : 0;
 const server = Fastify({
   loggerInstance: getRootLogger() as unknown as FastifyBaseLogger,
   routerOptions: { maxParamLength: 5000 },
+  // Object bodies are streamed, and a stream that is still playing would hold
+  // a shutdown open indefinitely; closing takes the sockets with it.
+  forceCloseConnections: true,
 });
 
 server.addHook("onResponse", (request, reply, done) => {
@@ -54,11 +64,35 @@ server.setErrorHandler((error: FastifyError, request, reply) => {
   });
 });
 
+/**
+ * Loopback only.
+ *
+ * `origin: true` reflects whatever asked, which was survivable while the API
+ * could only read an inventory. It can now delete objects, so a page that
+ * guesses this port is no longer harmless: the allowlist is what keeps the
+ * answer to a drive by request a refusal.
+ */
+function isLocalOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "[::1]";
+  } catch {
+    return false;
+  }
+}
+
 await server.register(fastifyCors, {
-  origin: true,
+  origin: (origin, callback) => {
+    // A request with no origin is not a browser one, so there is nothing for
+    // the policy to protect against.
+    callback(null, origin === undefined || isLocalOrigin(origin));
+  },
   credentials: true,
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["content-type", "x-trpc-source", "x-method-override"],
+  // `range` is what lets a viewer read a leading slice of a large object;
+  // `content-range` has to be exposed for the script that asked to see it.
+  allowedHeaders: ["content-type", "x-trpc-source", "x-method-override", "range"],
+  exposedHeaders: ["content-range", "accept-ranges", "content-length", "etag"],
 });
 
 await server.register(fastifyTRPCPlugin, {
@@ -72,6 +106,8 @@ await server.register(fastifyTRPCPlugin, {
   } satisfies FastifyTRPCPluginOptions<AppRouter>["trpcOptions"],
 });
 
+await server.register(s3BytesRoutes);
+
 server.get("/healthz", () => ({ ok: true }));
 
 const webDist = process.env["FAWS_WEB_DIST"];
@@ -80,7 +116,7 @@ if (webDist) {
   if (fs.existsSync(path.join(root, "index.html"))) {
     await server.register(fastifyStatic, { root, wildcard: false });
     server.setNotFoundHandler((request, reply) => {
-      if (request.url.startsWith("/trpc")) {
+      if (request.url.startsWith("/trpc") || request.url.startsWith("/s3/")) {
         return reply.status(404).send({ error: "Not Found", message: request.url });
       }
       return reply.type("text/html").sendFile("index.html");
@@ -96,11 +132,16 @@ const resolvedPort = (server.server.address() as { port: number } | null)?.port 
 setupSocketIO(server);
 const execNs = getExecNamespace();
 if (execNs) attachExecNamespace(execNs);
+const scanNs = getS3ScanNamespace();
+if (scanNs) attachS3ScanNamespace(scanNs);
 
 console.log(`faws-server-port: ${resolvedPort}`);
 console.log(`faws-server-url: ${address.replace(/\/$/, "")}/trpc`);
 
 const shutdown = async () => {
+  // Sockets first: they keep the HTTP server listening, so closing the other
+  // way round waits for every attached tab to leave of its own accord.
+  await closeSocketIO();
   await server.close();
   process.exit(0);
 };

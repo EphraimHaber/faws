@@ -227,7 +227,8 @@ export interface MetricPoint {
 }
 
 export interface MetricSeries {
-  readonly metric: "CPUUtilization" | "MemoryUtilization";
+  /** The CloudWatch metric name, whichever namespace it came from. */
+  readonly metric: string;
   readonly points: ReadonlyArray<MetricPoint>;
 }
 

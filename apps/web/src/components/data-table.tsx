@@ -20,6 +20,18 @@ export interface Column<T> {
   readonly mono?: boolean;
 }
 
+/**
+ * Which rows are ticked, and how that changes.
+ *
+ * The set is held by the caller: the rows a table shows are a page of
+ * something longer, and a selection that lived here would be forgotten every
+ * time the list grew or refetched.
+ */
+export interface DataTableSelection {
+  readonly selected: ReadonlySet<string>;
+  onChange(next: Set<string>): void;
+}
+
 export interface DataTableProps<T> {
   readonly rows: ReadonlyArray<T>;
   readonly columns: ReadonlyArray<Column<T>>;
@@ -28,6 +40,14 @@ export interface DataTableProps<T> {
   /** Text from the toolbar: plain text, or `column:value`. */
   readonly filter?: string;
   readonly emptyState?: React.ReactNode;
+  /** Adds a leading tick column; absent means no selection at all. */
+  readonly selection?: DataTableSelection;
+  /** Rows the tick column skips, such as the folders in a file list. */
+  readonly selectable?: (row: T) => boolean;
+  /** Called as the last row comes into view, to load the page after it. */
+  readonly onEndReached?: () => void;
+  /** Sits under the last row: a count, a spinner, a load more button. */
+  readonly footer?: React.ReactNode;
 }
 
 type SortState = { columnId: string; direction: "asc" | "desc" } | null;
@@ -62,6 +82,10 @@ export function DataTable<T>({
   onOpen,
   filter = "",
   emptyState,
+  selection,
+  selectable,
+  onEndReached,
+  footer,
 }: DataTableProps<T>) {
   const overlayOpen = useOverlaysOpen();
   const [sort, setSort] = React.useState<SortState>(null);
@@ -77,6 +101,12 @@ export function DataTable<T>({
     [onOpen],
   );
   const { activeIndex, setActiveIndex, rowRef } = useListNavigation(sorted, open, Boolean(onOpen));
+  const { toggleRow, toggleAll, allTicked, someTicked, canTick } = useRowSelection(
+    sorted,
+    rowKey,
+    selection,
+    selectable,
+  );
 
   const toggleSort = React.useCallback((columnId: string) => {
     setSort((prev) => {
@@ -113,6 +143,20 @@ export function DataTable<T>({
     { preventDefault: true, enabled: !overlayOpen },
   );
 
+  useHotkeys(
+    [
+      {
+        hotkey: "X",
+        callback: () => {
+          const row = sorted[activeIndex];
+          if (row) toggleRow(row, activeIndex, false);
+        },
+        options: { meta: describe("Table", "Tick the row under the cursor") },
+      },
+    ],
+    { preventDefault: true, enabled: !overlayOpen && Boolean(selection) },
+  );
+
   if (sorted.length === 0) {
     return <div className="flex min-h-0 flex-1 flex-col">{emptyState}</div>;
   }
@@ -125,10 +169,18 @@ export function DataTable<T>({
           the space back off its neighbours. */}
       <table
         className={cn("border-collapse text-[12.5px]", widths ? "table-fixed" : "w-full")}
-        style={widths ? { width: totalWidth(columns, widths), minWidth: "100%" } : undefined}
+        style={
+          widths
+            ? {
+                width: totalWidth(columns, widths) + (selection ? TICK_COLUMN_WIDTH : 0),
+                minWidth: "100%",
+              }
+            : undefined
+        }
       >
         {widths ? (
           <colgroup>
+            {selection ? <col style={{ width: TICK_COLUMN_WIDTH }} /> : null}
             {columns.map((column) => (
               <col key={column.id} style={{ width: widths[column.id] }} />
             ))}
@@ -136,6 +188,26 @@ export function DataTable<T>({
         ) : null}
         <thead className="sticky top-0 z-10 bg-card">
           <tr className="border-b border-border">
+            {selection ? (
+              <th
+                style={{ width: TICK_COLUMN_WIDTH }}
+                className="h-8 px-2 text-left font-normal"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <input
+                  type="checkbox"
+                  aria-label="Select every loaded row"
+                  checked={allTicked}
+                  ref={(node) => {
+                    // The dash for a partial selection has no attribute; it
+                    // only exists as a property on the element.
+                    if (node) node.indeterminate = someTicked && !allTicked;
+                  }}
+                  onChange={() => toggleAll()}
+                  className="size-3.5 cursor-pointer accent-primary"
+                />
+              </th>
+            ) : null}
             {columns.map((column, index) => {
               const active = sort?.columnId === column.id;
               return (
@@ -186,6 +258,28 @@ export function DataTable<T>({
                 index === activeIndex ? "bg-accent" : "hover:bg-accent/60",
               )}
             >
+              {selection ? (
+                <td
+                  className="px-2"
+                  onClick={(event) => {
+                    // The tick is inside a row whose click opens it.
+                    event.stopPropagation();
+                  }}
+                >
+                  {canTick(row) ? (
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${rowKey(row)}`}
+                      checked={selection.selected.has(rowKey(row))}
+                      // The click carries the shift key that a range needs;
+                      // `onChange` exists only so the box is not read only.
+                      onChange={() => undefined}
+                      onClick={(event) => toggleRow(row, index, event.shiftKey)}
+                      className="size-3.5 cursor-pointer accent-primary"
+                    />
+                  ) : null}
+                </td>
+              ) : null}
               {columns.map((column) => {
                 // Cells ellipsize to keep columns aligned, so the full text
                 // goes in `title` - a truncated ARN or image digest is still
@@ -213,8 +307,111 @@ export function DataTable<T>({
           ))}
         </tbody>
       </table>
+
+      {onEndReached ? <EndSentinel onReach={onEndReached} /> : null}
+      {footer}
     </div>
   );
+}
+
+/** Wide enough for a tick box and the gap either side of it. */
+const TICK_COLUMN_WIDTH = 30;
+
+/**
+ * Calls back when it scrolls into view.
+ *
+ * The observer is rooted on the scroll container rather than the viewport,
+ * because the table sits inside an element with its own overflow and would
+ * otherwise never intersect anything. That root is read from the sentinel's
+ * own parent: React attaches child refs before parent ones, so a ref held on
+ * the container is still null at the moment this runs.
+ */
+function EndSentinel({ onReach }: { onReach: () => void }) {
+  const latest = React.useRef(onReach);
+  React.useEffect(() => {
+    latest.current = onReach;
+  });
+
+  const ref = React.useCallback((node: HTMLDivElement | null) => {
+    const root = node?.parentElement;
+    if (!node || !root) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) latest.current();
+      },
+      // A margin means the next page is already on its way by the time the
+      // last row is read, rather than arriving after a visible stop.
+      { root, rootMargin: "300px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return <div ref={ref} className="h-px" aria-hidden />;
+}
+
+/**
+ * Tick state for the rows on screen.
+ *
+ * Shift extends from the last row ticked, which is the gesture every file list
+ * has. The anchor is remembered rather than derived, because which rows lie
+ * between two keys depends on the order they are being shown in.
+ */
+function useRowSelection<T>(
+  rows: ReadonlyArray<T>,
+  rowKey: (row: T) => string,
+  selection: DataTableSelection | undefined,
+  selectable: ((row: T) => boolean) | undefined,
+) {
+  const anchorRef = React.useRef<number | null>(null);
+  const canTick = React.useCallback((row: T) => selectable?.(row) ?? true, [selectable]);
+  const tickable = React.useMemo(() => rows.filter(canTick), [rows, canTick]);
+  const selected = selection?.selected;
+
+  const allTicked = tickable.length > 0 && tickable.every((row) => selected?.has(rowKey(row)));
+  const someTicked = tickable.some((row) => selected?.has(rowKey(row)));
+
+  const toggleRow = React.useCallback(
+    (row: T, index: number, extend: boolean) => {
+      if (!selection || !canTick(row)) return;
+      const next = new Set(selection.selected);
+      const key = rowKey(row);
+      const adding = !next.has(key);
+      const anchor = anchorRef.current;
+
+      if (extend && anchor !== null) {
+        const [from, to] = anchor <= index ? [anchor, index] : [index, anchor];
+        for (const candidate of rows.slice(from, to + 1)) {
+          if (!canTick(candidate)) continue;
+          const candidateKey = rowKey(candidate);
+          if (adding) next.add(candidateKey);
+          else next.delete(candidateKey);
+        }
+      } else if (adding) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+
+      anchorRef.current = index;
+      selection.onChange(next);
+    },
+    [selection, rows, rowKey, canTick],
+  );
+
+  const toggleAll = React.useCallback(() => {
+    if (!selection) return;
+    const next = new Set(selection.selected);
+    for (const row of tickable) {
+      const key = rowKey(row);
+      if (allTicked) next.delete(key);
+      else next.add(key);
+    }
+    anchorRef.current = null;
+    selection.onChange(next);
+  }, [selection, tickable, rowKey, allTicked]);
+
+  return { toggleRow, toggleAll, allTicked, someTicked, canTick };
 }
 
 /**

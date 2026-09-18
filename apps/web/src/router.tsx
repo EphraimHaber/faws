@@ -27,6 +27,9 @@ import { EcsIndexPage } from "~/features/ecs/pages/EcsIndexPage";
 import { HomePage } from "~/pages/HomePage";
 import { LogsPage } from "~/pages/LogsPage";
 import { SERVICE_TABS, ServicePage } from "~/features/ecs/pages/ServicePage";
+import { BUCKET_TABS, BucketPage } from "~/features/s3/pages/BucketPage";
+import { BucketsPage } from "~/features/s3/pages/BucketsPage";
+import { S3IndexPage } from "~/features/s3/pages/S3IndexPage";
 import { SettingsPage } from "~/pages/SettingsPage";
 import { TaskDefinitionsPage } from "~/features/ecs/pages/TaskDefinitionsPage";
 import { TaskPage } from "~/features/ecs/pages/TaskPage";
@@ -116,6 +119,38 @@ const taskDefinitionsRoute = createRoute({
   component: TaskDefinitionsPage,
 });
 
+const s3IndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/s3",
+  component: S3IndexPage,
+});
+
+const bucketsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/s3/buckets",
+  component: BucketsPage,
+});
+
+/**
+ * Which prefix the browser is open at.
+ *
+ * It rides in a search param rather than in the path, because an object key
+ * may contain any character at all - `#`, `?` and `%` included - and those
+ * survive a query string intact while a path segment has to be encoded twice
+ * to carry them.
+ */
+const bucketRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/s3/buckets/$bucket",
+  validateSearch: z.object({
+    prefix: z.string().max(1024).optional().catch(undefined),
+    /** The key open in the viewer, so a link can carry one object. */
+    object: z.string().max(1024).optional().catch(undefined),
+    tab: z.enum(BUCKET_TABS).optional().catch(undefined),
+  }),
+  component: BucketRoute,
+});
+
 const logsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/logs",
@@ -137,6 +172,9 @@ const routeTree = rootRoute.addChildren([
   serviceRoute,
   taskRoute,
   taskDefinitionsRoute,
+  s3IndexRoute,
+  bucketsRoute,
+  bucketRoute,
   logsRoute,
   settingsRoute,
 ]);
@@ -162,6 +200,11 @@ function ServiceRoute() {
 function TaskRoute() {
   const { cluster, taskId } = taskRoute.useParams();
   return <TaskPage cluster={cluster} taskId={taskId} />;
+}
+
+function BucketRoute() {
+  const { bucket } = bucketRoute.useParams();
+  return <BucketPage bucket={bucket} />;
 }
 
 function RootLayout() {
