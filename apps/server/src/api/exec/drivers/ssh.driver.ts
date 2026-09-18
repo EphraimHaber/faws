@@ -1,228 +1,253 @@
 /**
- * An SSH shell, over ssh2.
+ * An SSH shell.
  *
- * PTY and resize come from the SSH protocol itself rather than from a local
- * pseudo-terminal: `shell({cols, rows})` sizes the far end and
- * `setWindow(rows, cols)` changes it, so none of the node-pty machinery the SSM
- * driver needs applies here.
+ * PTY and resize come from the SSH protocol rather than a local
+ * pseudo-terminal: `shell({cols, rows})` sizes the far end and `setWindow`
+ * changes it, so none of the node-pty machinery the SSM driver needs applies.
  *
- * Host keys are verified against ~/.ssh/known_hosts, and an unknown one asks
- * the person rather than deciding for them. A refusal, a timeout, or a closed
- * tab all fail the connection - the prompt broker turns every non-answer into a
- * rejection, so there is no path through this file that trusts a key nobody
- * approved.
+ * The interesting part is reaching the host at all, and that is deliberately
+ * not here - `ssh/connect` does one hop and `ssh/transport` gets a byte stream
+ * to port 22. This file composes them: a jump chain is a fold over hops, and
+ * every route ends with the same three lines opening a shell.
  */
-import * as os from "node:os";
-
-import { Client, type ClientChannel, type ConnectConfig } from "ssh2";
+import type { ExecInstanceTarget, SshTransport } from "@faws/contracts";
+import { listExecTargets, readSshConfig, resolveSshHost } from "@faws/core";
+import type { ClientChannel } from "ssh2";
 
 import { ExecSessionError } from "../errors.ts";
 import type { ExecDriver, ExecDriverFactory } from "../exec.service.ts";
-import {
-  appendKnownHost,
-  defaultKnownHostsPath,
-  fingerprint,
-  knownHostsLine,
-  readKnownHosts,
-  verifyHostKey,
-} from "../ssh/knownHosts.ts";
+import { connectHop, forwardThrough, translateSshError, type Hop } from "../ssh/connect.ts";
+import { generateEphemeralKey, sendPublicKey } from "../ssh/instanceConnect.ts";
+import { openTransport, type OpenTransport } from "../ssh/transport.ts";
 
-function translate(err: unknown): ExecSessionError {
-  const message = err instanceof Error ? err.message : String(err);
-  const level = (err as { level?: string }).level;
-
-  if (level === "client-authentication" || /authentication/i.test(message)) {
-    return new ExecSessionError(
-      "AuthFailed",
-      "The server refused every key we offered. Check the user, and that your key is loaded in ssh-agent (SSH_AUTH_SOCK is how this app finds it).",
+/** Where an Instance Connect key goes, and which address to dial after. */
+async function resolveInstance(
+  profile: string,
+  region: string,
+  instanceId: string,
+): Promise<ExecInstanceTarget> {
+  const targets = await listExecTargets({ profile, region });
+  const found = targets.find((target) => target.instanceId === instanceId);
+  if (!found) {
+    throw new ExecSessionError(
+      "InvalidInstanceId",
+      `${instanceId} is not an instance this region knows about.`,
     );
   }
-  if (/timed out|ETIMEDOUT/i.test(message)) {
-    return new ExecSessionError(
-      "ConnectTimeout",
-      "The host did not answer. It may be in a private subnet - an SSM tunnel reaches those without a public address.",
-    );
-  }
-  if (/ENOTFOUND|EAI_AGAIN/i.test(message)) {
-    return new ExecSessionError("ConnectTimeout", "That hostname does not resolve.");
-  }
-  if (/ECONNREFUSED/i.test(message)) {
-    return new ExecSessionError(
-      "ConnectTimeout",
-      "The host refused the connection on that port. Check sshd is listening and the security group allows it.",
-    );
-  }
-  return new ExecSessionError("Internal", message);
+  return found;
 }
 
 export const sshDriverFactory: ExecDriverFactory = async (auth, sink, ctx) => {
   if (auth.kind !== "ssh") {
     throw new ExecSessionError("Internal", "The SSH driver got a non-SSH handshake.");
   }
-  if (auth.transport.via !== "direct") {
-    throw new ExecSessionError(
-      "Internal",
-      `The ${auth.transport.via} transport is not available in this build yet.`,
-    );
+
+  const status = (message: string) => sink.status(message);
+  const hopCtx = { status, ask: ctx.ask, log: ctx.log, signal: ctx.signal };
+
+  const opened: OpenTransport[] = [];
+  const hops: Hop[] = [];
+  let ephemeralScrub: (() => void) | null = null;
+
+  let unwound = false;
+  async function unwind(): Promise<void> {
+    // Idempotent: a channel closing and an explicit close race routinely, and
+    // tearing the chain down twice would close hops in the wrong order the
+    // second time. toReversed leaves the arrays alone for the same reason.
+    if (unwound) return;
+    unwound = true;
+    // Innermost first: an outer hop carries the inner one's bytes, so closing
+    // it first would drop them on the floor.
+    for (const hop of hops.toReversed()) hop.client.end();
+    for (const transport of opened.toReversed()) await transport.close();
   }
 
-  const host = auth.transport.host;
-  const port = auth.port ?? 22;
-  const user = auth.user ?? os.userInfo().username;
-  const knownHostsFile = defaultKnownHostsPath();
+  try {
+    const transport = auth.transport;
 
-  sink.status(`Connecting to ${user}@${host}:${port}...`);
+    // A jump chain is resolved before anything is dialled, so a typo in the
+    // middle of it fails before opening a connection to the first hop.
+    const jumps = transport.via === "jump" ? transport.jump : jumpsFromConfig(transport);
 
-  const client = new Client();
+    let sock: Awaited<ReturnType<typeof forwardThrough>> | undefined;
+    for (const [index, jumpTarget] of jumps.entries()) {
+      status(`Reaching jump host ${index + 1} of ${jumps.length}: ${jumpTarget}...`);
+      const hop = await connectHop({ target: jumpTarget, ...(sock ? { sock } : {}) }, hopCtx);
+      hops.push(hop);
+      const next = jumps[index + 1];
+      sock = next
+        ? await forwardThrough(hop, resolveSshHost(readSshConfig(), next).hostName, 22)
+        : undefined;
+    }
 
-  const channel = await new Promise<ClientChannel>((resolve, reject) => {
-    let settled = false;
-    const fail = (err: unknown) => {
-      if (settled) return;
-      settled = true;
-      client.end();
-      reject(err instanceof ExecSessionError ? err : translate(err));
-    };
+    // The final hop: its address, its key, and whatever it rides on.
+    const final = await finalHopSpec(transport, auth.user, auth.port, status);
+    ephemeralScrub = final.scrub;
 
-    client.on("error", fail);
-    ctx.signal.addEventListener("abort", () => fail(new Error("the client went away")), {
-      once: true,
+    if (hops.length > 0) {
+      const last = hops.at(-1);
+      if (last) sock = await forwardThrough(last, final.host, final.port);
+    } else if (final.transport) {
+      opened.push(final.transport);
+      sock = final.transport.sock;
+    }
+
+    const hop = await connectHop(
+      {
+        target: final.target,
+        ...(final.user ? { user: final.user } : {}),
+        port: final.port,
+        ...(sock ? { sock } : {}),
+        ...(final.privateKey ? { privateKey: final.privateKey } : {}),
+      },
+      hopCtx,
+    );
+    hops.push(hop);
+
+    // The key was only ever needed for that handshake.
+    ephemeralScrub?.();
+    ephemeralScrub = null;
+
+    const channel = await new Promise<ClientChannel>((resolve, reject) => {
+      hop.client.shell(
+        { term: "xterm-256color", cols: auth.cols, rows: auth.rows },
+        (err, stream) => (err ? reject(translateSshError(err)) : resolve(stream)),
+      );
     });
 
-    client.on("ready", () => {
-      client.shell({ term: "xterm-256color", cols: auth.cols, rows: auth.rows }, (err, stream) => {
-        if (err) {
-          fail(err);
-          return;
-        }
-        settled = true;
-        resolve(stream);
-      });
+    let closing = false;
+    channel.on("data", (chunk: Buffer) => sink.data(new Uint8Array(chunk)));
+    channel.stderr?.on("data", (chunk: Buffer) => sink.data(new Uint8Array(chunk)));
+    channel.on("close", () => {
+      if (closing) return;
+      closing = true;
+      sink.exit(null, "the connection closed");
+      void unwind();
+    });
+    channel.on("exit", (code: number | null) => {
+      if (closing) return;
+      closing = true;
+      sink.exit(code, null);
     });
 
-    const config: ConnectConfig = {
-      host,
-      port,
-      username: user,
-      // Disabled deliberately. A host-key prompt happens in the middle of this
-      // handshake, and ssh2's timer cannot be paused - so someone taking a
-      // minute to compare a fingerprint would time out the connection. The
-      // session's own connect timer owns this deadline and stands down while a
-      // person is being asked something.
-      readyTimeout: 0,
-      // Agent first: it is how most people already hold their keys, and it
-      // means no passphrase prompt and no key material passing through here.
-      ...(process.env["SSH_AUTH_SOCK"] ? { agent: process.env["SSH_AUTH_SOCK"] } : {}),
-      // Keyboard-interactive would need its own prompt roundtrip; until that
-      // exists, saying so beats hanging on a prompt nobody can see.
-      tryKeyboard: false,
-      hostVerifier: (key: Buffer, verified: (ok: boolean) => void) => {
-        void (async () => {
-          try {
-            verified(await approveHostKey(key));
-          } catch (err) {
-            fail(err);
-            verified(false);
-          }
-        })();
+    const driver: ExecDriver = {
+      write(chunk) {
+        if (!closing) channel.write(Buffer.from(chunk));
+      },
+      resize(cols, rows) {
+        if (!closing) channel.setWindow(rows, cols, 0, 0);
+      },
+      async close(reason) {
+        if (closing) return;
+        closing = true;
+        ctx.log.info({ reason, host: hop.host }, "closing SSH session");
+        channel.close();
+        await unwind();
       },
     };
 
-    client.connect(config);
-  });
+    return driver;
+  } catch (err) {
+    ephemeralScrub?.();
+    await unwind();
+    throw translateSshError(err);
+  }
+};
 
-  async function approveHostKey(key: Buffer): Promise<boolean> {
-    // ssh2 hands us the wire-format key; its type is the first length-prefixed
-    // string inside it, which is also what known_hosts records.
-    const keyBase64 = key.toString("base64");
-    const typeLength = key.readUInt32BE(0);
-    const keyType = key.subarray(4, 4 + typeLength).toString("utf8");
+/** ProxyJump from the config, for a host that did not name a chain itself. */
+function jumpsFromConfig(transport: SshTransport): string[] {
+  if (transport.via !== "direct") return [];
+  return [...resolveSshHost(readSshConfig(), transport.host).proxyJump];
+}
 
-    const verdict = verifyHostKey(
-      readKnownHosts(knownHostsFile),
-      knownHostsFile,
-      host,
-      port,
-      keyType,
-      keyBase64,
-    );
+interface FinalHop {
+  readonly target: string;
+  readonly host: string;
+  readonly port: number;
+  readonly user: string | undefined;
+  readonly privateKey?: Buffer;
+  readonly transport?: OpenTransport;
+  readonly scrub: (() => void) | null;
+}
 
-    switch (verdict.outcome) {
-      case "trusted":
-        return true;
+async function finalHopSpec(
+  transport: SshTransport,
+  user: string | undefined,
+  port: number | undefined,
+  status: (message: string) => void,
+): Promise<FinalHop> {
+  const resolvedPort = port ?? 22;
 
-      case "changed":
+  switch (transport.via) {
+    case "direct":
+    case "jump": {
+      const resolved = resolveSshHost(readSshConfig(), transport.host);
+      return {
+        target: transport.host,
+        host: resolved.hostName,
+        port: port ?? resolved.port ?? 22,
+        user,
+        scrub: null,
+      };
+    }
+
+    case "ssm-tunnel": {
+      const opened = await openTransport(transport, status);
+      return {
+        target: transport.instanceId,
+        host: transport.instanceId,
+        port: resolvedPort,
+        user,
+        transport: opened,
+        scrub: null,
+      };
+    }
+
+    case "ec2-instance-connect": {
+      const instance = await resolveInstance(
+        transport.profile,
+        transport.region,
+        transport.instanceId,
+      );
+      const address = instance.publicIp ?? instance.privateIp;
+      if (!address) {
         throw new ExecSessionError(
-          "HostKeyChanged",
-          `The host key for ${host} has changed since it was recorded. This can mean the host was rebuilt - or that something is impersonating it. Nothing here will connect until you decide which: the recorded key is ${knownHostsFile} line ${verdict.line}, and \`ssh-keygen -R ${host}\` removes it.`,
+          "InstanceConnectFailed",
+          `${transport.instanceId} has no address to connect to. Reach it with an SSM tunnel instead.`,
         );
-
-      case "revoked":
-        throw new ExecSessionError(
-          "HostKeyChanged",
-          `The key ${host} presented is marked @revoked in ${knownHostsFile}.`,
-        );
-
-      case "unparseable":
-        throw new ExecSessionError(
-          "KnownHostsUnparseable",
-          `${knownHostsFile} line ${verdict.line} concerns ${host} but cannot be read, so this host's identity cannot be checked. Fix or remove that line.`,
-        );
-
-      case "unknown": {
-        const line = knownHostsLine(host, port, keyType, keyBase64);
-        const response = await ctx.ask({
-          kind: "hostkey",
-          promptId: crypto.randomUUID(),
-          host,
-          port,
-          keyType,
-          fingerprintSha256: fingerprint(keyBase64),
-          knownHostsLine: line,
-        });
-
-        if (response.trust === "permanent") {
-          appendKnownHost(knownHostsFile, line);
-          ctx.log.info({ host, port, keyType }, "recorded a new host key");
-          return true;
-        }
-        if (response.trust === "once") return true;
-        throw new ExecSessionError("HostKeyRejected", `The host key for ${host} was not accepted.`);
       }
+      if (!instance.availabilityZone) {
+        throw new ExecSessionError(
+          "InstanceConnectFailed",
+          `${transport.instanceId} reports no availability zone, which Instance Connect requires.`,
+        );
+      }
+
+      status(`Pushing a one-time key to ${transport.instanceId} for ${transport.osUser}...`);
+      const key = generateEphemeralKey();
+      try {
+        await sendPublicKey(
+          { profile: transport.profile, region: transport.region },
+          {
+            instanceId: transport.instanceId,
+            osUser: transport.osUser,
+            availabilityZone: instance.availabilityZone,
+            publicKeyOpenSsh: key.publicKeyOpenSsh,
+          },
+        );
+      } catch (err) {
+        key.scrub();
+        throw err;
+      }
+
+      return {
+        target: address,
+        host: address,
+        port: resolvedPort,
+        user: transport.osUser,
+        privateKey: key.privateKey,
+        scrub: () => key.scrub(),
+      };
     }
   }
-
-  let closing = false;
-
-  channel.on("data", (chunk: Buffer) => sink.data(new Uint8Array(chunk)));
-  channel.stderr?.on("data", (chunk: Buffer) => sink.data(new Uint8Array(chunk)));
-  channel.on("close", () => {
-    if (closing) return;
-    closing = true;
-    sink.exit(null, "the connection closed");
-    client.end();
-  });
-  channel.on("exit", (code: number | null) => {
-    if (closing) return;
-    closing = true;
-    sink.exit(code, null);
-  });
-
-  const driver: ExecDriver = {
-    write(chunk) {
-      if (!closing) channel.write(Buffer.from(chunk));
-    },
-    resize(cols, rows) {
-      if (!closing) channel.setWindow(rows, cols, 0, 0);
-    },
-    close(reason) {
-      if (closing) return;
-      closing = true;
-      ctx.log.info({ reason, host }, "closing SSH session");
-      channel.close();
-      client.end();
-    },
-  };
-
-  return driver;
-};
+}

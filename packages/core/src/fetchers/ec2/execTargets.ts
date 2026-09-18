@@ -11,7 +11,11 @@
  * permission is common and should degrade to "SSH only" rather than emptying
  * the list.
  */
-import { DescribeInstancesCommand, type Instance } from "@aws-sdk/client-ec2";
+import {
+  DescribeImagesCommand,
+  DescribeInstancesCommand,
+  type Instance,
+} from "@aws-sdk/client-ec2";
 import { DescribeInstanceInformationCommand } from "@aws-sdk/client-ssm";
 import type { AwsScope, ExecInstanceTarget } from "@faws/contracts";
 
@@ -54,6 +58,56 @@ async function ssmManagedInstances(scope: AwsScope): Promise<Map<string, SsmInfo
     // the "connect by SSM" option, not the whole list.
   }
 
+  return found;
+}
+
+/**
+ * The login name an AMI ships with.
+ *
+ * Derived from the image name rather than `PlatformDetails`, which reports
+ * "Linux/UNIX" for Ubuntu, Amazon Linux and most everything else - so guessing
+ * from it means offering `ec2-user` to an Ubuntu box, where the connection
+ * fails after the key has already been pushed. The image name actually says
+ * which distribution it is.
+ */
+function osUserForImage(imageName: string | undefined): string {
+  const name = (imageName ?? "").toLowerCase();
+  if (name.includes("ubuntu")) return "ubuntu";
+  if (name.includes("debian")) return "admin";
+  if (name.includes("rocky")) return "rocky";
+  if (name.includes("alma")) return "almalinux";
+  if (name.includes("centos")) return "centos";
+  if (name.includes("fedora")) return "fedora";
+  if (name.includes("suse") || name.includes("sles")) return "ec2-user";
+  if (name.includes("rhel") || name.includes("red hat")) return "ec2-user";
+  if (name.includes("bitnami")) return "bitnami";
+  // Amazon Linux, and the safest fallback for anything unrecognised.
+  return "ec2-user";
+}
+
+/**
+ * Image names for the AMIs in use.
+ *
+ * One extra call for the whole list, and losing it only costs the login-name
+ * guess, so a missing ec2:DescribeImages does not empty the picker.
+ */
+async function imageNames(
+  scope: AwsScope,
+  imageIds: ReadonlyArray<string>,
+): Promise<Map<string, string>> {
+  const found = new Map<string, string>();
+  if (imageIds.length === 0) return found;
+
+  try {
+    const page = await callAws("ec2", () =>
+      ec2Client(scope).send(new DescribeImagesCommand({ ImageIds: [...imageIds] })),
+    );
+    for (const image of page.Images ?? []) {
+      if (image.ImageId && image.Name) found.set(image.ImageId, image.Name);
+    }
+  } catch {
+    // Not fatal: the caller falls back to ec2-user.
+  }
   return found;
 }
 
@@ -107,6 +161,10 @@ export async function listExecTargets(scope: AwsScope): Promise<ExecInstanceTarg
     ssmManagedInstances(scope),
   ]);
 
+  const images = await imageNames(scope, [
+    ...new Set(instances.map((instance) => instance.ImageId).filter((id) => id !== undefined)),
+  ]);
+
   return instances
     .filter((instance): instance is Instance & { InstanceId: string } =>
       Boolean(instance.InstanceId),
@@ -124,6 +182,7 @@ export async function listExecTargets(scope: AwsScope): Promise<ExecInstanceTarg
         instanceType: instance.InstanceType ?? null,
         vpcId: instance.VpcId ?? null,
         keyName: instance.KeyName ?? null,
+        osUser: osUserForImage(instance.ImageId ? images.get(instance.ImageId) : undefined),
         ssmManaged: info !== undefined,
         ssmPingStatus: info?.pingStatus ?? null,
         ssmAgentVersion: info?.agentVersion ?? null,

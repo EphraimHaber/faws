@@ -23,6 +23,7 @@
  * opaque byte stream, corrupting the SSH protocol riding over it.
  */
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { Duplex } from "node:stream";
 
 import { createLogger } from "../../shared/logger.ts";
 
@@ -193,4 +194,35 @@ function waitFor(done: () => boolean, timeoutMs: number): Promise<void> {
     }, 25);
     tick.unref?.();
   });
+}
+
+/**
+ * Spawns a child whose stdio is an opaque byte pipe.
+ *
+ * The counterpart to `spawnInteractive`, and deliberately not a pty. This is
+ * for a tunnel, where the bytes are a protocol rather than a terminal: a pty
+ * would translate line endings and act on control characters, corrupting what
+ * it is carrying. Its stderr is kept out of the stream for the same reason -
+ * plugin diagnostics mixed into an SSH handshake would break it.
+ */
+export function spawnTunnel(
+  file: string,
+  args: string[],
+  options: { onStderr(line: string): void },
+): { stream: Duplex; kill(): void } {
+  const child = spawn(file, args, { stdio: ["pipe", "pipe", "pipe"], env: process.env });
+
+  child.stderr.on("data", (chunk: Buffer) => {
+    const text = chunk.toString("utf8").trim();
+    if (text.length > 0) options.onStderr(text);
+  });
+  child.on("error", (err) => log.warn({ err, file }, "tunnel child failed"));
+
+  return {
+    stream: Duplex.from({ readable: child.stdout, writable: child.stdin }),
+    kill: () => {
+      child.stdin.end();
+      child.kill("SIGTERM");
+    },
+  };
 }

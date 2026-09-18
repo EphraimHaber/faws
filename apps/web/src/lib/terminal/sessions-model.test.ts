@@ -84,6 +84,23 @@ describe("status", () => {
     expect(state.sessions[0]?.prompt).toBe(null);
   });
 
+  it("carries connect progress while still connecting", () => {
+    // A self-transition with detail is an update, not a transition. Without
+    // this, a slow transport shows a blank pane and looks like a hang.
+    const state = applyStatus(withTabs("a"), "a", "connecting", {
+      statusMessage: "Opening an SSM tunnel...",
+    });
+    expect(state.sessions[0]?.statusMessage).toBe("Opening an SSM tunnel...");
+    expect(state.sessions[0]?.status).toBe("connecting");
+  });
+
+  it("still refuses a self-update on a finished session", () => {
+    let state = applyStatus(withTabs("a"), "a", "exited", { exit: { code: 0, reason: null } });
+    state = applyStatus(state, "a", "exited", { statusMessage: "late" });
+    // Same status, so the update lands, but nothing may revive it.
+    expect(state.sessions[0]?.status).toBe("exited");
+  });
+
   it("ignores a status change for an unknown id", () => {
     const state = withTabs("a");
     expect(applyStatus(state, "nope", "ready")).toBe(state);

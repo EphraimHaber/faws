@@ -224,6 +224,11 @@ export interface ExecInstanceTarget {
   readonly vpcId: string | null;
   /** The EC2 key pair it was launched with, if any. */
   readonly keyName: string | null;
+  /**
+   * The login name this AMI ships with, read from the image name. A guess, but
+   * a checked one, and the error when it is wrong says so.
+   */
+  readonly osUser: string;
   /** Registered with Session Manager and currently reachable. */
   readonly ssmManaged: boolean;
   readonly ssmPingStatus: string | null;

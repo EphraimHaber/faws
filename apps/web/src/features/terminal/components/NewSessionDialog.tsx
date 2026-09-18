@@ -16,7 +16,6 @@ import { Input } from "~/components/ui/input";
 import { Segmented } from "~/components/segmented";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
-import { cn } from "~/lib/utils";
 import { useOverlay } from "~/stores/overlays";
 import { useSessions } from "~/stores/sessions";
 
@@ -116,29 +115,14 @@ function InstancePicker({ onClose }: { onClose: () => void }) {
         ) : (
           rows.map((row) => {
             const canSsm = row.reachableBy.includes("ssm");
+            const canSsh = row.reachableBy.includes("ssh-public");
+            const canTunnel = row.reachableBy.includes("ssh-ssm-tunnel");
+            const unreachable = row.reachableBy.length === 0;
+
             return (
-              <button
+              <div
                 key={row.instanceId}
-                type="button"
-                disabled={!canSsm}
-                onClick={() => {
-                  open({
-                    kind: "ssm",
-                    profile: scope.profile,
-                    region: scope.region,
-                    instanceId: row.instanceId,
-                  });
-                  onClose();
-                }}
-                className={cn(
-                  "flex w-full items-center gap-2.5 border-b border-border/50 px-3 py-2 text-left last:border-b-0",
-                  canSsm ? "hover:bg-muted/50" : "cursor-not-allowed opacity-50",
-                )}
-                title={
-                  canSsm
-                    ? `Open a Session Manager shell on ${row.instanceId}`
-                    : "Session Manager cannot reach this instance"
-                }
+                className="flex items-center gap-2.5 border-b border-border/50 px-3 py-2 last:border-b-0"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[12.5px]">{row.name ?? row.instanceId}</p>
@@ -149,8 +133,77 @@ function InstancePicker({ onClose }: { onClose: () => void }) {
                   </p>
                 </div>
                 <Badge tone={row.state === "running" ? "success" : "neutral"}>{row.state}</Badge>
-                {canSsm ? <Badge tone="info">ssm</Badge> : <Badge tone="neutral">no agent</Badge>}
-              </button>
+
+                {unreachable ? (
+                  <span
+                    className="text-[10.5px] text-muted-foreground"
+                    title="No SSM agent, and no public address"
+                  >
+                    unreachable
+                  </span>
+                ) : null}
+
+                {canSsm ? (
+                  <Button
+                    onClick={() => {
+                      open({
+                        kind: "ssm",
+                        profile: scope.profile,
+                        region: scope.region,
+                        instanceId: row.instanceId,
+                      });
+                      onClose();
+                    }}
+                    title="Session Manager shell - no key and no inbound rule needed"
+                  >
+                    Shell
+                  </Button>
+                ) : null}
+
+                {/* Instance Connect pushes a key valid for about a minute, so
+                    it only makes sense where SSH can actually reach. */}
+                {canSsh ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      open({
+                        kind: "ssh",
+                        transport: {
+                          via: "ec2-instance-connect",
+                          profile: scope.profile,
+                          region: scope.region,
+                          instanceId: row.instanceId,
+                          osUser: row.osUser,
+                        },
+                      });
+                      onClose();
+                    }}
+                    title="SSH with a one-time key pushed by EC2 Instance Connect"
+                  >
+                    SSH
+                  </Button>
+                ) : canTunnel ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      open({
+                        kind: "ssh",
+                        transport: {
+                          via: "ssm-tunnel",
+                          profile: scope.profile,
+                          region: scope.region,
+                          instanceId: row.instanceId,
+                        },
+                        user: row.osUser,
+                      });
+                      onClose();
+                    }}
+                    title="SSH carried over an SSM tunnel - works without a public address"
+                  >
+                    SSH via SSM
+                  </Button>
+                ) : null}
+              </div>
             );
           })
         )}

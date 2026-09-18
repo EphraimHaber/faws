@@ -9,6 +9,7 @@
 import { CloudWatchClient } from "@aws-sdk/client-cloudwatch";
 import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import { EC2Client } from "@aws-sdk/client-ec2";
+import { EC2InstanceConnectClient } from "@aws-sdk/client-ec2-instance-connect";
 import { ECSClient } from "@aws-sdk/client-ecs";
 import { S3Client } from "@aws-sdk/client-s3";
 import { SSMClient } from "@aws-sdk/client-ssm";
@@ -25,6 +26,7 @@ type ClientBundle = {
   readonly s3: S3Client;
   readonly ssm: SSMClient;
   readonly ec2: EC2Client;
+  readonly ec2InstanceConnect: EC2InstanceConnectClient;
 };
 
 const bundles = new Map<string, ClientBundle>();
@@ -59,6 +61,7 @@ function bundleFor(scope: AwsScope): ClientBundle {
     }),
     ssm: new SSMClient(config),
     ec2: new EC2Client(config),
+    ec2InstanceConnect: new EC2InstanceConnectClient(config),
   };
   bundles.set(key, bundle);
   return bundle;
@@ -92,6 +95,10 @@ export function ec2Client(scope: AwsScope): EC2Client {
   return bundleFor(scope).ec2;
 }
 
+export function ec2InstanceConnectClient(scope: AwsScope): EC2InstanceConnectClient {
+  return bundleFor(scope).ec2InstanceConnect;
+}
+
 /** Drops cached clients for a scope so the next call re-resolves credentials. */
 export function invalidateScope(scope: AwsScope): void {
   const key = scopeKey(scope);
@@ -104,6 +111,7 @@ export function invalidateScope(scope: AwsScope): void {
   bundle.s3.destroy();
   bundle.ssm.destroy();
   bundle.ec2.destroy();
+  bundle.ec2InstanceConnect.destroy();
   bundles.delete(key);
 }
 

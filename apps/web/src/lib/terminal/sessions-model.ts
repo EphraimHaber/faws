@@ -108,7 +108,12 @@ export function applyStatus(
 ): SessionsState {
   return update(state, id, (session) => {
     if (session.status === status && !detail) return session;
-    if (!ALLOWED[session.status].includes(status)) return session;
+    // A self-transition carrying detail is an update, not a transition: it is
+    // how connect progress reaches a tab that is still connecting. Sending it
+    // through the edge table would drop it, and a slow transport would sit
+    // behind a blank pane with nothing to say for itself.
+    const isSelfUpdate = session.status === status;
+    if (!isSelfUpdate && !ALLOWED[session.status].includes(status)) return session;
     return {
       ...session,
       status,

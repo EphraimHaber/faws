@@ -21,6 +21,7 @@
     "@aws-sdk/client-cloudwatch": "catalog:",
     "@aws-sdk/client-cloudwatch-logs": "catalog:",
     "@aws-sdk/client-ec2": "catalog:",
+    "@aws-sdk/client-ec2-instance-connect": "catalog:",
     "@aws-sdk/client-ecs": "catalog:",
     "@aws-sdk/client-elastic-load-balancing-v2": "^3.1132.0",
     "@aws-sdk/client-s3": "catalog:",
@@ -30,7 +31,8 @@
     "@aws-sdk/s3-request-presigner": "catalog:",
     "@faws/contracts": "workspace:*",
     "@faws/shared": "workspace:*",
-    "@smithy/shared-ini-file-loader": "catalog:"
+    "@smithy/shared-ini-file-loader": "catalog:",
+    "ssh-config": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

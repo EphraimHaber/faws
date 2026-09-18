@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-ec2": "catalog:",
+    "@aws-sdk/client-ec2-instance-connect": "catalog:",
     "@aws-sdk/client-ecs": "catalog:",
     "@aws-sdk/client-ssm": "catalog:",
     "@fastify/cors": "^11.0.0",
