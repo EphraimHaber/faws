@@ -16,7 +16,13 @@ import type { ClientChannel } from "ssh2";
 
 import { ExecSessionError } from "../errors.ts";
 import type { ExecDriver, ExecDriverFactory } from "../exec.service.ts";
-import { connectHop, forwardThrough, translateSshError, type Hop } from "../ssh/connect.ts";
+import {
+  connectHop,
+  forwardThrough,
+  parseJumpTarget,
+  translateSshError,
+  type Hop,
+} from "../ssh/connect.ts";
 import { generateEphemeralKey, sendPublicKey } from "../ssh/instanceConnect.ts";
 import { openTransport, type OpenTransport } from "../ssh/transport.ts";
 
@@ -70,14 +76,28 @@ export const sshDriverFactory: ExecDriverFactory = async (auth, sink, ctx) => {
     const jumps = transport.via === "jump" ? transport.jump : jumpsFromConfig(transport);
 
     let sock: Awaited<ReturnType<typeof forwardThrough>> | undefined;
-    for (const [index, jumpTarget] of jumps.entries()) {
-      status(`Reaching jump host ${index + 1} of ${jumps.length}: ${jumpTarget}...`);
-      const hop = await connectHop({ target: jumpTarget, ...(sock ? { sock } : {}) }, hopCtx);
+    for (const [index, entry] of jumps.entries()) {
+      const jump = parseJumpTarget(entry);
+      status(`Reaching jump host ${index + 1} of ${jumps.length}: ${jump.host}...`);
+      const hop = await connectHop(
+        {
+          target: jump.host,
+          ...(jump.user ? { user: jump.user } : {}),
+          ...(jump.port ? { port: jump.port } : {}),
+          ...(sock ? { sock } : {}),
+        },
+        hopCtx,
+      );
       hops.push(hop);
+
       const next = jumps[index + 1];
-      sock = next
-        ? await forwardThrough(hop, resolveSshHost(readSshConfig(), next).hostName, 22)
-        : undefined;
+      if (next) {
+        const nextJump = parseJumpTarget(next);
+        const resolved = resolveSshHost(readSshConfig(), nextJump.host);
+        sock = await forwardThrough(hop, resolved.hostName, nextJump.port ?? resolved.port ?? 22);
+      } else {
+        sock = undefined;
+      }
     }
 
     // The final hop: its address, its key, and whatever it rides on.

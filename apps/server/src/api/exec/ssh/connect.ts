@@ -42,6 +42,49 @@ export interface HopSpec {
   readonly privateKey?: Buffer | undefined;
 }
 
+/**
+ * Splits a jump entry into its parts.
+ *
+ * ProxyJump entries carry their own login and port - `ubuntu@bastion:2222` -
+ * because a jump host frequently is not on 22 and frequently is not the same
+ * user as the destination. Treating the whole string as a hostname works right
+ * up until either is true, and then fails as a name that does not resolve.
+ */
+export function parseJumpTarget(entry: string): {
+  host: string;
+  user?: string | undefined;
+  port?: number | undefined;
+} {
+  let rest = entry.trim();
+  let user: string | undefined;
+
+  const at = rest.lastIndexOf("@");
+  if (at > 0) {
+    user = rest.slice(0, at);
+    rest = rest.slice(at + 1);
+  }
+
+  // A bracketed literal is how an IPv6 address carries a port.
+  const bracketed = /^\[(.+)\]:(\d+)$/.exec(rest);
+  if (bracketed?.[1] && bracketed[2]) {
+    return { host: bracketed[1], ...(user ? { user } : {}), port: Number(bracketed[2]) };
+  }
+  if (rest.startsWith("[") && rest.endsWith("]")) {
+    return { host: rest.slice(1, -1), ...(user ? { user } : {}) };
+  }
+
+  // A bare IPv6 address has several colons; only a single one is a port.
+  const colon = rest.indexOf(":");
+  if (colon > 0 && rest.indexOf(":", colon + 1) === -1) {
+    const port = Number(rest.slice(colon + 1));
+    if (Number.isInteger(port) && port > 0 && port <= 65535) {
+      return { host: rest.slice(0, colon), ...(user ? { user } : {}), port };
+    }
+  }
+
+  return { host: rest, ...(user ? { user } : {}) };
+}
+
 export interface Hop {
   readonly client: Client;
   readonly host: string;
