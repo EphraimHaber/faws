@@ -4,6 +4,10 @@ packages:
   - scripts
 
 allowBuilds:
+  # ssh2 and its optional cpu-features speedup both build native code. The pure
+  # JS path is the supported one and keeps the build hermetic.
+  cpu-features: false
+  ssh2: false
   electron: true
   # Native. Its prebuild is what gives SSM sessions a real window size; the
   # exec layer falls back to plain pipes if it will not load.
@@ -25,6 +29,9 @@ catalog:
   "@aws-sdk/s3-request-presigner": ^3.700.0
   "@smithy/shared-ini-file-loader": ^4.0.4
   node-pty: ^1.1.0-beta21
+  ssh-config: ^5.0.3
+  ssh2: ^1.17.0
+  "@types/ssh2": ^1.15.5
   "@types/node": ^24.10.13
   tsdown: ^0.23.0
   typescript: ^7.0.2

@@ -71,6 +71,7 @@ const ALLOWED: Record<SessionStateName, ReadonlyArray<SessionStateName>> = {
 export class SessionMachine {
   private current: SessionState = { name: "starting", reason: null, code: null };
   private cancelTimer: CancelTimer | null = null;
+  private waitingForUser = false;
   private readonly options: SessionMachineOptions;
 
   constructor(options: SessionMachineOptions) {
@@ -109,6 +110,22 @@ export class SessionMachine {
   }
 
   /**
+   * Whether the session is blocked on a question only the person can answer.
+   *
+   * While it is, no timer runs. A connect timeout measures how long a host is
+   * taking to answer, and it has no business counting the seconds someone
+   * spends comparing a host-key fingerprint against another screen - which is
+   * exactly the thing we want them to take their time over. The prompt has its
+   * own, much longer, timeout.
+   */
+  setWaitingForUser(waiting: boolean): void {
+    if (this.waitingForUser === waiting) return;
+    this.waitingForUser = waiting;
+    this.clearTimer();
+    this.armFor(this.current);
+  }
+
+  /**
    * Client input arrived. Only this resets the idle timer - driver output must
    * not, or a chatty background process keeps a forgotten shell alive forever.
    */
@@ -124,6 +141,7 @@ export class SessionMachine {
   }
 
   private armFor(state: SessionState): void {
+    if (this.waitingForUser) return;
     const { timers, schedule } = this.options;
     switch (state.name) {
       case "starting":

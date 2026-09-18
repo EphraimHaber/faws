@@ -4,6 +4,7 @@ import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import type { TerminalSession } from "~/lib/terminal/sessions-model";
 import { useSessions } from "~/stores/sessions";
+import { HostKeyPrompt } from "./HostKeyPrompt";
 import { TerminalSurface } from "./TerminalSurface";
 
 /**
@@ -17,6 +18,7 @@ import { TerminalSurface } from "./TerminalSurface";
 export function SessionPane({ session, active }: { session: TerminalSession; active: boolean }) {
   const retry = useSessions((state) => state.retry);
   const close = useSessions((state) => state.close);
+  const answerPrompt = useSessions((state) => state.answerPrompt);
 
   return (
     <div
@@ -26,6 +28,19 @@ export function SessionPane({ session, active }: { session: TerminalSession; act
       className={cn("absolute inset-0 flex flex-col", !active && "invisible")}
       aria-hidden={!active}
     >
+      {session.prompt?.kind === "hostkey" ? (
+        <HostKeyPrompt
+          prompt={session.prompt}
+          onRespond={(trust) =>
+            answerPrompt(session.id, {
+              promptId: session.prompt?.promptId ?? "",
+              trust,
+              cancelled: trust === "reject",
+            })
+          }
+        />
+      ) : null}
+
       {session.status === "connecting" && session.statusMessage ? (
         <div className="shrink-0 border-b border-border/60 px-3 py-1 font-mono text-[11px] text-muted-foreground">
           {session.statusMessage}

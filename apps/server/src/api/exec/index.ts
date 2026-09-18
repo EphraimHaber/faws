@@ -9,6 +9,7 @@
 import { createLogger } from "../../shared/logger.ts";
 import { echoDriverFactory } from "./drivers/echo.driver.ts";
 import { ecsDriverFactory } from "./drivers/ecs.driver.ts";
+import { sshDriverFactory } from "./drivers/ssh.driver.ts";
 import { ssmDriverFactory } from "./drivers/ssm.driver.ts";
 import { registerExecDriver } from "./exec.service.ts";
 import { sweepRecordings } from "./recorder.ts";
@@ -32,4 +33,5 @@ export function registerExecDrivers(): void {
 
   registerExecDriver("ssm", ssmDriverFactory);
   registerExecDriver("ecs", ecsDriverFactory);
+  registerExecDriver("ssh", sshDriverFactory);
 }

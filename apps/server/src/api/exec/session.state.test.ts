@@ -182,6 +182,37 @@ describe("timers", () => {
     expect(clock.pendingCount).toBe(0);
   });
 
+  it("does not time out a connect while a person is being asked something", () => {
+    // A host-key prompt happens mid-handshake, and comparing a fingerprint
+    // against another screen can easily take longer than the connect timeout.
+    const { m, clock } = machine({ connectMs: 1000 });
+    m.setWaitingForUser(true);
+    clock.advance(60_000);
+    expect(m.state.name).toBe("starting");
+
+    m.setWaitingForUser(false);
+    clock.advance(999);
+    expect(m.state.name).toBe("starting");
+    clock.advance(1);
+    expect(m.state.name).toBe("closing");
+  });
+
+  it("holds the idle timer too while waiting on a person", () => {
+    const { m, clock } = machine({ idleMs: 1000 });
+    m.transition("running");
+    m.setWaitingForUser(true);
+    clock.advance(60_000);
+    expect(m.state.name).toBe("running");
+  });
+
+  it("arms nothing while waiting, so the clock is genuinely stopped", () => {
+    const { m, clock } = machine({ connectMs: 1000 });
+    m.setWaitingForUser(true);
+    expect(clock.pendingCount).toBe(0);
+    m.setWaitingForUser(false);
+    expect(clock.pendingCount).toBe(1);
+  });
+
   it("leaves no timer pending after dispose", () => {
     const { m, clock } = machine({ connectMs: 1000 });
     m.dispose();

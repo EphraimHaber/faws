@@ -243,7 +243,14 @@ async function start(
     session.driver = await factory(auth, sink, {
       log: sessionLog,
       signal: abort.signal,
-      ask: (prompt) => session.broker.ask(prompt),
+      ask: async (prompt) => {
+        session.machine.setWaitingForUser(true);
+        try {
+          return await session.broker.ask(prompt);
+        } finally {
+          session.machine.setWaitingForUser(false);
+        }
+      },
     });
   } catch (err) {
     sessions.delete(auth.sessionId);
