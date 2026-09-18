@@ -25,6 +25,8 @@ import { closeUpload, findUpload } from "./uploads.ts";
 const objectQuery = z.object({
   profile: z.string(),
   region: z.string().min(1),
+  /** Absent reads from AWS; present reads from that saved endpoint. */
+  connectionId: z.string().min(1).optional(),
   bucket: z.string().min(1),
   key: z.string().min(1),
   versionId: z.string().optional(),
@@ -175,7 +177,11 @@ export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
     let stream;
     try {
       stream = await getObjectStream(
-        { profile: query.profile, region: query.region },
+        {
+          profile: query.profile,
+          region: query.region,
+          ...(query.connectionId ? { connectionId: query.connectionId } : {}),
+        },
         {
           bucket: query.bucket,
           key: query.key,

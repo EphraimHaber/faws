@@ -9,7 +9,7 @@ import { Badge } from "~/components/ui/badge";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Spinner } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -20,7 +20,7 @@ import { trpc } from "~/lib/trpc";
  * see the policy is a different fact from there being no policy.
  */
 export function BucketProperties({ bucket }: { bucket: string }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const config = useQuery({
     ...trpc.s3.config.queryOptions({ ...scope, bucket }),
     staleTime: 5 * 60_000,

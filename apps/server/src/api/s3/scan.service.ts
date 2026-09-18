@@ -32,6 +32,7 @@ const handshake = z.object({
   scanId: z.string().min(1),
   profile: z.string(),
   region: z.string().min(1),
+  connectionId: z.string().min(1).optional(),
   bucket: z.string().min(1),
   prefix: z.string().max(1024).default(""),
   pattern: z.string().max(256).optional(),
@@ -67,6 +68,7 @@ export function attachS3ScanNamespace(namespace: S3ScanNamespace): void {
       scanId: input.scanId,
       profile: input.profile,
       region: input.region,
+      ...(input.connectionId ? { connectionId: input.connectionId } : {}),
       bucket: input.bucket,
       prefix: input.prefix,
       ...(input.pattern ? { pattern: input.pattern } : {}),
@@ -87,7 +89,11 @@ async function run(
   auth: S3ScanHandshakeAuth,
   controller: AbortController,
 ): Promise<void> {
-  const scope = { profile: auth.profile, region: auth.region };
+  const scope = {
+    profile: auth.profile,
+    region: auth.region,
+    ...(auth.connectionId ? { connectionId: auth.connectionId } : {}),
+  };
   let buffer: S3ObjectSummary[] = [];
   let lastFlush = Date.now();
 

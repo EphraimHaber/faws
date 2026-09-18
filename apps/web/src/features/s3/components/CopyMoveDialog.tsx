@@ -12,7 +12,7 @@ import {
 } from "~/components/form";
 import { Dialog } from "~/features/s3/components/Dialog";
 import { Button } from "~/components/ui/button";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -31,7 +31,7 @@ export function CopyMoveDialog({
   sourceKey: string;
   onClose: () => void;
 }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const queryClient = useQueryClient();
 
   const form = useZodForm(s3CopyObjectSchema, {

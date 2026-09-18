@@ -6,6 +6,7 @@ import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
+import { ConnectionsPanel } from "~/features/s3/components/ConnectionsPanel";
 import { RecordingsPanel } from "~/features/terminal/components/RecordingsPanel";
 import {
   DEFAULT_LOG_GUTTER,
@@ -96,6 +97,8 @@ export function SettingsPage() {
       </Panel>
 
       <RecordingsPanel />
+
+      <ConnectionsPanel />
 
       <SilencedPanel />
 

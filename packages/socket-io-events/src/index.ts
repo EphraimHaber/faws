@@ -115,6 +115,8 @@ export interface S3ScanHandshakeAuth {
   readonly scanId: string;
   readonly profile: string;
   readonly region: string;
+  /** Absent scans AWS; present scans that saved endpoint. */
+  readonly connectionId?: string;
   readonly bucket: string;
   readonly prefix: string;
   /** Absent walks every key, which is what a size rollup asks for. */

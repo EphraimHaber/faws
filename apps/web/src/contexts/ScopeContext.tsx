@@ -31,6 +31,8 @@ export { DEFAULT_LOG_GUTTER, DEFAULT_LOG_TASK_GUTTER, MIN_LOG_GUTTER, REFRESH_CH
 export interface ScopeValue {
   readonly profile: string;
   readonly region: string;
+  /** Empty points S3 at AWS; otherwise the id of a saved S3 endpoint. */
+  readonly connectionId: string;
   readonly refreshSeconds: number;
   readonly logTimestamps: LogTimestamps;
   /** Width in px of the log pane's leading timestamp column. */
@@ -47,6 +49,7 @@ export interface ScopeValue {
   readonly ready: boolean;
   setProfile(next: string): void;
   setRegion(next: string): void;
+  setConnectionId(next: string): void;
   setRefreshSeconds(next: number): void;
   setLogTimestamps(next: LogTimestamps): void;
   setLogGutter(next: number): void;
@@ -74,6 +77,7 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
     () => ({
       profile: scope.profile,
       region: scope.region || defaultRegion.data || "us-east-1",
+      connectionId: scope.connectionId,
       refreshSeconds: scope.refreshSeconds,
       logTimestamps: logs.timestamps,
       logGutter: logs.gutter,
@@ -81,6 +85,7 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
       ready,
       setProfile: (next) => updateSettings({ scope: { profile: next } }),
       setRegion: (next) => updateSettings({ scope: { region: next } }),
+      setConnectionId: (next) => updateSettings({ scope: { connectionId: next } }),
       setRefreshSeconds: (next) => updateSettings({ scope: { refreshSeconds: next } }),
       setLogTimestamps: (next) => updateSettings({ logs: { timestamps: next } }),
       // Clamped here as well as in the schema: the drag handle reports
@@ -109,4 +114,19 @@ export function useScope(): ScopeValue {
 export function useAwsScope(): { profile: string; region: string } {
   const { profile, region } = useScope();
   return React.useMemo(() => ({ profile, region }), [profile, region]);
+}
+
+/**
+ * The same pair, plus the endpoint S3 is pointed at.
+ *
+ * Every S3 query is keyed by this object, so switching to another endpoint
+ * invalidates the buckets, the listings and the object in view together rather
+ * than leaving one pane showing another storage system's contents.
+ */
+export function useS3Scope(): { profile: string; region: string; connectionId?: string } {
+  const { profile, region, connectionId } = useScope();
+  return React.useMemo(
+    () => ({ profile, region, ...(connectionId ? { connectionId } : {}) }),
+    [profile, region, connectionId],
+  );
 }

@@ -8,7 +8,7 @@ import {
   type CommonPrefix,
 } from "@aws-sdk/client-s3";
 import type {
-  AwsScope,
+  S3Scope,
   S3CommonPrefix,
   S3ListPage,
   S3ListObjectsInput,
@@ -29,7 +29,7 @@ import { classifyOpenAs, isReadable } from "./openAs.ts";
  * can hold. The caller decides whether to ask for more.
  */
 export async function listObjectsPage(
-  scope: AwsScope,
+  scope: S3Scope,
   input: S3ListObjectsInput,
 ): Promise<S3ListPage> {
   const client = await s3ClientForBucket(scope, input.bucket);
@@ -86,7 +86,7 @@ function toObject(object: _Object, listedPrefix: string): S3ObjectSummary {
  * gigabyte object.
  */
 export async function headObject(
-  scope: AwsScope,
+  scope: S3Scope,
   ref: { bucket: string; key: string; versionId?: string },
 ): Promise<S3ObjectHead | null> {
   const client = await s3ClientForBucket(scope, ref.bucket);
@@ -151,7 +151,7 @@ export interface ObjectStream {
  * read down with it.
  */
 export async function getObjectStream(
-  scope: AwsScope,
+  scope: S3Scope,
   ref: { bucket: string; key: string; versionId?: string },
   options: { range?: string; signal?: AbortSignal } = {},
 ): Promise<ObjectStream> {

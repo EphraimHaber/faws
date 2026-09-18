@@ -1,4 +1,11 @@
-import { AwsRequestError, ProfileNotFoundError, ReadOnlyModeError } from "@faws/contracts";
+import {
+  AwsRequestError,
+  ConnectionNotFoundError,
+  EndpointTrustError,
+  ProfileNotFoundError,
+  ReadOnlyModeError,
+  s3ScopeSchema,
+} from "@faws/contracts";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z } from "zod";
@@ -11,7 +18,14 @@ type ErrorCause =
       readonly service?: string;
     }
   | { readonly kind: "ProfileNotFoundError"; readonly message: string; readonly profile?: string }
-  | { readonly kind: "ReadOnlyModeError"; readonly message: string };
+  | { readonly kind: "ReadOnlyModeError"; readonly message: string }
+  | { readonly kind: "ConnectionNotFoundError"; readonly message: string }
+  | {
+      readonly kind: "EndpointTrustError";
+      readonly message: string;
+      readonly endpoint: string;
+      readonly reason: string;
+    };
 
 const t = initTRPC.create({
   transformer: superjson,
@@ -33,6 +47,15 @@ const t = initTRPC.create({
       };
     } else if (original instanceof ReadOnlyModeError) {
       cause = { kind: "ReadOnlyModeError", message: original.message };
+    } else if (original instanceof ConnectionNotFoundError) {
+      cause = { kind: "ConnectionNotFoundError", message: original.message };
+    } else if (original instanceof EndpointTrustError) {
+      cause = {
+        kind: "EndpointTrustError",
+        message: original.message,
+        endpoint: original.endpoint,
+        reason: original.reason,
+      };
     }
     return { ...shape, data: { ...shape.data, cause } };
   },
@@ -47,7 +70,22 @@ export const scopeInput = z.object({
   region: z.string().min(1),
 });
 
+/**
+ * The scope an S3 call takes.
+ *
+ * S3 is the one service that can be pointed somewhere other than AWS, so it
+ * carries a connection the others have no notion of; without one this is the
+ * same profile and region as everything else.
+ */
+export const s3ScopeInput = s3ScopeSchema;
+
 export function toTrpcError(err: unknown): TRPCError {
+  if (err instanceof ConnectionNotFoundError) {
+    return new TRPCError({ code: "NOT_FOUND", message: err.message, cause: err });
+  }
+  if (err instanceof EndpointTrustError) {
+    return new TRPCError({ code: "BAD_REQUEST", message: err.message, cause: err });
+  }
   if (err instanceof ProfileNotFoundError) {
     return new TRPCError({ code: "NOT_FOUND", message: err.message, cause: err });
   }

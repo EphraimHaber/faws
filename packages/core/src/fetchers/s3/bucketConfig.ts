@@ -7,7 +7,7 @@ import {
   GetBucketVersioningCommand,
   GetPublicAccessBlockCommand,
 } from "@aws-sdk/client-s3";
-import type { AwsScope, S3BucketConfig, S3BucketConfigField } from "@faws/contracts";
+import type { S3Scope, S3BucketConfig, S3BucketConfigField } from "@faws/contracts";
 
 import { callAws } from "../../clients.ts";
 import { s3ClientForBucket } from "./buckets.ts";
@@ -22,7 +22,7 @@ import { s3ClientForBucket } from "./buckets.ts";
  * reported as such, because "you cannot see this" and "this is not set" are
  * different answers and both are useful.
  */
-export async function bucketConfig(scope: AwsScope, bucket: string): Promise<S3BucketConfig> {
+export async function bucketConfig(scope: S3Scope, bucket: string): Promise<S3BucketConfig> {
   const client = await s3ClientForBucket(scope, bucket);
   const denied: S3BucketConfigField[] = [];
 

@@ -194,6 +194,9 @@ catalogs:
     '@aws-sdk/s3-request-presigner':
       specifier: ^3.700.0
       version: 3.1134.0
+    '@smithy/node-http-handler':
+      specifier: ^4.12.1
+      version: 4.12.1
     '@smithy/shared-ini-file-loader':
       specifier: ^4.0.4
       version: 4.7.2
@@ -525,6 +528,9 @@ importers:
       '@faws/shared':
         specifier: workspace:*
         version: link:../shared
+      '@smithy/node-http-handler':
+        specifier: 'catalog:'
+        version: 4.12.1
       '@smithy/shared-ini-file-loader':
         specifier: 'catalog:'
         version: 4.7.2

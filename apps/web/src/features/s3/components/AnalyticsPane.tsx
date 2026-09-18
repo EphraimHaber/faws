@@ -10,7 +10,8 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Spinner } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/contexts/ScopeContext";
+import { useS3Capabilities } from "~/features/s3/useS3Capabilities";
 import { startScan, type RunningScan } from "~/lib/s3-scan";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
@@ -28,11 +29,13 @@ const MAX_SECONDS = 120;
  * happens on open.
  */
 export function AnalyticsPane({ bucket, prefix }: { bucket: string; prefix: string }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
+  const capabilities = useS3Capabilities();
 
   const metrics = useQuery({
     ...trpc.s3.storageMetrics.queryOptions({ ...scope, bucket, days: 30 }),
     staleTime: 60 * 60_000,
+    enabled: capabilities.storageMetrics,
   });
 
   return (
@@ -47,7 +50,12 @@ export function AnalyticsPane({ bucket, prefix }: { bucket: string; prefix: stri
           </span>
         </PanelHeader>
 
-        {metrics.isPending ? (
+        {!capabilities.storageMetrics ? (
+          <p className="px-3.5 py-4 text-[12.5px] text-muted-foreground">
+            This endpoint publishes no daily metrics. Measuring the prefix above is the way to a
+            size here.
+          </p>
+        ) : metrics.isPending ? (
           <div className="flex h-40 items-center justify-center">
             <Spinner />
           </div>
@@ -82,7 +90,7 @@ export function AnalyticsPane({ bucket, prefix }: { bucket: string; prefix: stri
  * as it goes and can be stopped.
  */
 function PrefixSize({ bucket, prefix }: { bucket: string; prefix: string }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const [rollup, setRollup] = React.useState<S3PrefixRollup | null>(null);
   const [scanned, setScanned] = React.useState<{ objects: number; bytes: number } | null>(null);
   const [running, setRunning] = React.useState(false);
@@ -105,6 +113,7 @@ function PrefixSize({ bucket, prefix }: { bucket: string; prefix: string }) {
         scanId: crypto.randomUUID(),
         profile: scope.profile,
         region: scope.region,
+        ...(scope.connectionId ? { connectionId: scope.connectionId } : {}),
         bucket,
         prefix,
         maxObjects: MAX_OBJECTS,

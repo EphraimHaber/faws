@@ -11,7 +11,9 @@ import { VersionsPane } from "~/features/s3/components/VersionsPane";
 import { Badge } from "~/components/ui/badge";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel } from "~/components/ui/panel";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useS3Scope, useScope } from "~/contexts/ScopeContext";
+import { ConnectionPicker } from "~/features/s3/components/ConnectionPicker";
+import { useS3Capabilities } from "~/features/s3/useS3Capabilities";
 import { useTabSearch } from "~/hooks/useTabSearch";
 import { trpc } from "~/lib/trpc";
 
@@ -28,14 +30,18 @@ type Tab = (typeof BUCKET_TABS)[number];
  * own region, which is not always the one the rest of the app is scoped to.
  */
 export function BucketPage({ bucket }: { bucket: string }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const { region: scopeRegion } = useScope();
+  const capabilities = useS3Capabilities();
   const navigate = useNavigate();
   const { prefix = "", object } = useSearch({ from: "/s3/buckets/$bucket" });
   const [tab, setTab] = useTabSearch(BUCKET_TABS, "objects");
 
   const region = useQuery({
     ...trpc.s3.bucketRegion.queryOptions({ ...scope, bucket }),
+    // An endpoint outside AWS has one region for every bucket it serves, so
+    // there is nothing to resolve and nothing to report as unexpected.
+    enabled: capabilities.bucketRegions,
     staleTime: Infinity,
   });
 
@@ -76,6 +82,9 @@ export function BucketPage({ bucket }: { bucket: string }) {
           value={tab}
           onChange={(next: Tab) => setTab(next)}
         />
+        <div className="ml-auto">
+          <ConnectionPicker />
+        </div>
         {region.data && region.data !== scopeRegion ? (
           <span className="flex items-center gap-2">
             <Badge tone="info">{region.data}</Badge>

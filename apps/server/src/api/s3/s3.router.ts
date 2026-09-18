@@ -18,14 +18,16 @@ import {
 } from "@faws/core";
 import { z } from "zod";
 
-import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
+import { guard, publicProcedure, router, s3ScopeInput } from "../../trpc/index.ts";
 
 export const s3Router = router({
-  buckets: publicProcedure.input(scopeInput).query(({ input }) => guard(() => listBuckets(input))),
+  buckets: publicProcedure
+    .input(s3ScopeInput)
+    .query(({ input }) => guard(() => listBuckets(input))),
 
   /** Resolved on demand, because a bucket is addressed in its own region. */
   bucketRegion: publicProcedure
-    .input(scopeInput.extend({ bucket: z.string().min(1) }))
+    .input(s3ScopeInput.extend({ bucket: z.string().min(1) }))
     .query(({ input }) => guard(() => bucketRegion(input, input.bucket))),
 
   /**
@@ -33,23 +35,23 @@ export const s3Router = router({
    * this returns, rather than the server walking the whole prefix.
    */
   list: publicProcedure
-    .input(scopeInput.and(s3ListObjectsSchema))
+    .input(s3ScopeInput.and(s3ListObjectsSchema))
     .query(({ input }) => guard(() => listObjectsPage(input, input))),
 
   /** Whether a delete on this bucket writes a recoverable marker. */
   versioning: publicProcedure
-    .input(scopeInput.extend({ bucket: z.string().min(1) }))
+    .input(s3ScopeInput.extend({ bucket: z.string().min(1) }))
     .query(({ input }) => guard(() => bucketVersioning(input, input.bucket))),
 
   /** Everything the properties pane shows, degrading per field. */
   config: publicProcedure
-    .input(scopeInput.extend({ bucket: z.string().min(1) }))
+    .input(s3ScopeInput.extend({ bucket: z.string().min(1) }))
     .query(({ input }) => guard(() => bucketConfig(input, input.bucket))),
 
   /** Versions and delete markers; this listing pages on two markers. */
   versions: publicProcedure
     .input(
-      scopeInput.extend({
+      s3ScopeInput.extend({
         bucket: z.string().min(1),
         prefix: z.string().max(1024).default(""),
         keyMarker: z.string().optional(),
@@ -70,7 +72,7 @@ export const s3Router = router({
   /** Daily size and object count, which is cheaper than counting. */
   storageMetrics: publicProcedure
     .input(
-      scopeInput.extend({
+      s3ScopeInput.extend({
         bucket: z.string().min(1),
         days: z.number().int().positive().max(365).optional(),
       }),
@@ -86,7 +88,7 @@ export const s3Router = router({
     ),
 
   /** What an object is, which decides whether and how its bytes are fetched. */
-  head: publicProcedure.input(scopeInput.and(s3ObjectRefSchema)).query(({ input }) =>
+  head: publicProcedure.input(s3ScopeInput.and(s3ObjectRefSchema)).query(({ input }) =>
     guard(() =>
       headObject(input, {
         bucket: input.bucket,

@@ -6,7 +6,7 @@ import { Dialog } from "~/features/s3/components/Dialog";
 import { Button } from "~/components/ui/button";
 import { ErrorState } from "~/components/ui/error-state";
 import { Spinner } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/contexts/ScopeContext";
 import { fetchRange } from "~/lib/s3-bytes";
 import { cn } from "~/lib/utils";
 
@@ -37,7 +37,7 @@ export function ObjectDiff({
   right: DiffSide;
   onClose: () => void;
 }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
 
   const sides = useQuery({
     queryKey: [
