@@ -15,6 +15,16 @@ import { execHandshakeSchema, execPromptResponseSchema } from "@faws/contracts";
 
 import { createLogger } from "../../shared/logger.ts";
 import type { ExecNamespace } from "../../shared/socket-io.ts";
+import {
+  answerSessionPrompt,
+  attachSession,
+  closeSession,
+  detachSession,
+  ExecSessionError,
+  resizeSession,
+  writeToSession,
+  type SessionClient,
+} from "./session.registry.ts";
 
 const log = createLogger("exec");
 
@@ -99,14 +109,9 @@ export function attachExecNamespace(namespace: ExecNamespace): void {
   namespace.on("connection", (socket) => {
     const auth = socket.data.auth;
     const factory = drivers.get(auth.kind);
-    const sessionLog = log.child({
-      socketId: socket.id,
-      sessionId: auth.sessionId,
-      kind: auth.kind,
-    });
 
     if (!factory) {
-      sessionLog.warn("exec connection with no driver registered");
+      log.warn({ socketId: socket.id, kind: auth.kind }, "exec connection with no driver");
       socket.emit("exec:error", {
         code: "NoDriver",
         userMessage: `No ${auth.kind} driver is available in this build.`,
@@ -115,77 +120,45 @@ export function attachExecNamespace(namespace: ExecNamespace): void {
       return;
     }
 
-    const abort = new AbortController();
-    const pending = new Map<string, (response: ExecPromptResponse) => void>();
-
-    const sink: ExecSink = {
+    const client: SessionClient = {
       data: (chunk) => socket.emit("exec:data", { chunk }),
       exit: (code, reason) => socket.emit("exec:exit", { code, reason }),
       error: (code, userMessage) => socket.emit("exec:error", { code, userMessage }),
       status: (message) => socket.emit("exec:status", { message }),
+      prompt: (prompt) => socket.emit("exec:prompt", prompt),
     };
 
-    const ctx: ExecContext = {
-      log: sessionLog,
-      signal: abort.signal,
-      ask: (prompt) =>
-        new Promise((resolve, reject) => {
-          pending.set(prompt.promptId, resolve);
-          abort.signal.addEventListener(
-            "abort",
-            () => {
-              pending.delete(prompt.promptId);
-              reject(new Error("The session went away before the prompt was answered."));
-            },
-            { once: true },
-          );
-          socket.emit("exec:prompt", prompt);
-        }),
-    };
-
+    // Wired before the attach resolves, so input typed into a terminal that is
+    // still connecting is not dropped on the floor.
+    socket.on("exec:input", ({ chunk }) => {
+      const bytes = toBytes(chunk);
+      if (!bytes) {
+        log.warn({ socketId: socket.id }, "dropped non-binary exec:input");
+        return;
+      }
+      writeToSession(auth.sessionId, bytes);
+    });
+    socket.on("exec:resize", ({ cols, rows }) => resizeSession(auth.sessionId, cols, rows));
     socket.on("exec:prompt:response", (payload) => {
       const parsed = execPromptResponseSchema.safeParse(payload);
-      if (!parsed.success) return;
-      const resolve = pending.get(parsed.data.promptId);
-      if (!resolve) return;
-      pending.delete(parsed.data.promptId);
-      resolve(parsed.data);
+      if (parsed.success) answerSessionPrompt(auth.sessionId, parsed.data);
     });
+    socket.on("exec:close", () => {
+      void closeSession(auth.sessionId, "closed by client");
+      socket.disconnect(true);
+    });
+    // A dropped socket detaches rather than closes: the grace window is what
+    // makes a flaky network survivable instead of fatal to a running shell.
+    socket.on("disconnect", (reason) => detachSession(auth.sessionId, reason));
 
-    void (async () => {
-      let driver: ExecDriver;
-      try {
-        driver = await factory(auth, sink, ctx);
-      } catch (err) {
-        const code = (err as { execCode?: string }).execCode ?? "Internal";
-        const message = err instanceof Error ? err.message : String(err);
-        sessionLog.warn({ err, code }, "exec driver failed to start");
-        socket.emit("exec:error", { code, userMessage: message });
+    void attachSession(auth, client, factory)
+      .then(({ resumed }) => socket.emit("exec:ready", { sessionId: auth.sessionId, resumed }))
+      .catch((err: unknown) => {
+        const code = err instanceof ExecSessionError ? err.code : "Internal";
+        const userMessage = err instanceof Error ? err.message : String(err);
+        log.warn({ err, sessionId: auth.sessionId }, "exec session failed to start");
+        socket.emit("exec:error", { code, userMessage });
         socket.disconnect(true);
-        return;
-      }
-
-      // The client may have given up while we were connecting.
-      if (abort.signal.aborted) {
-        void driver.close("client left during connect");
-        return;
-      }
-
-      socket.on("exec:input", ({ chunk }) => {
-        const bytes = toBytes(chunk);
-        if (!bytes) {
-          sessionLog.warn("dropped non-binary exec:input");
-          return;
-        }
-        driver.write(bytes);
       });
-      socket.on("exec:resize", ({ cols, rows }) => driver.resize(cols, rows));
-      socket.on("exec:close", () => void driver.close("closed by client"));
-      socket.on("disconnect", (reason) => void driver.close(`socket disconnected: ${reason}`));
-
-      socket.emit("exec:ready", { sessionId: auth.sessionId, resumed: false });
-    })();
-
-    socket.on("disconnect", () => abort.abort());
   });
 }

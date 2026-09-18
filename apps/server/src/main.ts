@@ -21,6 +21,7 @@ import Fastify, { type FastifyBaseLogger, type FastifyError } from "fastify";
 
 import { attachExecNamespace } from "./api/exec/exec.service.ts";
 import { registerExecDrivers } from "./api/exec/index.ts";
+import { closeAllSessions } from "./api/exec/session.registry.ts";
 import { s3BytesRoutes } from "./api/s3/bytes.routes.ts";
 import { attachS3ScanNamespace } from "./api/s3/scan.service.ts";
 import { appRouter, type AppRouter } from "./router.ts";
@@ -141,8 +142,10 @@ console.log(`faws-server-port: ${resolvedPort}`);
 console.log(`faws-server-url: ${address.replace(/\/$/, "")}/trpc`);
 
 const shutdown = async () => {
-  // Sockets first: they hold the HTTP server open, so closing in the other
-  // order waits forever on a connection that will never drain itself.
+  // Sessions first: a plugin child or an SSH connection must not outlive the
+  // server that spawned it. Then sockets, which hold the HTTP server open - a
+  // websocket never drains itself, so closing in the other order waits forever.
+  await closeAllSessions("the server is shutting down");
   await closeSocketIO();
   await server.close();
   process.exit(0);
