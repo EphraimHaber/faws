@@ -4,7 +4,12 @@ import * as path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { probeWritable, readSettingsFile, writeSettingsFileAtomic } from "./settings.file.ts";
+import {
+  describeError,
+  probeWritable,
+  readSettingsFile,
+  writeSettingsFileAtomic,
+} from "./settings.file.ts";
 
 let dir: string;
 let file: string;
@@ -96,5 +101,24 @@ describe("probeWritable", () => {
     fs.writeFileSync(path.join(dir, "settings"), "in the way");
     const reason = await probeWritable(file);
     expect(reason).toMatch(/E[A-Z]+:/);
+  });
+});
+
+describe("describeError", () => {
+  it("keeps the errno without repeating the one Node already wrote", () => {
+    const err = Object.assign(new Error("EACCES: permission denied, open 'x'"), {
+      code: "EACCES",
+    });
+    expect(describeError(err)).toBe("EACCES: permission denied, open 'x'");
+  });
+
+  it("adds the errno when the message lacks it", () => {
+    expect(describeError(Object.assign(new Error("no space"), { code: "ENOSPC" }))).toBe(
+      "ENOSPC: no space",
+    );
+  });
+
+  it("falls back to the message for a plain error", () => {
+    expect(describeError(new Error("nope"))).toBe("nope");
   });
 });

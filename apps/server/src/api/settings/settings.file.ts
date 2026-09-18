@@ -144,10 +144,14 @@ export async function probeWritable(file: string): Promise<string | null> {
   }
 }
 
-/** "EROFS: read-only file system" - the errno is what makes a report useful. */
+/**
+ * "EACCES: permission denied, open ..." - the errno is what makes a bug report
+ * actionable, so it is kept, but Node already puts it at the front of most
+ * messages and repeating it reads like a stutter in the UI.
+ */
 export function describeError(err: unknown): string {
-  if (isErrnoLike(err)) return `${err.code}: ${err.message}`;
-  return err instanceof Error ? err.message : String(err);
+  if (!isErrnoLike(err)) return err instanceof Error ? err.message : String(err);
+  return err.message.startsWith(`${err.code}:`) ? err.message : `${err.code}: ${err.message}`;
 }
 
 function randomSuffix(): string {
