@@ -39,6 +39,9 @@ const EMPTY: SgrState = {
  * mapped to black and white: on a dark ground "black" is unreadable, and the
  * intent behind both is "de-emphasised" and "emphasised".
  */
+// These are the same palette decisions lib/terminal/theme.ts renders as the
+// 16 ANSI colours for xterm, via the --term-* properties in index.css. A
+// change to what 31 or 32 means belongs in both.
 const COLORS: Readonly<Record<number, string>> = {
   30: "text-muted-foreground/70",
   31: "text-danger",

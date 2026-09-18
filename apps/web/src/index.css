@@ -66,6 +66,39 @@
   --warning: oklch(0.72 0.15 75);
   --danger: oklch(0.57 0.19 25);
   --info: oklch(0.58 0.13 250);
+
+  /* Terminal palette.
+   *
+   * xterm needs 16 concrete ANSI colours plus a foreground, background, cursor
+   * and selection. These are the same decisions the log pane's SGR parser makes
+   * in lib/ansi.ts, written out as colours instead of Tailwind classes - keep
+   * the two in step.
+   *
+   * "Black" is the muted foreground rather than an actual black: programs use
+   * 30 for de-emphasis, and real black is illegible on either of our
+   * backgrounds. Magenta and cyan both lean on the primary hue, as ansi.ts
+   * does, but the bright row separates them, or zsh's syntax highlighting goes
+   * flat. */
+  --term-black: oklch(0.6 0.02 260);
+  --term-red: var(--danger);
+  --term-green: var(--success);
+  --term-yellow: var(--warning);
+  --term-blue: var(--info);
+  --term-magenta: oklch(0.55 0.16 320);
+  --term-cyan: var(--primary);
+  --term-white: oklch(0.45 0.015 260);
+  --term-bright-black: oklch(0.72 0.015 260);
+  --term-bright-red: oklch(0.63 0.2 25);
+  --term-bright-green: oklch(0.66 0.16 155);
+  --term-bright-yellow: oklch(0.78 0.16 75);
+  --term-bright-blue: oklch(0.64 0.15 250);
+  --term-bright-magenta: oklch(0.62 0.19 320);
+  --term-bright-cyan: oklch(0.62 0.13 205);
+  --term-bright-white: var(--foreground);
+  --term-bg: var(--card);
+  --term-fg: var(--card-foreground);
+  --term-cursor: var(--primary);
+  --term-selection: oklch(0.55 0.13 224 / 0.3);
 }
 
 .dark {
@@ -92,6 +125,28 @@
   --warning: oklch(0.82 0.15 78);
   --danger: oklch(0.7 0.18 22);
   --info: oklch(0.72 0.12 250);
+
+  /* See the light palette above for why these are not literal ANSI colours. */
+  --term-black: oklch(0.55 0.015 260);
+  --term-red: var(--danger);
+  --term-green: var(--success);
+  --term-yellow: var(--warning);
+  --term-blue: var(--info);
+  --term-magenta: oklch(0.72 0.16 320);
+  --term-cyan: var(--primary);
+  --term-white: oklch(0.85 0.01 250);
+  --term-bright-black: oklch(0.67 0.014 255);
+  --term-bright-red: oklch(0.78 0.17 22);
+  --term-bright-green: oklch(0.84 0.16 155);
+  --term-bright-yellow: oklch(0.89 0.14 78);
+  --term-bright-blue: oklch(0.8 0.11 250);
+  --term-bright-magenta: oklch(0.8 0.15 320);
+  --term-bright-cyan: oklch(0.84 0.12 205);
+  --term-bright-white: oklch(0.99 0 0);
+  --term-bg: var(--card);
+  --term-fg: var(--card-foreground);
+  --term-cursor: var(--primary);
+  --term-selection: oklch(0.76 0.13 205 / 0.32);
 }
 
 @layer base {

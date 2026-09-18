@@ -17,6 +17,8 @@ import editorWorker from "monaco-editor/editor/editor.worker?worker";
 import "monaco-editor/language/json/monaco.contribution";
 import jsonWorker from "monaco-editor/language/json/json.worker?worker";
 
+import { cssColor } from "./css-color.ts";
+
 /**
  * A single theme, redefined in place on every flip. Two fixed themes would
  * have to be built from both palettes at once, and only one palette is
@@ -37,37 +39,6 @@ window.MonacoEnvironment = {
     return label === "json" ? new jsonWorker() : new editorWorker();
   },
 };
-
-/**
- * Resolves a CSS custom property to the `#rrggbb` Monaco needs.
- *
- * The browser does the colour-space conversion: assigning an oklch value to
- * `color` and reading it back yields `rgb(...)`, which is trivial to format.
- */
-function cssColor(variable: string, fallback: string): string {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
-  if (!raw) return fallback;
-
-  const probe = document.createElement("span");
-  probe.style.color = raw;
-  probe.style.display = "none";
-  document.body.append(probe);
-  const resolved = getComputedStyle(probe).color;
-  probe.remove();
-
-  const match = /rgba?\(([^)]+)\)/.exec(resolved);
-  if (!match?.[1]) return fallback;
-
-  const [r, g, b] = match[1].split(/[\s,/]+/).map(Number);
-  if (r === undefined || g === undefined || b === undefined) return fallback;
-  return `#${hexByte(r)}${hexByte(g)}${hexByte(b)}`;
-}
-
-function hexByte(value: number): string {
-  return Math.max(0, Math.min(255, Math.round(value)))
-    .toString(16)
-    .padStart(2, "0");
-}
 
 /**
  * (Re)defines the theme from the current palette. Call after a theme flip —
