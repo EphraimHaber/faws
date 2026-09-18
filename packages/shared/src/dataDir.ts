@@ -28,3 +28,19 @@ export function logsDir(): string {
 export function recordingsDir(): string {
   return path.join(resolveDataDir(), "recordings");
 }
+
+/**
+ * Where persisted user preferences live.
+ *
+ * A directory rather than a bare `settings.json` at the data-dir root: the
+ * loader quarantines an unreadable file beside the good one, so there has to
+ * be somewhere for those copies to go, and one directory carries the 0700
+ * that keeps profile names and ARNs out of other accounts' reach.
+ */
+export function settingsDir(): string {
+  return path.join(resolveDataDir(), "settings");
+}
+
+export function settingsFile(): string {
+  return path.join(settingsDir(), "settings.json");
+}
