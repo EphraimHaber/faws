@@ -1,0 +1,214 @@
+/**
+ * The renderer's view of the settings the server owns.
+ *
+ * A zustand store rather than a React context, for two reasons that both come
+ * from what actually reads these values. A context re-renders everything below
+ * the provider on every change, and `logs.gutter` changes on every
+ * `pointermove` of a drag - selectors are what keep that to the one pane that
+ * cares. And `sessions.ts` reads `terminal.recordByDefault` outside React, at
+ * handshake time, which a context cannot serve at all.
+ *
+ * Writes are optimistic: local state changes immediately, then a debounced,
+ * coalesced patch goes to the server. Nothing in the UI waits on a round trip
+ * to show the change the person just made, and the server's answer is ignored
+ * as an echo of what is already on screen.
+ */
+import {
+  applyPatch,
+  DEFAULT_SETTINGS,
+  type Settings,
+  type SettingsPatch,
+  type SettingsPersistence,
+  type SettingsSnapshot,
+  type SilenceOp,
+} from "@faws/contracts";
+import { create } from "zustand";
+
+import { seedSettings, writeCache } from "~/lib/settings/cache";
+import { reconcile } from "~/lib/settings/echo";
+import { isEmptyPatch, mergePatches } from "~/lib/settings/merge";
+import { getSocket } from "~/lib/socket";
+import { trpcClient } from "~/lib/trpc";
+
+/**
+ * This window's identity, minted once per page load.
+ *
+ * Not `socket.id`: that is unknown until the socket connects and changes on
+ * every reconnect, so a write sent during a blip would come back looking like
+ * somebody else's.
+ */
+const ORIGIN_ID =
+  globalThis.crypto?.randomUUID?.() ?? `w-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+
+/** Matches the server's write debounce; one round trip per drag-second. */
+const SEND_DEBOUNCE_MS = 150;
+
+interface SettingsState {
+  readonly settings: Settings;
+  /**
+   * False until the server has answered once.
+   *
+   * It gates *queries*, not paint: `scope.region` being empty means "ask the
+   * CLI for this profile's default", and firing that question against a
+   * profile we have not loaded yet would ask it twice and about the wrong
+   * profile the first time.
+   */
+  readonly ready: boolean;
+  readonly revision: number;
+  readonly persistence: SettingsPersistence;
+}
+
+export const useSettings = create<SettingsState>(() => ({
+  settings: seedSettings(),
+  ready: false,
+  revision: 0,
+  persistence: { writable: true, reason: null },
+}));
+
+/** For the handful of readers that are not React components. */
+export function settingsSnapshot(): Settings {
+  return useSettings.getState().settings;
+}
+
+/** Applies a server snapshot unless it is our own echo or arrived out of order. */
+function accept(snapshot: SettingsSnapshot, originId: string | null): void {
+  const state = useSettings.getState();
+  const verdict = reconcile(
+    { revision: snapshot.revision, originId },
+    {
+      revision: state.revision,
+      originId: ORIGIN_ID,
+    },
+  );
+
+  useSettings.setState({
+    revision: verdict.revision,
+    ready: true,
+    persistence: snapshot.persistence,
+    ...(verdict.apply ? { settings: snapshot.settings } : {}),
+  });
+  if (verdict.apply) writeCache(snapshot.settings);
+}
+
+let pending: SettingsPatch = {};
+let timer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Changes one or more preferences.
+ *
+ * The local state moves first and the patch is merged into whatever has not
+ * been sent yet, so a drag is one request per debounce window rather than one
+ * per frame.
+ */
+export function updateSettings(patch: SettingsPatch): void {
+  const next = applyPatch(useSettings.getState().settings, patch);
+  useSettings.setState({ settings: next });
+  writeCache(next);
+
+  pending = mergePatches(pending, patch);
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(sendPending, SEND_DEBOUNCE_MS);
+}
+
+function sendPending(): void {
+  timer = null;
+  const patch = pending;
+  pending = {};
+  if (isEmptyPatch(patch)) return;
+  void trpcClient.settings.update
+    .mutate({ patch, originId: ORIGIN_ID })
+    .then((snapshot) => accept(snapshot, ORIGIN_ID))
+    .catch(() => {
+      // The server is the source of truth and will be re-read on reconnect;
+      // rolling the UI back here would fight the person's own input.
+    });
+}
+
+/**
+ * Silences or restores a warning.
+ *
+ * Not debounced: these are discrete, deliberate acts a few seconds apart, and
+ * the maps are keyed by ARN so there is nothing to coalesce.
+ */
+export function applySilence(op: SilenceOp): void {
+  void trpcClient.settings.silence
+    .mutate({ op, originId: ORIGIN_ID })
+    .then((snapshot) => {
+      // Applied from the response rather than optimistically: `at` is stamped
+      // with the server's clock, and guessing it here would mean the entry
+      // shifts under the person a moment after they created it.
+      useSettings.setState({
+        settings: snapshot.settings,
+        revision: Math.max(useSettings.getState().revision, snapshot.revision),
+        persistence: snapshot.persistence,
+      });
+      writeCache(snapshot.settings);
+    })
+    .catch(() => undefined);
+}
+
+/** Puts every preference back to its default, for everyone. */
+export function resetSettings(): void {
+  void trpcClient.settings.reset
+    .mutate({ originId: ORIGIN_ID })
+    .then((snapshot) => {
+      useSettings.setState({
+        settings: snapshot.settings,
+        revision: Math.max(useSettings.getState().revision, snapshot.revision),
+        persistence: snapshot.persistence,
+      });
+      writeCache(snapshot.settings);
+    })
+    .catch(() => undefined);
+}
+
+let onFirstSnapshot: ((snapshot: SettingsSnapshot) => void) | null = null;
+
+/**
+ * Called with the first snapshot of the session, so the legacy import can run
+ * exactly once and only while the server says nothing has been stored yet.
+ */
+export function setFirstSnapshotHandler(fn: (snapshot: SettingsSnapshot) => void): void {
+  onFirstSnapshot = fn;
+}
+
+let started = false;
+
+/**
+ * Fetches settings and subscribes to changes from other windows.
+ *
+ * Run at module load rather than from an effect: StrictMode double-mounts, and
+ * the fetch wants to be in flight before React renders anyway. The refetch on
+ * `connect` covers a window that was disconnected while another one changed
+ * something - a reconnect and an update look identical to `accept`.
+ */
+export function initSettings(): void {
+  if (started) return;
+  started = true;
+
+  let first = true;
+  const load = () => {
+    void trpcClient.settings.get
+      .query()
+      .then((snapshot) => {
+        accept(snapshot, null);
+        if (first) {
+          first = false;
+          onFirstSnapshot?.(snapshot);
+        }
+      })
+      .catch(() => {
+        // In dev, Vite serves this page before the server is listening. The
+        // seeded values are already on screen; the socket's `connect` will
+        // bring the real ones as soon as there is something to connect to.
+        useSettings.setState({ ready: true });
+      });
+  };
+
+  load();
+  const socket = getSocket();
+  socket.on("connect", load);
+  socket.on("settings:changed", (payload) => accept(payload, payload.originId));
+}
+
+export { DEFAULT_SETTINGS, ORIGIN_ID };

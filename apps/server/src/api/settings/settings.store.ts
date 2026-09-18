@@ -20,6 +20,7 @@
  * across a restart. Every snapshot carries `persistence` so the UI can say so.
  */
 import {
+  applyPatch,
   DEFAULT_SETTINGS,
   pruneSilenced,
   SETTINGS_VERSION,
@@ -316,41 +317,6 @@ export function createSettingsStore(options: SettingsStoreOptions): SettingsStor
       if (dirty || flushing) await runFlush();
     },
   };
-}
-
-/**
- * Merges a patch section by section.
- *
- * Shallow within a section on purpose: sections hold scalars, so a spread is
- * the whole story, and a deep merge would only create somewhere for a future
- * nested field to behave differently from every field above it.
- */
-export function applyPatch(current: Settings, patch: SettingsPatch): Settings {
-  return {
-    ...current,
-    scope: mergeSection(current.scope, patch.scope),
-    logs: mergeSection(current.logs, patch.logs),
-    appearance: mergeSection(current.appearance, patch.appearance),
-    terminal: mergeSection(current.terminal, patch.terminal),
-  };
-}
-
-/**
- * A plain spread would let an explicit `undefined` in the patch punch a hole
- * in the section, which `JSON.stringify` then drops and the next load fills
- * with a default - a preference silently reset by a key that was only ever
- * meant to be absent.
- */
-function mergeSection<T extends object>(
-  current: T,
-  patch: { [K in keyof T]?: T[K] | undefined } | undefined,
-): T {
-  if (!patch) return current;
-  const next = { ...current };
-  for (const [key, value] of Object.entries(patch)) {
-    if (value !== undefined) next[key as keyof T] = value as T[keyof T];
-  }
-  return next;
 }
 
 /**
