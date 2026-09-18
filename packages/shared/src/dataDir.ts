@@ -17,3 +17,14 @@ export function resolveDataDir(): string {
 export function logsDir(): string {
   return path.join(resolveDataDir(), "logs");
 }
+
+/**
+ * Where session recordings land.
+ *
+ * Separate from `logs` because these are transcripts of someone's shell, not
+ * diagnostics: they are written with tighter permissions, swept on their own
+ * schedule, and are the thing a person would hand to an auditor.
+ */
+export function recordingsDir(): string {
+  return path.join(resolveDataDir(), "recordings");
+}

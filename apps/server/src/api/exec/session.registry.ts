@@ -15,6 +15,7 @@ import type { ExecHandshakeAuth, ExecPrompt, ExecPromptResponse } from "@faws/co
 import { createLogger } from "../../shared/logger.ts";
 import type { ExecDriver, ExecDriverFactory, ExecSink } from "./exec.service.ts";
 import { PromptBroker } from "./prompts.ts";
+import { startRecording, type Recorder } from "./recorder.ts";
 import { OutputRingBuffer } from "./ringBuffer.ts";
 import { DEFAULT_TIMERS, SessionMachine, type SessionTimers } from "./session.state.ts";
 
@@ -80,6 +81,7 @@ interface Session {
   readonly broker: PromptBroker;
   client: SessionClient | null;
   driver: ExecDriver | null;
+  readonly recorder: Recorder | null;
   /** Geometry the client last reported, replayed to the driver on reattach. */
   cols: number;
   rows: number;
@@ -213,6 +215,17 @@ async function start(
     }),
     client,
     driver: null,
+    recorder: auth.record
+      ? startRecording({
+          sessionId: auth.sessionId,
+          kind: auth.kind,
+          target: describeTarget(auth),
+          profile: scope.profile,
+          region: scope.region,
+          cols: auth.cols,
+          rows: auth.rows,
+        })
+      : null,
     cols: auth.cols,
     rows: auth.rows,
   };
@@ -222,6 +235,7 @@ async function start(
   const sink: ExecSink = {
     data: (chunk) => {
       session.buffer.append(chunk);
+      session.recorder?.output(chunk);
       session.client?.data(chunk);
     },
     exit: (code, reason) => {
@@ -242,18 +256,21 @@ async function start(
     });
   } catch (err) {
     sessions.delete(auth.sessionId);
+    session.recorder?.close();
     session.machine.dispose();
     session.broker.close("the session failed to start");
     throw err;
   }
 
   session.machine.transition("running");
+  if (session.recorder) client.status(`Recording to ${session.recorder.path}`);
 }
 
 export function writeToSession(sessionId: string, chunk: Uint8Array): void {
   const session = sessions.get(sessionId);
   if (!session || session.machine.isTerminal) return;
   session.machine.noteInput();
+  session.recorder?.input(chunk);
   session.driver?.write(chunk);
 }
 
@@ -262,6 +279,7 @@ export function resizeSession(sessionId: string, cols: number, rows: number): vo
   if (!session) return;
   session.cols = cols;
   session.rows = rows;
+  session.recorder?.resize(cols, rows);
   session.driver?.resize(cols, rows);
 }
 
@@ -294,6 +312,7 @@ export async function closeSession(sessionId: string, reason: string): Promise<v
   } catch (err) {
     log.warn({ err, sessionId }, "driver close failed");
   }
+  session.recorder?.close();
   session.machine.transition("closed", { reason });
   session.machine.dispose();
   session.buffer.clear();
@@ -312,6 +331,7 @@ export function listSessions(): ReadonlyArray<{
   region: string | null;
   startedAt: string;
   state: string;
+  recordingPath: string | null;
 }> {
   return [...sessions.values()].map((session) => ({
     sessionId: session.id,
@@ -321,5 +341,6 @@ export function listSessions(): ReadonlyArray<{
     region: session.region,
     startedAt: session.startedAt,
     state: session.machine.state.name,
+    recordingPath: session.recorder?.path ?? null,
   }));
 }
