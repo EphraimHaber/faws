@@ -9,9 +9,12 @@
  * Sessions deliberately do not survive a page reload. The socket is
  * `reconnection: false` and the server closes a driver when its grace window
  * lapses, so re-adopting would need the client to re-handshake every tab on
- * boot - and a reload is rare and usually deliberate. What does survive is the
- * descriptor of recent targets, so reopening one is a keystroke. The server's
- * reattach path exists and works; wiring it here is a later, small change.
+ * boot - and a reload is rare and usually deliberate. The server's reattach
+ * path exists and works; wiring it here is a later, small change.
+ *
+ * The dock's height and its record-by-default toggle are not here either:
+ * they are preferences, so they live in the settings store with the rest and
+ * follow the person between the browser and the desktop app.
  */
 import type { ExecPromptResponse } from "@faws/contracts";
 import { z } from "zod";
@@ -19,6 +22,7 @@ import { create } from "zustand";
 
 import { readStored, writeStored } from "~/lib/stored";
 import { createExecSocket, toUint8, type ExecSocket } from "~/lib/socket";
+import { settingsSnapshot } from "~/stores/settings";
 import {
   addSession,
   applyStatus,
@@ -39,19 +43,16 @@ import {
   writeToTerminal,
 } from "~/lib/terminal/xterm";
 
-const HEIGHT_KEY = "faws:terminal:height";
-const RECORD_KEY = "faws:terminal:record";
+/**
+ * Which tabs were open, so a reload can ask for them back.
+ *
+ * This one stays in `localStorage` rather than moving to the settings file
+ * with the dock's other state, because it is not a preference: it describes
+ * what *this* window was doing a moment ago. The server only holds a session
+ * for its grace window, so the note is worthless to another window and
+ * worthless to a later launch.
+ */
 const OPEN_KEY = "faws:terminal:open";
-
-/** Tall enough for a shell prompt and a few lines of output. */
-export const MIN_DOCK_HEIGHT = 120;
-const DEFAULT_DOCK_HEIGHT = 280;
-
-const storedHeight = z.coerce.number().min(MIN_DOCK_HEIGHT).catch(DEFAULT_DOCK_HEIGHT);
-const storedRecord = z
-  .string()
-  .transform((value) => value !== "0")
-  .catch(true);
 
 /** Sockets, kept out of state for the same reason terminals are. */
 const sockets = new Map<string, ExecSocket>();
@@ -90,22 +91,18 @@ function rememberOpenTabs(): void {
 }
 
 interface SessionsStore extends SessionsState {
-  readonly height: number;
   readonly dockOpen: boolean;
   readonly fullscreen: boolean;
   /** True while a terminal's textarea actually has DOM focus. */
   readonly focused: boolean;
-  readonly recordByDefault: boolean;
 
   open(target: ExecTarget): string;
   close(id: string): void;
   setActive(id: string): void;
   activateRelative(delta: number): void;
-  setHeight(height: number): void;
   toggleDock(open?: boolean): void;
   toggleFullscreen(): void;
   setFocused(focused: boolean): void;
-  setRecordByDefault(record: boolean): void;
   answerPrompt(id: string, response: ExecPromptResponse): void;
   /** Reconnects a tab to the same target, reusing the tab. */
   retry(id: string): void;
@@ -131,7 +128,7 @@ export const useSessions = create<SessionsStore>((set, get) => {
         sessionId: id,
         cols: runtime.term.cols,
         rows: runtime.term.rows,
-        record: get().recordByDefault,
+        record: settingsSnapshot().terminal.recordByDefault,
         attach,
       }),
     );
@@ -207,11 +204,9 @@ export const useSessions = create<SessionsStore>((set, get) => {
 
   return {
     ...EMPTY_SESSIONS,
-    height: readStored(HEIGHT_KEY, storedHeight),
     dockOpen: false,
     fullscreen: false,
     focused: false,
-    recordByDefault: readStored(RECORD_KEY, storedRecord),
 
     open(target) {
       const id = crypto.randomUUID();
@@ -291,12 +286,6 @@ export const useSessions = create<SessionsStore>((set, get) => {
       if (next) patch((state) => setActiveInModel(state, next.id));
     },
 
-    setHeight(height) {
-      const clamped = Math.max(MIN_DOCK_HEIGHT, Math.round(height));
-      set({ height: clamped });
-      writeStored(HEIGHT_KEY, String(clamped));
-    },
-
     toggleDock(open) {
       set((state) => ({ dockOpen: open ?? !state.dockOpen }));
     },
@@ -307,11 +296,6 @@ export const useSessions = create<SessionsStore>((set, get) => {
 
     setFocused(focused) {
       set({ focused });
-    },
-
-    setRecordByDefault(record) {
-      set({ recordByDefault: record });
-      writeStored(RECORD_KEY, record ? "1" : "0");
     },
 
     answerPrompt(id, response) {

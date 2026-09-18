@@ -17,6 +17,7 @@ import {
 import { useTheme } from "~/contexts/ThemeContext";
 import { trpc } from "~/lib/trpc";
 import { type SilenceEntry, useSilenced } from "~/stores/silenced";
+import { resetSettings, updateSettings, useSettings } from "~/stores/settings";
 import { cn } from "~/lib/utils";
 
 /**
@@ -73,6 +74,8 @@ export function SettingsPage() {
     setLogTaskGutter,
   } = useScope();
   const { theme, toggle } = useTheme();
+  const recordByDefault = useSettings((state) => state.settings.terminal.recordByDefault);
+  const persistence = useSettings((state) => state.persistence);
 
   const whoami = useQuery({ ...trpc.aws.whoami.queryOptions(scope), retry: false });
 
@@ -100,7 +103,21 @@ export function SettingsPage() {
       <Panel className="shrink-0">
         <PanelHeader>
           <PanelTitle>Preferences</PanelTitle>
+          <button
+            type="button"
+            onClick={resetSettings}
+            className="ml-auto cursor-pointer font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
+          >
+            reset all
+          </button>
         </PanelHeader>
+        {persistence.writable ? null : (
+          <p className="border-b border-border bg-warning/10 px-3.5 py-2 text-[12px] text-muted-foreground">
+            Preferences cannot be saved on this machine (
+            <span className="font-mono text-[11px]">{persistence.reason}</span>). They still apply
+            in every open window, but will reset when faws restarts.
+          </p>
+        )}
         <div className="flex flex-col gap-4 px-3.5 py-3.5">
           <Setting
             title="Auto-refresh"
@@ -166,6 +183,19 @@ export function SettingsPage() {
                 onReset={() => setLogTaskGutter(DEFAULT_LOG_TASK_GUTTER)}
               />
             </div>
+          </Setting>
+
+          <Setting
+            title="Record terminal sessions"
+            hint="Writes an asciicast transcript of every new shell to the recordings directory. Already-open sessions keep whatever they started with."
+          >
+            <button
+              type="button"
+              onClick={() => updateSettings({ terminal: { recordByDefault: !recordByDefault } })}
+              className="cursor-pointer rounded border border-border px-2.5 py-1 text-[12px] transition-colors hover:bg-accent"
+            >
+              {recordByDefault ? "On" : "Off"}
+            </button>
           </Setting>
 
           <Setting title="Appearance" hint="Dark is the default; both themes are first-class.">

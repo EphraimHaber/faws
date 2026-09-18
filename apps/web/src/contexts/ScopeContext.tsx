@@ -1,10 +1,15 @@
+import {
+  DEFAULT_LOG_GUTTER,
+  DEFAULT_LOG_TASK_GUTTER,
+  type LogTimestamps,
+  MIN_LOG_GUTTER,
+  REFRESH_CHOICES,
+} from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
-import { z } from "zod";
-
-import { readStored, writeStored } from "~/lib/stored";
 import { trpc } from "~/lib/trpc";
+import { updateSettings, useSettings } from "~/stores/settings";
 
 /**
  * The AWS scope every query in the app is keyed by.
@@ -13,10 +18,15 @@ import { trpc } from "~/lib/trpc";
  * Ctrl+R. We keep the same two axes and the same shortcuts, but they live in
  * one context so a switch invalidates every open pane at once instead of
  * leaving stale rows on screen.
+ *
+ * The values themselves come from `useSettings`, which is to say from the
+ * server: the profile you picked in the browser is the profile the desktop app
+ * opens on. This context is the adapter that keeps the rest of the app reading
+ * one object with one shape, and it is also where the log pane's own
+ * preferences hitch a ride, because they are scoped the same way.
  */
-/** Clock time is enough to follow a tail; the full stamp is what you paste
- *  into a ticket or line up against another system's clock. */
-export type LogTimestamps = "clock" | "full";
+export type { LogTimestamps };
+export { DEFAULT_LOG_GUTTER, DEFAULT_LOG_TASK_GUTTER, MIN_LOG_GUTTER, REFRESH_CHOICES };
 
 export interface ScopeValue {
   readonly profile: string;
@@ -27,6 +37,14 @@ export interface ScopeValue {
   readonly logGutter: number;
   /** Width in px of the log pane's task-id column. */
   readonly logTaskGutter: number;
+  /**
+   * False until the stored scope has arrived.
+   *
+   * Callers that fire an AWS query on mount should wait for it. Before it is
+   * true the profile is a guess, and a query keyed on the guess is a request
+   * against the wrong account that has to be thrown away a moment later.
+   */
+  readonly ready: boolean;
   setProfile(next: string): void;
   setRegion(next: string): void;
   setRefreshSeconds(next: number): void;
@@ -37,106 +55,48 @@ export interface ScopeValue {
 
 const ScopeContext = React.createContext<ScopeValue | null>(null);
 
-const PROFILE_KEY = "faws:profile";
-const REGION_KEY = "faws:region";
-const REFRESH_KEY = "faws:refresh";
-const LOG_TIMESTAMPS_KEY = "faws:logTimestamps";
-const LOG_GUTTER_KEY = "faws:logGutter";
-const LOG_TASK_GUTTER_KEY = "faws:logTaskGutter";
-
-/** Wide enough for a clock time, which is what the pane opens with. */
-export const DEFAULT_LOG_GUTTER = 68;
-/** Wide enough for the truncated tail of a task id. */
-export const DEFAULT_LOG_TASK_GUTTER = 128;
-/** Narrower than this and the column is a stripe, not a timestamp. */
-export const MIN_LOG_GUTTER = 36;
-
-/** -1 means "never auto-refresh", matching e1s's `--refresh -1`. */
-export const REFRESH_CHOICES = [-1, 10, 30, 60, 300] as const;
-
-/**
- * Stored preferences are parsed, not trusted: localStorage outlives the code
- * that wrote it, and the user can edit it. Every schema below `catch`es, so a
- * value this version no longer understands falls back to the default instead
- * of failing the render that reads it.
- */
-const storedProfile = z.string().min(1).catch("default");
-const storedRegion = z.string().catch("");
-
-// `z.coerce.number()` turns a missing key into 0, which would sail past a bare
-// `int()` and leave a first run refreshing at an interval that isn't even on
-// the menu. Checking membership is what makes the `catch` fire.
-const storedRefresh = z.coerce
-  .number()
-  .refine((n) => (REFRESH_CHOICES as readonly number[]).includes(n))
-  .catch(30);
-const storedLogTimestamps = z.enum(["clock", "full"]).catch("clock");
-const storedLogGutter = z.coerce.number().min(MIN_LOG_GUTTER).catch(DEFAULT_LOG_GUTTER);
-const storedLogTaskGutter = z.coerce.number().min(MIN_LOG_GUTTER).catch(DEFAULT_LOG_TASK_GUTTER);
-
 export function ScopeProvider({ children }: { children: React.ReactNode }) {
-  const [profile, setProfileState] = React.useState(() => readStored(PROFILE_KEY, storedProfile));
-  const [region, setRegionState] = React.useState(() => readStored(REGION_KEY, storedRegion));
-  const [refreshSeconds, setRefreshSecondsState] = React.useState(() =>
-    readStored(REFRESH_KEY, storedRefresh),
-  );
-  const [logTimestamps, setLogTimestampsState] = React.useState<LogTimestamps>(() =>
-    readStored(LOG_TIMESTAMPS_KEY, storedLogTimestamps),
-  );
-  const [logGutter, setLogGutterState] = React.useState(() =>
-    readStored(LOG_GUTTER_KEY, storedLogGutter),
-  );
-  const [logTaskGutter, setLogTaskGutterState] = React.useState(() =>
-    readStored(LOG_TASK_GUTTER_KEY, storedLogTaskGutter),
-  );
+  const scope = useSettings((state) => state.settings.scope);
+  const logs = useSettings((state) => state.settings.logs);
+  const ready = useSettings((state) => state.ready);
 
   // Until the user picks a region, follow whatever the CLI would use for this
-  // profile so the first render isn't empty.
+  // profile so the first render isn't empty. Gated on `ready` because an empty
+  // region also means "not loaded yet" now, and asking on behalf of a profile
+  // we are about to replace would ask twice and be wrong once.
   const defaultRegion = useQuery({
-    ...trpc.aws.defaultRegion.queryOptions({ profile }),
-    enabled: region.length === 0,
+    ...trpc.aws.defaultRegion.queryOptions({ profile: scope.profile }),
+    enabled: ready && scope.region.length === 0,
     staleTime: Infinity,
   });
 
   const value = React.useMemo<ScopeValue>(
     () => ({
-      profile,
-      region: region || defaultRegion.data || "us-east-1",
-      refreshSeconds,
-      logTimestamps,
-      logGutter,
-      logTaskGutter,
-      setProfile: (next) => {
-        setProfileState(next);
-        writeStored(PROFILE_KEY, next);
-      },
-      setRegion: (next) => {
-        setRegionState(next);
-        writeStored(REGION_KEY, next);
-      },
-      setRefreshSeconds: (next) => {
-        setRefreshSecondsState(next);
-        writeStored(REFRESH_KEY, String(next));
-      },
-      setLogTimestamps: (next) => {
-        setLogTimestampsState(next);
-        writeStored(LOG_TIMESTAMPS_KEY, next);
-      },
-      setLogGutter: (next) => {
-        const clamped = Math.max(MIN_LOG_GUTTER, Math.round(next));
-        setLogGutterState(clamped);
-        writeStored(LOG_GUTTER_KEY, String(clamped));
-      },
-      setLogTaskGutter: (next) => {
-        const clamped = Math.max(MIN_LOG_GUTTER, Math.round(next));
-        setLogTaskGutterState(clamped);
-        writeStored(LOG_TASK_GUTTER_KEY, String(clamped));
-      },
+      profile: scope.profile,
+      region: scope.region || defaultRegion.data || "us-east-1",
+      refreshSeconds: scope.refreshSeconds,
+      logTimestamps: logs.timestamps,
+      logGutter: logs.gutter,
+      logTaskGutter: logs.taskGutter,
+      ready,
+      setProfile: (next) => updateSettings({ scope: { profile: next } }),
+      setRegion: (next) => updateSettings({ scope: { region: next } }),
+      setRefreshSeconds: (next) => updateSettings({ scope: { refreshSeconds: next } }),
+      setLogTimestamps: (next) => updateSettings({ logs: { timestamps: next } }),
+      // Clamped here as well as in the schema: the drag handle reports
+      // fractional pixels, and a value the schema would reject would come back
+      // as the default instead of the narrowest allowed width.
+      setLogGutter: (next) => updateSettings({ logs: { gutter: clampGutter(next) } }),
+      setLogTaskGutter: (next) => updateSettings({ logs: { taskGutter: clampGutter(next) } }),
     }),
-    [profile, region, refreshSeconds, logTimestamps, logGutter, logTaskGutter, defaultRegion.data],
+    [scope, logs, ready, defaultRegion.data],
   );
 
   return <ScopeContext.Provider value={value}>{children}</ScopeContext.Provider>;
+}
+
+function clampGutter(value: number): number {
+  return Math.max(MIN_LOG_GUTTER, Math.round(value));
 }
 
 export function useScope(): ScopeValue {

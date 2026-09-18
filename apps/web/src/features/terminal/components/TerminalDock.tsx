@@ -1,3 +1,4 @@
+import { MIN_DOCK_HEIGHT } from "@faws/contracts";
 import { Maximize2, Minimize2, X } from "lucide-react";
 import * as React from "react";
 
@@ -6,7 +7,8 @@ import { ResizeHandle } from "~/components/ui/resize-handle";
 import { useTheme } from "~/contexts/ThemeContext";
 import { applyTheme, focusTerminal } from "~/lib/terminal/xterm";
 import { cn } from "~/lib/utils";
-import { MIN_DOCK_HEIGHT, useSessions } from "~/stores/sessions";
+import { useSessions } from "~/stores/sessions";
+import { updateSettings, useSettings } from "~/stores/settings";
 import { SessionPane } from "./SessionPane";
 import { TerminalTabs } from "./TerminalTabs";
 
@@ -25,10 +27,19 @@ import { TerminalTabs } from "./TerminalTabs";
 export function TerminalDock() {
   const sessions = useSessions((state) => state.sessions);
   const activeId = useSessions((state) => state.activeId);
-  const height = useSessions((state) => state.height);
+  const height = useSettings((state) => state.settings.terminal.dockHeight);
   const dockOpen = useSessions((state) => state.dockOpen);
   const fullscreen = useSessions((state) => state.fullscreen);
-  const setHeight = useSessions((state) => state.setHeight);
+  // Clamped here as well as in the schema: the handle reports fractional
+  // pixels, and a value the schema would reject comes back as the default
+  // rather than as the shortest allowed dock.
+  const setHeight = React.useCallback(
+    (next: number) =>
+      updateSettings({
+        terminal: { dockHeight: Math.max(MIN_DOCK_HEIGHT, Math.round(next)) },
+      }),
+    [],
+  );
   const setActive = useSessions((state) => state.setActive);
   const close = useSessions((state) => state.close);
   const toggleDock = useSessions((state) => state.toggleDock);
