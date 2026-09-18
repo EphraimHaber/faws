@@ -25,6 +25,7 @@ import { ClustersPage } from "~/features/ecs/pages/ClustersPage";
 import { DeploymentsPage } from "~/features/ecs/pages/DeploymentsPage";
 import { EcsIndexPage } from "~/features/ecs/pages/EcsIndexPage";
 import { HomePage } from "~/pages/HomePage";
+import { NewSessionDialog } from "~/features/terminal/components/NewSessionDialog";
 import { TerminalDock } from "~/features/terminal/components/TerminalDock";
 import { blurTerminal } from "~/lib/terminal/xterm";
 import { useSessions } from "~/stores/sessions";
@@ -213,6 +214,7 @@ function BucketRoute() {
 function RootLayout() {
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
+  const [newSessionOpen, setNewSessionOpen] = React.useState(false);
   const { location } = useRouterState();
 
   // Capture server logs for the whole session, not just while /logs is open.
@@ -370,11 +372,13 @@ function RootLayout() {
         </main>
       </div>
       <TerminalDock />
+      <NewSessionDialog open={newSessionOpen} onClose={() => setNewSessionOpen(false)} />
       <StatusBar onShowHelp={() => setHelpOpen(true)} />
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         activeCluster={activeCluster}
+        onOpenTerminal={() => setNewSessionOpen(true)}
       />
       <KeyboardHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>

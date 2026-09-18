@@ -108,7 +108,8 @@ export class PromptBroker {
    * nobody can see is holding a connection open for nothing.
    */
   abandon(reason: string): void {
-    for (const promptId of [...this.outstanding.keys()]) {
+    // Snapshotted deliberately: settling deletes from the map being iterated.
+    for (const promptId of Array.from(this.outstanding.keys())) {
       this.settle(promptId, (entry) => entry.reject(new PromptRefusedError(promptId, reason)));
     }
   }

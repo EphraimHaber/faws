@@ -1,4 +1,6 @@
-import { publicProcedure, router } from "../../trpc/index.ts";
+import { listExecTargets } from "@faws/core";
+
+import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
 import { listSessions } from "./session.registry.ts";
 import { resolveSessionPlugin } from "./sessionPlugin.ts";
 
@@ -20,6 +22,11 @@ export const execRouter = router({
       sshAgent: process.env["SSH_AUTH_SOCK"] !== undefined,
     };
   }),
+
+  /** EC2 instances and how each one could be reached. */
+  targets: publicProcedure
+    .input(scopeInput)
+    .query(({ input }) => guard(() => listExecTargets(input))),
 
   sessions: publicProcedure.query(() => listSessions()),
 });

@@ -4,7 +4,7 @@ import * as React from "react";
 import { Button } from "~/components/ui/button";
 import { ResizeHandle } from "~/components/ui/resize-handle";
 import { useTheme } from "~/contexts/ThemeContext";
-import { applyTheme, focusTerminal, safeFit } from "~/lib/terminal/xterm";
+import { applyTheme, focusTerminal } from "~/lib/terminal/xterm";
 import { cn } from "~/lib/utils";
 import { MIN_DOCK_HEIGHT, useSessions } from "~/stores/sessions";
 import { SessionPane } from "./SessionPane";
@@ -35,20 +35,19 @@ export function TerminalDock() {
   const toggleFullscreen = useSessions((state) => state.toggleFullscreen);
   const { theme } = useTheme();
 
-  // The palette is read from the live computed styles, so the terminals have to
-  // be told after the document's class has flipped.
   React.useEffect(() => {
+    // `theme` is the trigger rather than an input: applyTheme reads the live
+    // computed palette, which is only correct once ThemeProvider has flipped
+    // the class on the document.
     applyTheme();
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
   }, [theme]);
 
-  // Fit when the dock's own geometry changes, not from inside the drag handler:
-  // fitting is a reflow that also emits a resize to the server, and a drag
-  // would fire hundreds.
-  React.useEffect(() => {
-    if (!activeId) return;
-    const frame = requestAnimationFrame(() => safeFit(activeId));
-    return () => cancelAnimationFrame(frame);
-  }, [activeId, height, fullscreen, dockOpen]);
+  // Nothing re-fits the terminal here on purpose. Every way this dock can
+  // change a pane's box - a drag, fullscreen, hiding the dock, the window
+  // itself - changes the host element's size, and the ResizeObserver that
+  // mountTerminal installs already watches that. An effect keyed on the dock's
+  // own state would be a second, less reliable copy of the same rule.
 
   React.useEffect(() => {
     if (activeId && dockOpen) focusTerminal(activeId);

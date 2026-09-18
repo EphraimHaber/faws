@@ -202,3 +202,60 @@ export interface ExecSessionSummary {
   readonly state: "starting" | "running" | "detached" | "closing" | "closed";
   readonly recordingPath: string | null;
 }
+
+/**
+ * An instance you could open a shell on, and how.
+ *
+ * Joined from two APIs that each know half the story: DescribeInstances knows
+ * the instance exists and whether it has an address, DescribeInstanceInformation
+ * knows whether SSM can actually reach it. Neither answers "can I get a shell
+ * here", which is the only question the picker is asking.
+ */
+export interface ExecInstanceTarget {
+  readonly instanceId: string;
+  /** The Name tag, which is what people actually recognise. */
+  readonly name: string | null;
+  readonly state: string;
+  readonly privateIp: string | null;
+  readonly publicIp: string | null;
+  readonly availabilityZone: string | null;
+  readonly platform: string | null;
+  readonly instanceType: string | null;
+  readonly vpcId: string | null;
+  /** The EC2 key pair it was launched with, if any. */
+  readonly keyName: string | null;
+  /** Registered with Session Manager and currently reachable. */
+  readonly ssmManaged: boolean;
+  readonly ssmPingStatus: string | null;
+  readonly ssmAgentVersion: string | null;
+  /**
+   * What this instance can be reached by, best first. Empty means nothing here
+   * will work, which is worth saying plainly rather than offering a button that
+   * cannot succeed.
+   */
+  readonly reachableBy: ReadonlyArray<"ssm" | "ssh-public" | "ssh-ssm-tunnel">;
+}
+
+/**
+ * What the new-session form collects.
+ *
+ * Separate from `execHandshakeSchema` on purpose: this is what a person types,
+ * while the handshake is what the server is handed. A form field is a string
+ * with a default and a friendly message; a handshake field is already resolved.
+ * Collapsing the two would mean either a form that cannot have an empty field
+ * or a handshake that has to tolerate one.
+ */
+export const ssmSessionFormSchema = z.object({
+  kind: z.literal("ssm"),
+  instanceId: z.string().min(1, "Pick an instance."),
+});
+
+export const sshSessionFormSchema = z.object({
+  host: z.string().trim().min(1, "Enter a hostname, or a Host from your ~/.ssh/config."),
+  /** Empty means "let ~/.ssh/config decide", then the local username. */
+  user: z.string().trim().default(""),
+  port: z.coerce.number().int().min(1, "Between 1 and 65535.").max(65535, "Between 1 and 65535."),
+});
+
+export type SshSessionFormInput = z.input<typeof sshSessionFormSchema>;
+export type SshSessionFormValues = z.output<typeof sshSessionFormSchema>;

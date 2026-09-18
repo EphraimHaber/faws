@@ -8,6 +8,7 @@
  */
 import { CloudWatchClient } from "@aws-sdk/client-cloudwatch";
 import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
+import { EC2Client } from "@aws-sdk/client-ec2";
 import { ECSClient } from "@aws-sdk/client-ecs";
 import { S3Client } from "@aws-sdk/client-s3";
 import { SSMClient } from "@aws-sdk/client-ssm";
@@ -23,6 +24,7 @@ type ClientBundle = {
   readonly logs: CloudWatchLogsClient;
   readonly s3: S3Client;
   readonly ssm: SSMClient;
+  readonly ec2: EC2Client;
 };
 
 const bundles = new Map<string, ClientBundle>();
@@ -56,6 +58,7 @@ function bundleFor(scope: AwsScope): ClientBundle {
       requestChecksumCalculation: "WHEN_REQUIRED",
     }),
     ssm: new SSMClient(config),
+    ec2: new EC2Client(config),
   };
   bundles.set(key, bundle);
   return bundle;
@@ -85,6 +88,10 @@ export function ssmClient(scope: AwsScope): SSMClient {
   return bundleFor(scope).ssm;
 }
 
+export function ec2Client(scope: AwsScope): EC2Client {
+  return bundleFor(scope).ec2;
+}
+
 /** Drops cached clients for a scope so the next call re-resolves credentials. */
 export function invalidateScope(scope: AwsScope): void {
   const key = scopeKey(scope);
@@ -96,6 +103,7 @@ export function invalidateScope(scope: AwsScope): void {
   bundle.logs.destroy();
   bundle.s3.destroy();
   bundle.ssm.destroy();
+  bundle.ec2.destroy();
   bundles.delete(key);
 }
 

@@ -19,7 +19,8 @@ function fakeClock() {
     },
     advance(ms: number) {
       now += ms;
-      for (const [id, timer] of [...pending]) {
+      // Snapshotted: firing a timer deletes it from the map being iterated.
+      for (const [id, timer] of Array.from(pending)) {
         if (timer.at <= now) {
           pending.delete(id);
           timer.fn();

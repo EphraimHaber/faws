@@ -12,7 +12,6 @@
  * undocumented, and the order is load-bearing.
  */
 import { StartSessionCommand, TerminateSessionCommand } from "@aws-sdk/client-ssm";
-import type { ExecHandshakeAuth } from "@faws/contracts";
 import { ssmClient } from "@faws/core";
 
 import { ExecSessionError } from "../errors.ts";

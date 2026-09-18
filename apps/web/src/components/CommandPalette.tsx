@@ -13,6 +13,7 @@ import {
   Rocket,
   ScrollText,
   Settings2,
+  TerminalSquare,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import * as React from "react";
@@ -42,22 +43,28 @@ export function CommandPalette({
   open,
   onClose,
   activeCluster,
+  onOpenTerminal,
 }: {
   open: boolean;
   onClose: () => void;
   activeCluster: string | null;
+  onOpenTerminal: () => void;
 }) {
   // Mounting the body only while open is what keeps the query text and the
   // highlighted row fresh on every invocation, with no reset bookkeeping.
   if (!open) return null;
-  return <PaletteBody onClose={onClose} activeCluster={activeCluster} />;
+  return (
+    <PaletteBody onClose={onClose} activeCluster={activeCluster} onOpenTerminal={onOpenTerminal} />
+  );
 }
 
 function PaletteBody({
   onClose,
   activeCluster,
+  onOpenTerminal,
 }: {
   onClose: () => void;
+  onOpenTerminal: () => void;
   activeCluster: string | null;
 }) {
   const scope = useAwsScope();
@@ -86,6 +93,13 @@ function PaletteBody({
 
   const entries = React.useMemo<Entry[]>(() => {
     const out: Entry[] = [
+      {
+        id: "terminal:open",
+        icon: TerminalSquare,
+        label: "Open a terminal",
+        hint: "shell into an instance or an SSH host",
+        run: onOpenTerminal,
+      },
       {
         id: "nav:home",
         icon: LayoutDashboard,
@@ -177,7 +191,7 @@ function PaletteBody({
     }
 
     return out;
-  }, [clusters.data, services.data, navigate]);
+  }, [clusters.data, services.data, navigate, onOpenTerminal]);
 
   const matches = React.useMemo(() => {
     const needle = query.trim().toLowerCase();

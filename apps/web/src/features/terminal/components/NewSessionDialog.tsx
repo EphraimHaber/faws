@@ -1,0 +1,229 @@
+import {
+  sshSessionFormSchema,
+  type SshSessionFormInput,
+  type SshSessionFormValues,
+} from "@faws/contracts";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
+import { Search, TerminalSquare } from "lucide-react";
+import * as React from "react";
+import { useForm } from "react-hook-form";
+
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import { Field, FormError } from "~/components/ui/form";
+import { Input } from "~/components/ui/input";
+import { Segmented } from "~/components/segmented";
+import { useAwsScope } from "~/contexts/ScopeContext";
+import { trpc } from "~/lib/trpc";
+import { cn } from "~/lib/utils";
+import { useOverlay } from "~/stores/overlays";
+import { useSessions } from "~/stores/sessions";
+
+type Mode = "instance" | "ssh";
+
+/**
+ * Picking something to open a shell on.
+ *
+ * Two modes rather than one list, because the two are genuinely different
+ * questions. "Which of my instances" is a search over things the account
+ * already knows about; "ssh somewhere" is an address someone types, and may not
+ * be in AWS at all. A single combined field would have to guess which one an
+ * input meant.
+ */
+export function NewSessionDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [mode, setMode] = React.useState<Mode>("instance");
+  const { isTop } = useOverlay("terminal-new-session", open);
+
+  React.useEffect(() => {
+    if (!open || !isTop) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, isTop, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-24">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Open a terminal"
+        className="w-[min(46rem,92vw)] overflow-hidden rounded-md border border-border bg-card shadow-2xl"
+      >
+        <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+          <TerminalSquare className="size-3.5 text-muted-foreground" />
+          <span className="text-[12.5px] font-medium">Open a terminal</span>
+          <div className="ml-auto">
+            <Segmented
+              value={mode}
+              onChange={(next) => setMode(next as Mode)}
+              options={[
+                { value: "instance", label: "Instance" },
+                { value: "ssh", label: "SSH" },
+              ]}
+            />
+          </div>
+        </div>
+        {mode === "instance" ? <InstancePicker onClose={onClose} /> : <SshForm onClose={onClose} />}
+      </div>
+    </div>
+  );
+}
+
+function InstancePicker({ onClose }: { onClose: () => void }) {
+  const scope = useAwsScope();
+  const open = useSessions((state) => state.open);
+  const [filter, setFilter] = React.useState("");
+  const targets = useQuery(trpc.exec.targets.queryOptions(scope));
+
+  const rows = React.useMemo(() => {
+    const needle = filter.trim().toLowerCase();
+    const all = targets.data ?? [];
+    if (!needle) return all;
+    return all.filter((row) =>
+      `${row.name ?? ""} ${row.instanceId} ${row.privateIp ?? ""} ${row.publicIp ?? ""}`
+        .toLowerCase()
+        .includes(needle),
+    );
+  }, [targets.data, filter]);
+
+  return (
+    <div className="flex flex-col">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
+        <Search className="size-3 text-muted-foreground" />
+        <input
+          autoFocus
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+          placeholder="Filter by name, id or address"
+          className="w-full bg-transparent text-[12.5px] outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+
+      <div className="max-h-[22rem] overflow-auto">
+        {targets.isPending ? (
+          <p className="px-3 py-6 text-center text-[12px] text-muted-foreground">
+            Looking for instances...
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="px-3 py-6 text-center text-[12px] text-muted-foreground">
+            No instances match.
+          </p>
+        ) : (
+          rows.map((row) => {
+            const canSsm = row.reachableBy.includes("ssm");
+            return (
+              <button
+                key={row.instanceId}
+                type="button"
+                disabled={!canSsm}
+                onClick={() => {
+                  open({
+                    kind: "ssm",
+                    profile: scope.profile,
+                    region: scope.region,
+                    instanceId: row.instanceId,
+                  });
+                  onClose();
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2.5 border-b border-border/50 px-3 py-2 text-left last:border-b-0",
+                  canSsm ? "hover:bg-muted/50" : "cursor-not-allowed opacity-50",
+                )}
+                title={
+                  canSsm
+                    ? `Open a Session Manager shell on ${row.instanceId}`
+                    : "Session Manager cannot reach this instance"
+                }
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12.5px]">{row.name ?? row.instanceId}</p>
+                  <p className="truncate font-mono text-[10.5px] text-muted-foreground">
+                    {row.instanceId}
+                    {row.privateIp ? ` - ${row.privateIp}` : ""}
+                    {row.instanceType ? ` - ${row.instanceType}` : ""}
+                  </p>
+                </div>
+                <Badge tone={row.state === "running" ? "success" : "neutral"}>{row.state}</Badge>
+                {canSsm ? <Badge tone="info">ssm</Badge> : <Badge tone="neutral">no agent</Badge>}
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SshForm({ onClose }: { onClose: () => void }) {
+  const open = useSessions((state) => state.open);
+  // The same schema the handshake is ultimately built from, so a rule about
+  // what a port may be is written once rather than once per side.
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SshSessionFormInput, unknown, SshSessionFormValues>({
+    resolver: zodResolver(sshSessionFormSchema),
+    defaultValues: { host: "", user: "", port: 22 },
+  });
+
+  const submit = handleSubmit((values) => {
+    open({
+      kind: "ssh",
+      transport: { via: "direct", host: values.host },
+      ...(values.user ? { user: values.user } : {}),
+      ...(values.port === 22 ? {} : { port: values.port }),
+    });
+    onClose();
+  });
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3 p-3">
+      <FormError message={errors.root?.message} />
+
+      <Field
+        label="Host"
+        htmlFor="ssh-host"
+        hint="A hostname, or a Host entry from your ~/.ssh/config"
+        error={errors.host?.message}
+      >
+        <Input
+          id="ssh-host"
+          autoFocus
+          className="w-64"
+          placeholder="bastion.example.com"
+          {...register("host")}
+        />
+      </Field>
+
+      <Field label="User" htmlFor="ssh-user" hint="Blank lets ~/.ssh/config decide">
+        <Input id="ssh-user" className="w-64" placeholder="ubuntu" {...register("user")} />
+      </Field>
+
+      <Field label="Port" htmlFor="ssh-port" error={errors.port?.message}>
+        <Input
+          id="ssh-port"
+          type="number"
+          className="w-24"
+          {...register("port", {
+            valueAsNumber: true,
+            min: { value: 1, message: "1 to 65535." },
+            max: { value: 65535, message: "1 to 65535." },
+          })}
+        />
+      </Field>
+
+      <div className="flex justify-end gap-2 border-t border-border pt-3">
+        <Button type="button" variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit">Connect</Button>
+      </div>
+    </form>
+  );
+}
