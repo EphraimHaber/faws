@@ -144,13 +144,21 @@ export const s3PutTagsSchema = z.object({
 
 export type S3PutTagsInput = z.infer<typeof s3PutTagsSchema>;
 
-/** Opening an upload; the token it returns is what the byte route accepts. */
+/**
+ * Opening an upload.
+ *
+ * `proxy` sends the bytes through this server, which keeps every credential on
+ * that side. `presigned` hands the browser a signed URL and lets it write to
+ * S3 directly: faster and free of the extra hop, at the cost of a bearer grant
+ * living in the renderer and a bucket CORS policy that allows this origin.
+ */
 export const s3CreateUploadSchema = z.object({
   bucket: z.string().min(1),
   key: s3KeyField,
   size: z.number().int().min(0),
   contentType: z.string().default("application/octet-stream"),
   overwrite: z.boolean().default(false),
+  transport: z.enum(["proxy", "presigned"]).default("proxy"),
 });
 
 export type S3CreateUploadInput = z.infer<typeof s3CreateUploadSchema>;
@@ -163,3 +171,9 @@ export const s3CompleteUploadSchema = z.object({
 });
 
 export const s3AbortUploadSchema = z.object({ uploadToken: z.string().min(1) });
+
+/** A signed URL for one part of an open presigned upload. */
+export const s3PresignPartSchema = z.object({
+  uploadToken: z.string().min(1),
+  partNumber: z.number().int().min(1).max(10_000),
+});

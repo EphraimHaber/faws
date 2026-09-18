@@ -78,6 +78,10 @@ export async function s3ClientForBucket(scope: AwsScope, bucket: string): Promis
     region,
     credentials: fromNodeProviderChain(scope.profile ? { profile: scope.profile } : {}),
     followRegionRedirects: true,
+    // A checksum computed at signing time is computed over no body, and S3
+    // then rejects the real bytes against it, so presigned uploads fail.
+    // TLS covers the transfer and the etag is compared at completion.
+    requestChecksumCalculation: "WHEN_REQUIRED",
   });
   crossRegion.set(key, client);
   return client;

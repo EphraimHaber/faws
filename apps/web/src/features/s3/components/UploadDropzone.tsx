@@ -3,10 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Upload, X } from "lucide-react";
 import * as React from "react";
 
+import { Segmented } from "~/components/segmented";
 import { Button } from "~/components/ui/button";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { trpcClient } from "~/lib/trpc";
-import { uploadFile, type UploadHandle } from "~/lib/s3-upload";
+import { uploadFile, type UploadHandle, type UploadTransport } from "~/lib/s3-upload";
 import { cn } from "~/lib/utils";
 
 interface Transfer {
@@ -31,12 +32,13 @@ export function UploadDropzone({
 }: {
   bucket: string;
   prefix: string;
-  /** Given the way to open the file picker, for a button in its own toolbar. */
-  children: (pickFiles: () => void) => React.ReactNode;
+  /** Handed the picker and the transport switch, for its own toolbar. */
+  children: (controls: { pickFiles: () => void; transport: React.ReactNode }) => React.ReactNode;
 }) {
   const scope = useAwsScope();
   const queryClient = useQueryClient();
   const [over, setOver] = React.useState(false);
+  const [transport, setTransport] = React.useState<UploadTransport>("proxy");
   const [transfers, setTransfers] = React.useState<ReadonlyArray<Transfer>>([]);
   const fileInput = React.useRef<HTMLInputElement>(null);
 
@@ -67,12 +69,16 @@ export function UploadDropzone({
             size: file.size,
             contentType: file.type || "application/octet-stream",
             overwrite: false,
+            transport,
           });
 
           const handle = uploadFile({
             file,
             uploadToken: opened.uploadToken,
             multipart: opened.multipart,
+            transport: opened.transport,
+            url: opened.url,
+            overwrite: false,
             onProgress: (progress) => update({ sent: progress.sent }),
           });
           update({ handle });
@@ -84,7 +90,7 @@ export function UploadDropzone({
         }
       }
     },
-    [scope, bucket, prefix, queryClient],
+    [scope, bucket, prefix, queryClient, transport],
   );
 
   // Handed to the toolbar rather than read here: the ref is only touched when
@@ -131,7 +137,10 @@ export function UploadDropzone({
       {/* The picker is passed down, not called: it reaches the ref only when
           the button it ends up on is pressed. */}
       {/* oxlint-disable-next-line react/refs */}
-      {children(openPicker)}
+      {children({
+        pickFiles: openPicker,
+        transport: <TransportChoice value={transport} onChange={setTransport} />,
+      })}
 
       {transfers.length > 0 ? (
         <div className="shrink-0 border-t border-border">
@@ -194,5 +203,39 @@ export function UploadButton({ onPick }: { onPick: () => void }) {
     <Button size="sm" onClick={onPick}>
       <Upload className="size-3" /> Upload
     </Button>
+  );
+}
+
+/**
+ * Which way the bytes go.
+ *
+ * Through the server by default, which keeps every credential on that side.
+ * Direct writes to S3 are faster and cost this process nothing, but the signed
+ * URL is a grant of the caller's own rights living in the page, and S3 will
+ * only accept the write if the bucket's CORS policy names this origin.
+ */
+export function TransportChoice({
+  value,
+  onChange,
+}: {
+  value: UploadTransport;
+  onChange: (next: UploadTransport) => void;
+}) {
+  return (
+    <span className="flex items-center gap-2">
+      <Segmented
+        options={[
+          { value: "proxy" as const, label: "via server" },
+          { value: "presigned" as const, label: "direct" },
+        ]}
+        value={value}
+        onChange={onChange}
+      />
+      <span className="font-mono text-[10px] text-muted-foreground">
+        {value === "proxy"
+          ? "credentials stay on the server"
+          : "needs the bucket to allow this origin"}
+      </span>
+    </span>
   );
 }

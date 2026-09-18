@@ -12,6 +12,7 @@ import {
   s3CreatePrefixSchema,
   s3CreateUploadSchema,
   s3DeleteObjectsSchema,
+  s3PresignPartSchema,
   s3PutTagsSchema,
 } from "@faws/contracts";
 import {
@@ -22,6 +23,8 @@ import {
   createMultipartUpload,
   createPrefix,
   deleteObjects,
+  presignPutUrl,
+  presignUploadPartUrl,
   putObjectTags,
   scanPrefix,
 } from "@faws/core";
@@ -98,9 +101,47 @@ export const s3ActionsRouter = router({
         uploadId,
         overwrite: input.overwrite,
         contentType: input.contentType,
+        transport: input.transport,
       });
 
-      return { uploadToken: session.token, multipart };
+      // A single presigned upload needs no further round trip: that one URL is
+      // the whole transfer. A multipart one signs each part on demand, because
+      // ten thousand URLs up front is a response nobody wants and signatures
+      // expire while the upload is still running.
+      const url =
+        input.transport === "presigned" && !multipart
+          ? await presignPutUrl(scope, {
+              bucket: input.bucket,
+              key: input.key,
+              contentType: input.contentType,
+              overwrite: input.overwrite,
+            })
+          : null;
+
+      return { uploadToken: session.token, multipart, transport: input.transport, url };
+    }),
+  ),
+
+  /**
+   * A signed URL for one part.
+   *
+   * Signed on demand rather than in a batch at the start: a signature is only
+   * useful for as long as it is valid, and a large upload outlives the URLs it
+   * would have been given up front.
+   */
+  presignPart: publicProcedure.input(s3PresignPartSchema).mutation(({ input }) =>
+    guard(async () => {
+      const session = findUpload(input.uploadToken);
+      if (!session?.uploadId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "That upload is no longer open." });
+      }
+      const url = await presignUploadPartUrl(session.scope, {
+        bucket: session.bucket,
+        key: session.key,
+        uploadId: session.uploadId,
+        partNumber: input.partNumber,
+      });
+      return { url };
     }),
   ),
 

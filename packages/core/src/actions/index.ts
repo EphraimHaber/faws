@@ -6,3 +6,4 @@
  * change anything" a structural claim rather than a per handler promise.
  */
 export * from "./s3/objects.ts";
+export * from "./s3/presign.ts";

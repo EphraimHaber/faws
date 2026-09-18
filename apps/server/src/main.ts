@@ -24,7 +24,12 @@ import { s3BytesRoutes } from "./api/s3/bytes.routes.ts";
 import { attachS3ScanNamespace } from "./api/s3/scan.service.ts";
 import { appRouter, type AppRouter } from "./router.ts";
 import { getRootLogger } from "./shared/logger.ts";
-import { getExecNamespace, getS3ScanNamespace, setupSocketIO } from "./shared/socket-io.ts";
+import {
+  closeSocketIO,
+  getExecNamespace,
+  getS3ScanNamespace,
+  setupSocketIO,
+} from "./shared/socket-io.ts";
 
 const HOST = process.env["FAWS_HOST"] ?? "127.0.0.1";
 const PORT = process.env["FAWS_PORT"] ? Number(process.env["FAWS_PORT"]) : 0;
@@ -134,6 +139,9 @@ console.log(`faws-server-port: ${resolvedPort}`);
 console.log(`faws-server-url: ${address.replace(/\/$/, "")}/trpc`);
 
 const shutdown = async () => {
+  // Sockets first: they keep the HTTP server listening, so closing the other
+  // way round waits for every attached tab to leave of its own accord.
+  await closeSocketIO();
   await server.close();
   process.exit(0);
 };

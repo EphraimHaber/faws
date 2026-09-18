@@ -25,6 +25,9 @@ export interface UploadSession {
   readonly uploadId: string | null;
   readonly overwrite: boolean;
   readonly contentType: string;
+  /** Presigned uploads are completed by the same lifecycle, but the parts do
+   *  not pass through here. */
+  readonly transport: "proxy" | "presigned";
   readonly startedAt: number;
 }
 

@@ -48,6 +48,10 @@ function bundleFor(scope: AwsScope): ClientBundle {
       // A bucket answers only in its own region; without this a request to the
       // wrong one fails with a redirect the caller would have to chase.
       followRegionRedirects: true,
+      // A checksum computed at signing time is computed over no body, and S3
+      // then rejects the real bytes against it, so presigned uploads fail.
+      // TLS covers the transfer and the etag is compared at completion.
+      requestChecksumCalculation: "WHEN_REQUIRED",
     }),
   };
   bundles.set(key, bundle);

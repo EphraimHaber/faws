@@ -76,6 +76,22 @@ export function getS3ScanNamespace(): S3ScanNamespace | null {
   return s3ScanNs;
 }
 
+/**
+ * Drops every socket and stops accepting new ones.
+ *
+ * Socket.IO holds its connections open independently of Fastify, so closing
+ * the HTTP server alone waits for clients that are never going to leave: a
+ * shutdown hangs for as long as one browser tab is still attached.
+ */
+export async function closeSocketIO(): Promise<void> {
+  const instance = ioInstance;
+  if (!instance) return;
+  ioInstance = null;
+  execNs = null;
+  s3ScanNs = null;
+  await new Promise<void>((resolve) => instance.close(() => resolve()));
+}
+
 /** Fan-out helper used by the menu/nav bridge in the desktop shell. */
 export function emitNav(target: string): void {
   ioInstance?.emit("nav", { target });

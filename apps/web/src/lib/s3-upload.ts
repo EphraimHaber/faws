@@ -7,6 +7,20 @@ const PART_SIZE = 16 * 1024 * 1024;
 /** Parts in flight at once; more saturates a home connection for no gain. */
 const CONCURRENCY = 4;
 
+/**
+ * Where a part is sent.
+ *
+ * Either this app's own server, which holds the credentials and forwards the
+ * bytes, or S3 itself with a signature the server minted. The two differ in
+ * the method and in what comes back: the proxy answers with the part's etag in
+ * a JSON body, while S3 returns it as a header.
+ */
+type Target =
+  | { kind: "proxy"; url: string }
+  | { kind: "signed"; url: string; contentType: string; ifNoneMatch: boolean };
+
+export type UploadTransport = "proxy" | "presigned";
+
 export interface UploadProgress {
   readonly sent: number;
   readonly total: number;
@@ -32,6 +46,11 @@ export function uploadFile(input: {
   file: File;
   uploadToken: string;
   multipart: boolean;
+  transport: UploadTransport;
+  /** The signed destination of a single request presigned upload. */
+  url?: string | null;
+  /** True when the signature carries the refuse-if-it-exists condition. */
+  overwrite?: boolean;
   onProgress: (progress: UploadProgress) => void;
 }): UploadHandle {
   const requests = new Set<XMLHttpRequest>();
@@ -46,9 +65,23 @@ export function uploadFile(input: {
     const total = input.file.size;
 
     if (!input.multipart) {
-      await sendPart(input.uploadToken, null, input.file, requests, (sent) =>
-        input.onProgress({ sent, total }),
-      );
+      const target: Target =
+        input.transport === "presigned"
+          ? {
+              kind: "signed",
+              url: required(input.url),
+              contentType: input.file.type,
+              ifNoneMatch: input.overwrite !== true,
+            }
+          : { kind: "proxy", url: proxyUrl(input.uploadToken, null) };
+
+      await send(target, input.file, requests, (sent) => input.onProgress({ sent, total }));
+
+      // A presigned single upload never reaches the server, so the session it
+      // was opened with is closed here rather than by the route.
+      if (input.transport === "presigned") {
+        await trpcClient.s3Actions.abortUpload.mutate({ uploadToken: input.uploadToken });
+      }
       return;
     }
 
@@ -76,7 +109,26 @@ export function uploadFile(input: {
 
         const start = (partNumber - 1) * PART_SIZE;
         const blob = input.file.slice(start, Math.min(start + PART_SIZE, total));
-        const etag = await sendPart(input.uploadToken, partNumber, blob, requests, (sent) => {
+
+        // Signed one part at a time: a signature minted at the start of a long
+        // upload has expired by the time the last parts go out.
+        const target: Target =
+          input.transport === "presigned"
+            ? {
+                kind: "signed",
+                url: (
+                  await trpcClient.s3Actions.presignPart.mutate({
+                    uploadToken: input.uploadToken,
+                    partNumber,
+                  })
+                ).url,
+                contentType: "",
+                // A part carries no condition; the completion does.
+                ifNoneMatch: false,
+              }
+            : { kind: "proxy", url: proxyUrl(input.uploadToken, partNumber) };
+
+        const etag = await send(target, blob, requests, (sent) => {
           inFlight.set(partNumber, sent);
           report();
         });
@@ -96,42 +148,76 @@ export function uploadFile(input: {
   return { promise, cancel };
 }
 
+function proxyUrl(uploadToken: string, partNumber: number | null): string {
+  const url = new URL("/s3/upload", resolveServerOrigin());
+  url.searchParams.set("uploadToken", uploadToken);
+  if (partNumber !== null) url.searchParams.set("partNumber", String(partNumber));
+  return url.toString();
+}
+
+function required(url: string | null | undefined): string {
+  if (!url) throw new Error("The server did not return a signed URL for this upload.");
+  return url;
+}
+
 /**
- * One part.
+ * One part, over `XMLHttpRequest`.
  *
- * `XMLHttpRequest` rather than `fetch`, which still cannot report how much of
- * a request body has been sent - the one number a progress bar needs.
+ * `fetch` still cannot report how much of a request body has been sent, which
+ * is the one number a progress bar needs.
  */
-function sendPart(
-  uploadToken: string,
-  partNumber: number | null,
+function send(
+  target: Target,
   blob: Blob,
   requests: Set<XMLHttpRequest>,
   onProgress: (sent: number) => void,
 ): Promise<string> {
-  const url = new URL("/s3/upload", resolveServerOrigin());
-  url.searchParams.set("uploadToken", uploadToken);
-  if (partNumber !== null) url.searchParams.set("partNumber", String(partNumber));
-
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     requests.add(request);
-    request.open("POST", url.toString());
-    request.setRequestHeader("content-type", "application/octet-stream");
+    // S3 takes a PUT at a signed URL; the proxy route takes a POST, which is
+    // what keeps the app's own allowed method list as narrow as it is.
+    request.open(target.kind === "signed" ? "PUT" : "POST", target.url);
+
+    if (target.kind === "proxy") {
+      request.setRequestHeader("content-type", "application/octet-stream");
+    } else {
+      if (target.contentType) {
+        // Signed into the URL, so it has to match what was signed for.
+        request.setRequestHeader("content-type", target.contentType);
+      }
+      if (target.ifNoneMatch) {
+        // Part of the signature rather than an extra: the refusal to overwrite
+        // is in the URL, and S3 rejects the request outright without it.
+        request.setRequestHeader("if-none-match", "*");
+      }
+    }
+
     request.upload.addEventListener("progress", (event) => onProgress(event.loaded));
 
     request.addEventListener("load", () => {
       requests.delete(request);
       if (request.status >= 200 && request.status < 300) {
-        const body = parseBody(request.responseText);
-        resolve(body.etag ?? "");
+        resolve(
+          target.kind === "signed"
+            ? // S3 answers with the etag as a header; the browser can read it
+              // because it is one of the few headers exposed by default.
+              (request.getResponseHeader("etag") ?? "").replaceAll('"', "")
+            : (parseBody(request.responseText).etag ?? ""),
+        );
         return;
       }
-      reject(new Error(parseBody(request.responseText).message ?? `${request.status}`));
+      reject(new Error(failureMessage(target, request)));
     });
     request.addEventListener("error", () => {
       requests.delete(request);
-      reject(new Error("The upload connection failed."));
+      reject(
+        new Error(
+          target.kind === "signed"
+            ? "The browser could not reach S3 directly. The bucket's CORS policy has to allow this origin for presigned uploads."
+            : "The upload connection failed.",
+        ),
+      );
     });
     request.addEventListener("abort", () => {
       requests.delete(request);
@@ -140,6 +226,18 @@ function sendPart(
 
     request.send(blob);
   });
+}
+
+function failureMessage(target: Target, request: XMLHttpRequest): string {
+  if (target.kind === "proxy") {
+    return parseBody(request.responseText).message ?? `${request.status}`;
+  }
+  // S3 answers with an XML document rather than JSON.
+  const code = /<Code>([^<]+)<\/Code>/.exec(request.responseText)?.[1];
+  const message = /<Message>([^<]+)<\/Message>/.exec(request.responseText)?.[1];
+  return message
+    ? `${code ?? request.status}: ${message}`
+    : `S3 refused the part (${request.status}).`;
 }
 
 function parseBody(text: string): { etag?: string; message?: string } {
