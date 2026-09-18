@@ -143,6 +143,16 @@ function ObjectFacts({ head }: { head: S3ObjectHead }) {
       {head.contentEncoding ? <span>{head.contentEncoding}</span> : null}
       {head.serverSideEncryption ? <span>{head.serverSideEncryption}</span> : null}
       {head.etag ? <span className="truncate">etag {head.etag}</span> : null}
+      {head.versionId && head.versionId !== "null" ? (
+        <span className="truncate">version {head.versionId}</span>
+      ) : null}
+      {Object.entries(head.metadata).map(([key, value]) => (
+        // User metadata is whatever the uploader attached, so it is shown
+        // beside the facts rather than behind another click.
+        <span key={key} className="truncate">
+          {key} {value}
+        </span>
+      ))}
     </div>
   );
 }
