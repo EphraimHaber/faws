@@ -27,6 +27,7 @@ catalog:
   "@aws-sdk/client-sts": ^3.700.0
   "@aws-sdk/credential-providers": ^3.700.0
   "@aws-sdk/s3-request-presigner": ^3.700.0
+  "@smithy/node-http-handler": ^4.12.1
   "@smithy/shared-ini-file-loader": ^4.0.4
   node-pty: ^1.1.0-beta21
   ssh-config: ^5.0.3

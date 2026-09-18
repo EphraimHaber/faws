@@ -11,7 +11,8 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/contexts/ScopeContext";
+import { ConnectionPicker } from "~/features/s3/components/ConnectionPicker";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
 
@@ -24,7 +25,7 @@ import { trpc } from "~/lib/trpc";
  * region is resolved when a bucket is opened, where it is actually needed.
  */
 export function BucketsPage() {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const navigate = useNavigate();
   const [filter, setFilter] = React.useState("");
 
@@ -83,7 +84,8 @@ export function BucketsPage() {
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {buckets.isPending ? "…" : rows.length}
         </span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <ConnectionPicker />
           <FilterInput value={filter} onChange={setFilter} total={rows.length} />
         </div>
       </PanelHeader>

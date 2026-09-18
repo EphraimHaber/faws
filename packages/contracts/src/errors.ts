@@ -40,3 +40,34 @@ export class ReadOnlyModeError extends Error {
     this.name = "ReadOnlyModeError";
   }
 }
+
+/** Thrown when a scope names an S3 connection that is no longer stored. */
+export class ConnectionNotFoundError extends Error {
+  readonly connectionId: string;
+
+  constructor(connectionId: string) {
+    super(`That S3 connection no longer exists.`);
+    this.name = "ConnectionNotFoundError";
+    this.connectionId = connectionId;
+  }
+}
+
+/**
+ * Thrown when an endpoint's certificate is refused.
+ *
+ * Separate from a request failure because the fix is different in kind: no
+ * credential, permission or bucket name changes the answer, and the thing that
+ * would - trusting a CA or a certificate - is a decision, so the message has
+ * to reach the person who can make it rather than read as "S3 is down".
+ */
+export class EndpointTrustError extends Error {
+  readonly endpoint: string;
+  readonly reason: string;
+
+  constructor(endpoint: string, reason: string) {
+    super(`The certificate at ${endpoint} was not trusted: ${reason}`);
+    this.name = "EndpointTrustError";
+    this.endpoint = endpoint;
+    this.reason = reason;
+  }
+}

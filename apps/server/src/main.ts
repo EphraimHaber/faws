@@ -24,6 +24,7 @@ import { registerExecDrivers } from "./api/exec/index.ts";
 import { closeAllSessions } from "./api/exec/session.registry.ts";
 import { s3BytesRoutes } from "./api/s3/bytes.routes.ts";
 import { attachS3ScanNamespace } from "./api/s3/scan.service.ts";
+import { registerServerConnectionStores } from "./api/s3/connectionStore.ts";
 import { attachSettingsBroadcast } from "./api/settings/settings.events.ts";
 import { flushSettings, loadSettings, settingsStore } from "./api/settings/settings.instance.ts";
 import { appRouter, type AppRouter } from "./router.ts";
@@ -103,6 +104,9 @@ await server.register(fastifyCors, {
 // Before listen, so the very first request already sees the stored values
 // rather than defaults it would have to correct a moment later.
 await loadSettings();
+// Saved S3 endpoints live in the settings file, so nothing may read one
+// before it has been loaded.
+registerServerConnectionStores();
 
 await server.register(fastifyTRPCPlugin, {
   prefix: "/trpc",

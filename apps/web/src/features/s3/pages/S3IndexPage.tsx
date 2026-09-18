@@ -5,7 +5,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -13,7 +13,7 @@ import { trpc } from "~/lib/trpc";
  * carrying the count that says whether it is worth opening.
  */
 export function S3IndexPage() {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const buckets = useQuery(trpc.s3.buckets.queryOptions(scope));
   const count = buckets.data?.length ?? 0;
 

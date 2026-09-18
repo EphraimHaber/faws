@@ -1,4 +1,4 @@
-import type { AwsScope } from "@faws/contracts";
+import type { S3Scope } from "@faws/contracts";
 
 import { resolveServerOrigin } from "./apiUrl.ts";
 
@@ -16,13 +16,14 @@ export interface ObjectRef {
  * holding anything that grants access to the bucket.
  */
 export function objectUrl(
-  scope: AwsScope,
+  scope: S3Scope,
   ref: ObjectRef,
   options: { disposition?: "inline" | "attachment"; raw?: boolean } = {},
 ): string {
   const url = new URL("/s3/object", resolveServerOrigin());
   url.searchParams.set("profile", scope.profile);
   url.searchParams.set("region", scope.region);
+  if (scope.connectionId) url.searchParams.set("connectionId", scope.connectionId);
   url.searchParams.set("bucket", ref.bucket);
   url.searchParams.set("key", ref.key);
   if (ref.versionId) url.searchParams.set("versionId", ref.versionId);
@@ -45,7 +46,7 @@ export interface RangeResult {
  * rather than pulling gigabytes into a string to show the first screen.
  */
 export async function fetchRange(
-  scope: AwsScope,
+  scope: S3Scope,
   ref: ObjectRef,
   start: number,
   length: number,
@@ -70,7 +71,7 @@ export async function fetchRange(
 
 /** The whole object as text, for the cases the size gate has allowed. */
 export async function fetchText(
-  scope: AwsScope,
+  scope: S3Scope,
   ref: ObjectRef,
   options: { signal?: AbortSignal } = {},
 ): Promise<string> {
@@ -80,7 +81,7 @@ export async function fetchText(
 }
 
 /** Hands the object to the browser's own download machinery. */
-export function downloadObject(scope: AwsScope, ref: ObjectRef): void {
+export function downloadObject(scope: S3Scope, ref: ObjectRef): void {
   const anchor = document.createElement("a");
   anchor.href = objectUrl(scope, ref, { disposition: "attachment" });
   anchor.rel = "noopener";

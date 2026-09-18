@@ -12,7 +12,8 @@ import { Button } from "~/components/ui/button";
 import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/contexts/ScopeContext";
+import { scopeKey } from "~/features/s3/scopeKey";
 import { fullTimestamp } from "~/lib/format";
 import { trpcClient } from "~/lib/trpc";
 
@@ -43,7 +44,7 @@ export function VersionsPane({
   prefix: string;
   onOpenVersion: (key: string, versionId: string) => void;
 }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const [filter, setFilter] = React.useState("");
   const [selected, setSelected] = React.useState<ReadonlySet<string>>(() => new Set());
   const [comparing, setComparing] = React.useState<{ left: DiffSide; right: DiffSide } | null>(
@@ -51,7 +52,7 @@ export function VersionsPane({
   );
 
   const listing = useInfiniteQuery({
-    queryKey: ["s3:versions", scope.profile, scope.region, bucket, prefix],
+    queryKey: ["s3:versions", ...scopeKey(scope), bucket, prefix],
     initialPageParam: { keyMarker: undefined, versionIdMarker: undefined } as {
       keyMarker: string | undefined;
       versionIdMarker: string | undefined;

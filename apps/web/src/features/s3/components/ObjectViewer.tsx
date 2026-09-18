@@ -24,7 +24,8 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Spinner } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/contexts/ScopeContext";
+import { scopeKey } from "~/features/s3/scopeKey";
 import { fullTimestamp } from "~/lib/format";
 import { downloadObject, fetchRange, fetchText, objectUrl } from "~/lib/s3-bytes";
 import { trpc } from "~/lib/trpc";
@@ -41,7 +42,7 @@ export function ObjectViewer({
   objectKey: string;
   onClose: () => void;
 }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const [dialog, setDialog] = React.useState<"copy" | "tags" | null>(null);
   const writeMode = useQuery(trpc.aws.writeMode.queryOptions());
   const canWrite = writeMode.data ? !writeMode.data.readOnly : false;
@@ -185,7 +186,7 @@ function StreamedObject({
   head: S3ObjectHead;
   openAs: "image" | "audio" | "video" | "pdf";
 }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const url = objectUrl(scope, { bucket: head.bucket, key: head.key }, { disposition: "inline" });
 
   if (openAs === "image") return <ImageViewer url={url} alt={head.key} />;
@@ -209,15 +210,14 @@ function TextualObject({
   openAs: "text" | "json" | "jsonl" | "csv";
   sliceBytes?: number;
 }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const [wholeAnyway, setWholeAnyway] = React.useState(false);
   const sliced = sliceBytes !== undefined && !wholeAnyway;
 
   const content = useQuery({
     queryKey: [
       "s3:content",
-      scope.profile,
-      scope.region,
+      ...scopeKey(scope),
       head.bucket,
       head.key,
       head.etag,
@@ -298,7 +298,7 @@ function JsonBody({ text }: { text: string }) {
 
 /** Too large, or archived: the object is described rather than opened. */
 function RefusedObject({ head, reason }: { head: S3ObjectHead; reason: "size" | "archived" }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const [showHex, setShowHex] = React.useState(false);
 
   if (reason === "archived") {
@@ -347,9 +347,9 @@ function BinaryObject({ head }: { head: S3ObjectHead }) {
 
 /** The leading bytes, read raw so a stored encoding is not inflated first. */
 function HeadBytes({ head }: { head: S3ObjectHead }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const slice = useQuery({
-    queryKey: ["s3:hex", scope.profile, scope.region, head.bucket, head.key, head.etag],
+    queryKey: ["s3:hex", ...scopeKey(scope), head.bucket, head.key, head.etag],
     queryFn: ({ signal }) =>
       fetchRange(
         scope,

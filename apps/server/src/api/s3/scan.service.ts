@@ -11,6 +11,7 @@
  * than leave it running unobserved against someone's bucket.
  */
 import type { S3ObjectSummary } from "@faws/contracts";
+import { toS3Scope } from "@faws/contracts";
 import { scanPrefix } from "@faws/core";
 import type {
   S3ScanClientToServerEvents,
@@ -32,6 +33,7 @@ const handshake = z.object({
   scanId: z.string().min(1),
   profile: z.string(),
   region: z.string().min(1),
+  connectionId: z.string().min(1).optional(),
   bucket: z.string().min(1),
   prefix: z.string().max(1024).default(""),
   pattern: z.string().max(256).optional(),
@@ -65,8 +67,7 @@ export function attachS3ScanNamespace(namespace: S3ScanNamespace): void {
     const input = parsed.data;
     const auth: S3ScanHandshakeAuth = {
       scanId: input.scanId,
-      profile: input.profile,
-      region: input.region,
+      ...toS3Scope(input),
       bucket: input.bucket,
       prefix: input.prefix,
       ...(input.pattern ? { pattern: input.pattern } : {}),
@@ -87,7 +88,7 @@ async function run(
   auth: S3ScanHandshakeAuth,
   controller: AbortController,
 ): Promise<void> {
-  const scope = { profile: auth.profile, region: auth.region };
+  const scope = toS3Scope(auth);
   let buffer: S3ObjectSummary[] = [];
   let lastFlush = Date.now();
 

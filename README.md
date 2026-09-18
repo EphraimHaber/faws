@@ -21,6 +21,18 @@ pnpm dev
 Uses your existing `~/.aws` configuration — profiles, SSO and assume-role all
 work, because credentials resolve through the SDK's own provider chain.
 
+S3 also reads S3 compatible storage on your own network - MinIO, Ceph RGW,
+StorageGRID and the rest. Add an endpoint under Settings: its URL, path style
+addressing, its own keys (or an AWS profile, or none for public buckets), and
+whatever its certificate needs - a CA file or pasted PEM, a client certificate
+for mTLS, a name to verify against when the URL reaches it by IP. Test shows
+the certificate it presents before anything is trusted, so a self signed one
+can be pinned by fingerprint rather than met by turning verification off, which
+is also offered and says what it costs.
+
+Panes that only AWS can fill - daily storage metrics, a bucket's home region -
+are absent rather than failing on an endpoint that has no answer for them.
+
 Read-only unless you say otherwise. Start with `FAWS_ALLOW_MUTATIONS=1`, or
 turn writes on in Settings for the session.
 
@@ -35,10 +47,21 @@ The ECS mutations remain stubs that return `NOT_IMPLEMENTED`.
 ## Settings
 
 Preferences - the AWS profile and region, the refresh interval, the log
-columns, the theme, the terminal dock, and the list of silenced warnings -
-belong to the machine, not to a browser. The server keeps them in
-`$FAWS_DATA_DIR/settings/settings.json`, alongside `logs/` and `recordings/`,
+columns, the theme, the terminal dock, the saved S3 endpoints, and the list of
+silenced warnings - belong to the machine, not to a browser. The server keeps
+them in `$FAWS_DATA_DIR/settings/settings.json`, alongside `logs/` and `recordings/`,
 and writes it atomically with `0600`.
+
+An S3 endpoint's keys are the one thing that file does not hold. It is read by
+the renderer on first paint and broadcast to every window on every change, so
+the records live there and the keys live in `$FAWS_DATA_DIR/credentials/s3.json`,
+a directory of its own, written `0600`, that nothing broadcasts. A record names
+its credential rather than carrying one, so a form can edit an endpoint without
+ever being handed the key it is editing, and a blank key field means "leave it
+alone" rather than "erase it".
+
+AWS's own credentials are not copied anywhere: they stay in `~/.aws`, where the
+SDK's provider chain finds them, so rotating them is one place rather than two.
 
 `FAWS_DATA_DIR` defaults to `~/.faws`; the dev runner uses `~/.faws-dev`, and
 the desktop shell passes Electron's userData path. Web and desktop on one

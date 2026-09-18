@@ -15,6 +15,7 @@
 import type { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
+import { toS3Scope } from "@faws/contracts";
 import { getObjectStream, putObject, uploadPart } from "@faws/core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -25,6 +26,8 @@ import { closeUpload, findUpload } from "./uploads.ts";
 const objectQuery = z.object({
   profile: z.string(),
   region: z.string().min(1),
+  /** Absent reads from AWS; present reads from that saved endpoint. */
+  connectionId: z.string().min(1).optional(),
   bucket: z.string().min(1),
   key: z.string().min(1),
   versionId: z.string().optional(),
@@ -175,7 +178,7 @@ export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
     let stream;
     try {
       stream = await getObjectStream(
-        { profile: query.profile, region: query.region },
+        toS3Scope(query),
         {
           bucket: query.bucket,
           key: query.key,

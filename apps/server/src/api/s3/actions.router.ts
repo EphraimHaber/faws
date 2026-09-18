@@ -14,6 +14,8 @@ import {
   s3DeleteObjectsSchema,
   s3PresignPartSchema,
   s3PutTagsSchema,
+  s3ScopeSchema,
+  toS3Scope,
 } from "@faws/contracts";
 import {
   assertDestructive,
@@ -32,7 +34,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createLogger } from "../../shared/logger.ts";
-import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
+import { guard, publicProcedure, router } from "../../trpc/index.ts";
 import { closeUpload, discardUpload, findUpload, openUpload } from "./uploads.ts";
 
 const log = createLogger("s3-actions");
@@ -52,7 +54,7 @@ export const s3ActionsRouter = router({
    * number in front of.
    */
   dryRunDelete: publicProcedure
-    .input(scopeInput.extend({ bucket: z.string().min(1), prefix: z.string().max(1024) }))
+    .input(s3ScopeSchema.extend({ bucket: z.string().min(1), prefix: z.string().max(1024) }))
     .query(({ input }) =>
       guard(async () => {
         const controller = new AbortController();
@@ -79,48 +81,50 @@ export const s3ActionsRouter = router({
       }),
     ),
 
-  createUpload: publicProcedure.input(scopeInput.and(s3CreateUploadSchema)).mutation(({ input }) =>
-    guard(async () => {
-      if (input.overwrite) assertDestructive("s3:PutObject (overwrite)");
-      else assertMutable("s3:PutObject");
+  createUpload: publicProcedure
+    .input(s3ScopeSchema.and(s3CreateUploadSchema))
+    .mutation(({ input }) =>
+      guard(async () => {
+        if (input.overwrite) assertDestructive("s3:PutObject (overwrite)");
+        else assertMutable("s3:PutObject");
 
-      const scope = { profile: input.profile, region: input.region };
-      const multipart = input.size > MULTIPART_THRESHOLD;
-      const uploadId = multipart
-        ? await createMultipartUpload(scope, {
-            bucket: input.bucket,
-            key: input.key,
-            contentType: input.contentType,
-          })
-        : null;
-
-      const session = openUpload({
-        scope,
-        bucket: input.bucket,
-        key: input.key,
-        uploadId,
-        overwrite: input.overwrite,
-        contentType: input.contentType,
-        transport: input.transport,
-      });
-
-      // A single presigned upload needs no further round trip: that one URL is
-      // the whole transfer. A multipart one signs each part on demand, because
-      // ten thousand URLs up front is a response nobody wants and signatures
-      // expire while the upload is still running.
-      const url =
-        input.transport === "presigned" && !multipart
-          ? await presignPutUrl(scope, {
+        const scope = toS3Scope(input);
+        const multipart = input.size > MULTIPART_THRESHOLD;
+        const uploadId = multipart
+          ? await createMultipartUpload(scope, {
               bucket: input.bucket,
               key: input.key,
               contentType: input.contentType,
-              overwrite: input.overwrite,
             })
           : null;
 
-      return { uploadToken: session.token, multipart, transport: input.transport, url };
-    }),
-  ),
+        const session = openUpload({
+          scope,
+          bucket: input.bucket,
+          key: input.key,
+          uploadId,
+          overwrite: input.overwrite,
+          contentType: input.contentType,
+          transport: input.transport,
+        });
+
+        // A single presigned upload needs no further round trip: that one URL is
+        // the whole transfer. A multipart one signs each part on demand, because
+        // ten thousand URLs up front is a response nobody wants and signatures
+        // expire while the upload is still running.
+        const url =
+          input.transport === "presigned" && !multipart
+            ? await presignPutUrl(scope, {
+                bucket: input.bucket,
+                key: input.key,
+                contentType: input.contentType,
+                overwrite: input.overwrite,
+              })
+            : null;
+
+        return { uploadToken: session.token, multipart, transport: input.transport, url };
+      }),
+    ),
 
   /**
    * A signed URL for one part.
@@ -177,7 +181,7 @@ export const s3ActionsRouter = router({
   ),
 
   deleteObjects: publicProcedure
-    .input(scopeInput.and(s3DeleteObjectsSchema))
+    .input(s3ScopeSchema.and(s3DeleteObjectsSchema))
     .mutation(({ input }) =>
       guard(async () => {
         const outcome = await deleteObjects(input, {
@@ -198,7 +202,7 @@ export const s3ActionsRouter = router({
       }),
     ),
 
-  copyObject: publicProcedure.input(scopeInput.and(s3CopyObjectSchema)).mutation(({ input }) =>
+  copyObject: publicProcedure.input(s3ScopeSchema.and(s3CopyObjectSchema)).mutation(({ input }) =>
     guard(async () => {
       const result = await copyObject(input, input);
       log.warn(
@@ -215,13 +219,13 @@ export const s3ActionsRouter = router({
   ),
 
   createPrefix: publicProcedure
-    .input(scopeInput.and(s3CreatePrefixSchema))
+    .input(s3ScopeSchema.and(s3CreatePrefixSchema))
     .mutation(({ input }) =>
       guard(() => createPrefix(input, { bucket: input.bucket, prefix: input.prefix })),
     ),
 
   putTags: publicProcedure
-    .input(scopeInput.and(s3PutTagsSchema))
+    .input(s3ScopeSchema.and(s3PutTagsSchema))
     .mutation(({ input }) =>
       guard(() => putObjectTags(input, { bucket: input.bucket, key: input.key, tags: input.tags })),
     ),

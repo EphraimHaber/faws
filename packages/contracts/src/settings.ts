@@ -22,6 +22,8 @@
  */
 import { z } from "zod";
 
+import { s3ConnectionSchema } from "./s3-connections.ts";
+
 /**
  * Bumped whenever a migration is needed to read an older file. Contracts owns
  * it rather than the server because the renderer's first-paint cache is parsed
@@ -92,6 +94,8 @@ export const scopeSettingsSchema = z.object({
   profile: z.string().min(1).catch("default"),
   /** Empty means "ask the CLI what this profile's default region is". */
   region: z.string().catch(""),
+  /** Empty points S3 at AWS; otherwise the id of a saved S3 endpoint. */
+  connectionId: z.string().catch(""),
   refreshSeconds: z.number().refine(isRefreshChoice).catch(DEFAULT_REFRESH_SECONDS),
 });
 
@@ -111,6 +115,30 @@ export const terminalSettingsSchema = z.object({
   recordByDefault: z.boolean().catch(true),
 });
 
+/**
+ * S3 endpoints that are not AWS.
+ *
+ * The records only: a key, a token or a passphrase belongs to none of this,
+ * because this file is read by the renderer on first paint and broadcast to
+ * every open window.
+ */
+export const s3SettingsSchema = z.object({
+  /**
+   * Parsed one entry at a time, because `array(...).catch([])` would answer a
+   * single unreadable endpoint by dropping every endpoint. One that cannot be
+   * read costs itself.
+   */
+  connections: z
+    .array(z.unknown())
+    .catch([])
+    .transform((entries) =>
+      entries.flatMap((entry) => {
+        const parsed = s3ConnectionSchema.safeParse(entry);
+        return parsed.success ? [parsed.data] : [];
+      }),
+    ),
+});
+
 export const silencedSettingsSchema = z.object({
   /** Per-incident, keyed by ARN; comes back when the fingerprint changes. */
   dismissed: silenceMapSchema,
@@ -124,6 +152,7 @@ export const settingsSchema = z.object({
   logs: section(logSettingsSchema),
   appearance: section(appearanceSettingsSchema),
   terminal: section(terminalSettingsSchema),
+  s3: section(s3SettingsSchema),
   silenced: section(silencedSettingsSchema),
 });
 
@@ -131,6 +160,7 @@ export type Settings = z.infer<typeof settingsSchema>;
 export type ScopeSettings = Settings["scope"];
 export type LogSettings = Settings["logs"];
 export type TerminalSettings = Settings["terminal"];
+export type S3Settings = Settings["s3"];
 export type SilencedSettings = Settings["silenced"];
 
 export const DEFAULT_SETTINGS: Settings = settingsSchema.parse({});
@@ -144,10 +174,11 @@ export const DEFAULT_SETTINGS: Settings = settingsSchema.parse({});
  * away the type at the boundary, which is the one thing this package exists to
  * avoid.
  *
- * `silenced` is deliberately absent: "forget this ARN" cannot be expressed as
- * a merge, and shipping the whole map on every toggle would reintroduce the
- * clobbering for the field most likely to be edited from two windows. It gets
- * `silenceOpSchema` instead, and `strict()` turns an attempt to slip it
+ * `silenced` and `s3` are deliberately absent: "forget this ARN" and "delete
+ * this endpoint" cannot be expressed as a merge, and shipping the whole map or
+ * list on every change would reintroduce the clobbering for the fields most
+ * likely to be edited from two windows. They get `silenceOpSchema` and
+ * `s3ConnectionOpSchema` instead, and `strict()` turns an attempt to slip one
  * through here into a validation error rather than a silent no-op.
  */
 export const settingsPatchSchema = z

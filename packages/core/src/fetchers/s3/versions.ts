@@ -1,5 +1,5 @@
 import { ListObjectVersionsCommand } from "@aws-sdk/client-s3";
-import type { AwsScope, S3VersionEntry, S3VersionPage } from "@faws/contracts";
+import type { S3Scope, S3VersionEntry, S3VersionPage } from "@faws/contracts";
 import { toIso } from "@faws/shared";
 
 import { callAws } from "../../clients.ts";
@@ -17,7 +17,7 @@ import { s3ClientForBucket } from "./buckets.ts";
  * indistinguishable from a real one.
  */
 export async function listObjectVersions(
-  scope: AwsScope,
+  scope: S3Scope,
   input: {
     bucket: string;
     prefix: string;

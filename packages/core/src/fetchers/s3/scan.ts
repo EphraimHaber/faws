@@ -1,5 +1,5 @@
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
-import type { AwsScope, S3ObjectSummary, S3PrefixRollup, S3ScanProgress } from "@faws/contracts";
+import type { S3Scope, S3ObjectSummary, S3PrefixRollup, S3ScanProgress } from "@faws/contracts";
 import { compileMatcher, toIso } from "@faws/shared";
 
 import { callAws } from "../../clients.ts";
@@ -36,7 +36,7 @@ const PAGE_SIZE = 1000;
  * completion unobserved.
  */
 export async function* scanPrefix(
-  scope: AwsScope,
+  scope: S3Scope,
   input: ScanInput,
   signal: AbortSignal,
 ): AsyncGenerator<ScanChunk> {

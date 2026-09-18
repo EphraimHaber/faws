@@ -5,7 +5,8 @@ import * as React from "react";
 
 import { Segmented } from "~/components/segmented";
 import { Button } from "~/components/ui/button";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/contexts/ScopeContext";
+import { useS3Capabilities } from "~/features/s3/useS3Capabilities";
 import { trpcClient } from "~/lib/trpc";
 import { uploadFile, type UploadHandle, type UploadTransport } from "~/lib/s3-upload";
 import { cn } from "~/lib/utils";
@@ -35,7 +36,8 @@ export function UploadDropzone({
   /** Handed the picker and the transport switch, for its own toolbar. */
   children: (controls: { pickFiles: () => void; transport: React.ReactNode }) => React.ReactNode;
 }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
+  const capabilities = useS3Capabilities();
   const queryClient = useQueryClient();
   const [over, setOver] = React.useState(false);
   const [transport, setTransport] = React.useState<UploadTransport>("proxy");
@@ -69,7 +71,7 @@ export function UploadDropzone({
             size: file.size,
             contentType: file.type || "application/octet-stream",
             overwrite: false,
-            transport,
+            transport: capabilities.presign ? transport : "proxy",
           });
 
           const handle = uploadFile({
@@ -90,7 +92,7 @@ export function UploadDropzone({
         }
       }
     },
-    [scope, bucket, prefix, queryClient, transport],
+    [scope, bucket, prefix, queryClient, transport, capabilities.presign],
   );
 
   // Handed to the toolbar rather than read here: the ref is only touched when
@@ -139,7 +141,9 @@ export function UploadDropzone({
       {/* oxlint-disable-next-line react/refs */}
       {children({
         pickFiles: openPicker,
-        transport: <TransportChoice value={transport} onChange={setTransport} />,
+        transport: capabilities.presign ? (
+          <TransportChoice value={transport} onChange={setTransport} />
+        ) : null,
       })}
 
       {transfers.length > 0 ? (

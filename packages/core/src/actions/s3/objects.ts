@@ -12,7 +12,7 @@ import {
   UploadPartCommand,
   UploadPartCopyCommand,
 } from "@aws-sdk/client-s3";
-import type { AwsScope } from "@faws/contracts";
+import type { S3Scope } from "@faws/contracts";
 
 import { callAws } from "../../clients.ts";
 import { s3ClientForBucket } from "../../fetchers/s3/buckets.ts";
@@ -37,7 +37,7 @@ export interface PutResult {
  * two people are uploading the same key.
  */
 export async function putObject(
-  scope: AwsScope,
+  scope: S3Scope,
   input: {
     bucket: string;
     key: string;
@@ -68,7 +68,7 @@ export async function putObject(
 }
 
 export async function createMultipartUpload(
-  scope: AwsScope,
+  scope: S3Scope,
   input: { bucket: string; key: string; contentType?: string },
 ): Promise<string> {
   assertMutable("s3:CreateMultipartUpload");
@@ -87,7 +87,7 @@ export async function createMultipartUpload(
 }
 
 export async function uploadPart(
-  scope: AwsScope,
+  scope: S3Scope,
   input: {
     bucket: string;
     key: string;
@@ -116,7 +116,7 @@ export async function uploadPart(
 }
 
 export async function completeMultipartUpload(
-  scope: AwsScope,
+  scope: S3Scope,
   input: {
     bucket: string;
     key: string;
@@ -151,7 +151,7 @@ export async function completeMultipartUpload(
 
 /** Abandoned uploads bill as storage until they are aborted. */
 export async function abortMultipartUpload(
-  scope: AwsScope,
+  scope: S3Scope,
   input: { bucket: string; key: string; uploadId: string },
 ): Promise<void> {
   const client = await s3ClientForBucket(scope, input.bucket);
@@ -180,7 +180,7 @@ export interface DeleteOutcome {
  * happen. The failures are returned rather than raised.
  */
 export async function deleteObjects(
-  scope: AwsScope,
+  scope: S3Scope,
   input: {
     bucket: string;
     objects: ReadonlyArray<{ key: string; versionId?: string | undefined }>;
@@ -225,7 +225,7 @@ export async function deleteObjects(
  * failure between them.
  */
 export async function copyObject(
-  scope: AwsScope,
+  scope: S3Scope,
   input: {
     sourceBucket: string;
     sourceKey: string;
@@ -361,7 +361,7 @@ async function multipartCopy(
 
 /** A folder, as S3 understands one: a zero byte object whose key ends in a slash. */
 export async function createPrefix(
-  scope: AwsScope,
+  scope: S3Scope,
   input: { bucket: string; prefix: string },
 ): Promise<void> {
   assertMutable("s3:PutObject (prefix)");
@@ -376,7 +376,7 @@ export async function createPrefix(
 
 /** Replaces the object's tag set; an empty record clears it. */
 export async function putObjectTags(
-  scope: AwsScope,
+  scope: S3Scope,
   input: { bucket: string; key: string; tags: Readonly<Record<string, string>> },
 ): Promise<void> {
   assertMutable("s3:PutObjectTagging");

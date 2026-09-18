@@ -5,10 +5,12 @@ import {
   type S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import type { AwsScope } from "@faws/contracts";
+import type { S3Scope } from "@faws/contracts";
+import { AwsRequestError } from "@faws/contracts";
 
 import { callAws } from "../../clients.ts";
 import { s3ClientForBucket } from "../../fetchers/s3/buckets.ts";
+import { connectionFor } from "../../s3/connections.ts";
 import { assertDestructive, assertMutable } from "../../readOnlyGuard.ts";
 
 /**
@@ -21,6 +23,24 @@ import { assertDestructive, assertMutable } from "../../readOnlyGuard.ts";
 export const PRESIGN_TTL_SECONDS = 15 * 60;
 
 /**
+ * Refuses to sign for an endpoint the browser cannot use.
+ *
+ * A signed URL is only worth anything if the renderer can reach the host it
+ * names and trust its certificate, which on a private network is a separate
+ * question from whether this process can. The connection says which it is, and
+ * the proxy is the path that always works.
+ */
+async function assertPresignable(scope: S3Scope): Promise<void> {
+  const connection = await connectionFor(scope);
+  if (connection && !connection.features.presign) {
+    throw new AwsRequestError(
+      `Signed URLs are turned off for "${connection.name}"; uploads and downloads go through the proxy.`,
+      { code: "PresignDisabled", service: "s3" },
+    );
+  }
+}
+
+/**
  * A URL the browser can write to directly.
  *
  * This is the opposite trade from the proxy: the bytes skip this process
@@ -30,9 +50,10 @@ export const PRESIGN_TTL_SECONDS = 15 * 60;
  * origin, which most buckets do not, so it is offered rather than assumed.
  */
 export async function presignPutUrl(
-  scope: AwsScope,
+  scope: S3Scope,
   input: { bucket: string; key: string; contentType?: string; overwrite: boolean },
 ): Promise<string> {
+  await assertPresignable(scope);
   if (input.overwrite) assertDestructive("s3:PutObject (presigned overwrite)");
   else assertMutable("s3:PutObject (presigned)");
 
@@ -52,9 +73,10 @@ export async function presignPutUrl(
 
 /** One part of a multipart upload, signed the same way. */
 export async function presignUploadPartUrl(
-  scope: AwsScope,
+  scope: S3Scope,
   input: { bucket: string; key: string; uploadId: string; partNumber: number },
 ): Promise<string> {
+  await assertPresignable(scope);
   assertMutable("s3:UploadPart (presigned)");
 
   const client = await s3ClientForBucket(scope, input.bucket);
@@ -77,9 +99,11 @@ export async function presignUploadPartUrl(
  * that is not this app.
  */
 export async function presignGetUrl(
-  scope: AwsScope,
+  scope: S3Scope,
   input: { bucket: string; key: string; versionId?: string | undefined },
 ): Promise<string> {
+  await assertPresignable(scope);
+
   const client = await s3ClientForBucket(scope, input.bucket);
   return sign(
     client,

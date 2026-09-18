@@ -9,7 +9,7 @@
  * Sessions live in memory because they are meaningless across a restart: the
  * client would have to start the upload again anyway.
  */
-import type { AwsScope } from "@faws/contracts";
+import type { S3Scope } from "@faws/contracts";
 import { abortMultipartUpload } from "@faws/core";
 
 import { createLogger } from "../../shared/logger.ts";
@@ -18,7 +18,7 @@ const log = createLogger("s3-upload");
 
 export interface UploadSession {
   readonly token: string;
-  readonly scope: AwsScope;
+  readonly scope: S3Scope;
   readonly bucket: string;
   readonly key: string;
   /** Absent for an upload small enough to go in one request. */

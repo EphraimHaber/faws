@@ -1,4 +1,4 @@
-import type { S3ObjectSummary, S3ScanProgress } from "@faws/contracts";
+import { type S3ObjectSummary, type S3ScanProgress, toS3Scope } from "@faws/contracts";
 import { byteSize, requiresDeep } from "@faws/shared";
 import { Download, Search, Square, Telescope } from "lucide-react";
 import * as React from "react";
@@ -7,7 +7,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Kbd } from "~/components/ui/kbd";
 import { Spinner } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/contexts/ScopeContext";
 import { startScan, type RunningScan } from "~/lib/s3-scan";
 import { cn } from "~/lib/utils";
 
@@ -42,7 +42,7 @@ export function ObjectSearch({
   state: ScanState;
   onState: (next: ScanState) => void;
 }) {
-  const scope = useAwsScope();
+  const scope = useS3Scope();
   const [query, setQuery] = React.useState("");
   const running = React.useRef<RunningScan | null>(null);
 
@@ -69,8 +69,7 @@ export function ObjectSearch({
     running.current = startScan(
       {
         scanId: crypto.randomUUID(),
-        profile: scope.profile,
-        region: scope.region,
+        ...toS3Scope(scope),
         bucket,
         prefix,
         pattern,

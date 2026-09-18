@@ -11,6 +11,7 @@ export function TextField<Values extends FieldValues, Name extends FieldPath<Val
   placeholder,
   autoFocus,
   mono = false,
+  secret = false,
   className,
 }: {
   name: Name;
@@ -20,6 +21,8 @@ export function TextField<Values extends FieldValues, Name extends FieldPath<Val
   autoFocus?: boolean;
   /** Keys, ARNs and bucket names are read character by character. */
   mono?: boolean;
+  /** Masks the value and keeps it out of the browser's saved form data. */
+  secret?: boolean;
   className?: string;
 }) {
   return (
@@ -30,8 +33,9 @@ export function TextField<Values extends FieldValues, Name extends FieldPath<Val
           id={id}
           value={(field.value as string | undefined) ?? ""}
           autoFocus={autoFocus}
-          spellCheck={!mono}
-          autoComplete="off"
+          type={secret ? "password" : "text"}
+          spellCheck={!mono && !secret}
+          autoComplete={secret ? "new-password" : "off"}
           autoCapitalize="off"
           autoCorrect="off"
           aria-invalid={invalid}

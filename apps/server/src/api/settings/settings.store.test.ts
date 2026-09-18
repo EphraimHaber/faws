@@ -70,7 +70,12 @@ describe("round trip", () => {
     await first.flush();
 
     const reloaded = (await store().load()).settings;
-    expect(reloaded.scope).toEqual({ profile: "prod", region: "eu-west-1", refreshSeconds: 30 });
+    expect(reloaded.scope).toEqual({
+      profile: "prod",
+      region: "eu-west-1",
+      connectionId: "",
+      refreshSeconds: 30,
+    });
     expect(reloaded.logs.gutter).toBe(90);
   });
 

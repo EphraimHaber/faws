@@ -6,10 +6,23 @@ import {
   type Bucket,
 } from "@aws-sdk/client-s3";
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
-import type { AwsScope, S3Bucket } from "@faws/contracts";
+import type { S3Bucket, S3Scope } from "@faws/contracts";
 import { toIso } from "@faws/shared";
 
 import { callAws, s3Client } from "../../clients.ts";
+import { connectionFor } from "../../s3/connections.ts";
+import { endpointClient } from "../../s3/endpointClient.ts";
+
+/**
+ * A client for calls that are not about a particular bucket.
+ *
+ * With a connection in scope there is one endpoint and one region, so this is
+ * also the client every bucket uses.
+ */
+export async function s3ClientFor(scope: S3Scope): Promise<S3Client> {
+  const connection = await connectionFor(scope);
+  return connection ? endpointClient(connection) : s3Client(scope);
+}
 
 /**
  * Every bucket the caller can see.
@@ -17,8 +30,8 @@ import { callAws, s3Client } from "../../clients.ts";
  * `ListBuckets` is account wide rather than regional and returns everything in
  * one response, so this is the one S3 listing that has no cursor.
  */
-export async function listBuckets(scope: AwsScope): Promise<S3Bucket[]> {
-  const client = s3Client(scope);
+export async function listBuckets(scope: S3Scope): Promise<S3Bucket[]> {
+  const client = await s3ClientFor(scope);
   const page = await callAws("s3", () => client.send(new ListBucketsCommand({})));
   return (page.Buckets ?? []).map(toBucket).toSorted((a, b) => a.name.localeCompare(b.name));
 }
@@ -41,7 +54,13 @@ function toBucket(bucket: Bucket): S3Bucket {
 const regions = new Map<string, string>();
 
 /** The region a bucket lives in, which is not always the one in scope. */
-export async function bucketRegion(scope: AwsScope, bucket: string): Promise<string> {
+export async function bucketRegion(scope: S3Scope, bucket: string): Promise<string> {
+  const connection = await connectionFor(scope);
+  // One endpoint serves every bucket it has, and asking it where a bucket
+  // lives either answers with its own configured region or is not implemented
+  // at all, so the configured region is the whole answer.
+  if (connection) return connection.region;
+
   const key = `${scope.profile}::${bucket}`;
   const cached = regions.get(key);
   if (cached) return cached;
@@ -66,7 +85,10 @@ const crossRegion = new Map<string, S3Client>();
  * one found outside the current scope needs a client the scoped bundle does
  * not hold.
  */
-export async function s3ClientForBucket(scope: AwsScope, bucket: string): Promise<S3Client> {
+export async function s3ClientForBucket(scope: S3Scope, bucket: string): Promise<S3Client> {
+  const connection = await connectionFor(scope);
+  if (connection) return endpointClient(connection);
+
   const region = await bucketRegion(scope, bucket);
   if (region === scope.region) return s3Client(scope);
 
@@ -94,7 +116,7 @@ export async function s3ClientForBucket(scope: AwsScope, bucket: string): Promis
  * confirmation must not guess at. A bucket that has never had versioning
  * configured reports no status at all, which means the same as off.
  */
-export async function bucketVersioning(scope: AwsScope, bucket: string): Promise<boolean> {
+export async function bucketVersioning(scope: S3Scope, bucket: string): Promise<boolean> {
   const client = await s3ClientForBucket(scope, bucket);
   try {
     const result = await callAws("s3", () =>

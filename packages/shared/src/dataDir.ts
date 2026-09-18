@@ -44,3 +44,24 @@ export function settingsDir(): string {
 export function settingsFile(): string {
   return path.join(settingsDir(), "settings.json");
 }
+
+/**
+ * Where credentials for storage outside AWS are kept.
+ *
+ * Its own directory rather than a file beside the settings: what is in here is
+ * the key itself, not a preference, and the two have different rules. Settings
+ * are read on first paint, broadcast to every window and quoted in bug
+ * reports; nothing in this directory is ever any of those things.
+ *
+ * AWS's own credentials are not here - they stay in `~/.aws`, resolved by the
+ * SDK's provider chain, because duplicating them would mean two places to
+ * rotate.
+ */
+export function credentialsDir(): string {
+  return path.join(resolveDataDir(), "credentials");
+}
+
+/** Keys for saved S3 endpoints, one entry per credential reference. */
+export function s3CredentialsFile(): string {
+  return path.join(credentialsDir(), "s3.json");
+}
