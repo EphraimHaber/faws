@@ -214,6 +214,10 @@ function InstancePicker({ onClose }: { onClose: () => void }) {
 
 function SshForm({ onClose }: { onClose: () => void }) {
   const open = useSessions((state) => state.open);
+  // Aliases the user already has. A Host entry carries its own user, port and
+  // ProxyJump, so picking one connects with all of that applied rather than
+  // making them retype it here.
+  const hosts = useQuery(trpc.exec.sshHosts.queryOptions());
   // The same schema the handshake is ultimately built from, so a rule about
   // what a port may be is written once rather than once per side.
   const {
@@ -235,9 +239,33 @@ function SshForm({ onClose }: { onClose: () => void }) {
     onClose();
   });
 
+  const saved = hosts.data ?? [];
+
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 p-3">
       <FormError message={errors.root?.message} />
+
+      {saved.length > 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[11px] text-muted-foreground">From your ~/.ssh/config</p>
+          <div className="flex max-h-28 flex-wrap gap-1.5 overflow-auto">
+            {saved.map((entry) => (
+              <button
+                key={entry.host}
+                type="button"
+                onClick={() => {
+                  open({ kind: "ssh", transport: { via: "direct", host: entry.host } });
+                  onClose();
+                }}
+                title={`ssh ${entry.host} (${entry.hostName})`}
+                className="rounded-sm border border-border px-1.5 py-0.5 font-mono text-[11px] hover:border-primary hover:text-primary"
+              >
+                {entry.host}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <Field
         label="Host"

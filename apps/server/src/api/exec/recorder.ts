@@ -209,3 +209,96 @@ export function sweepRecordings(): void {
 
   if (removed > 0) log.info({ removed, retentionDays: RETENTION_DAYS }, "swept old recordings");
 }
+
+export interface RecordingSummary {
+  readonly path: string;
+  readonly name: string;
+  readonly day: string;
+  readonly bytes: number;
+  readonly modifiedAt: string;
+  /** Read back from the header, so the list says what it is rather than a filename. */
+  readonly kind: string | null;
+  readonly target: string | null;
+  readonly profile: string | null;
+  readonly region: string | null;
+}
+
+/**
+ * Reads the header line of a cast file.
+ *
+ * Only the first line, because these grow to tens of megabytes and the list
+ * only needs what the session was.
+ */
+function readHeader(file: string): Record<string, unknown> | null {
+  let handle: number | null = null;
+  try {
+    handle = fs.openSync(file, "r");
+    const buffer = Buffer.alloc(2048);
+    const read = fs.readSync(handle, buffer, 0, buffer.length, 0);
+    const firstLine = buffer.subarray(0, read).toString("utf8").split("\n")[0];
+    return firstLine ? (JSON.parse(firstLine) as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  } finally {
+    if (handle !== null) fs.closeSync(handle);
+  }
+}
+
+export function listRecordings(limit = 200): RecordingSummary[] {
+  const root = recordingsDir();
+  const out: RecordingSummary[] = [];
+
+  let days: string[];
+  try {
+    days = fs.readdirSync(root);
+  } catch {
+    return out;
+  }
+
+  for (const day of days.toSorted().toReversed()) {
+    const dir = path.join(root, day);
+    let names: string[];
+    try {
+      names = fs.readdirSync(dir);
+    } catch {
+      continue;
+    }
+
+    for (const name of names.toSorted().toReversed()) {
+      if (!name.endsWith(".cast")) continue;
+      const file = path.join(dir, name);
+      try {
+        const stat = fs.statSync(file);
+        const header = readHeader(file);
+        const meta = (header?.["faws"] ?? {}) as Record<string, unknown>;
+        out.push({
+          path: file,
+          name,
+          day,
+          bytes: stat.size,
+          modifiedAt: new Date(stat.mtimeMs).toISOString(),
+          kind: typeof meta["kind"] === "string" ? meta["kind"] : null,
+          target: typeof meta["target"] === "string" ? meta["target"] : null,
+          profile: typeof meta["profile"] === "string" ? meta["profile"] : null,
+          region: typeof meta["region"] === "string" ? meta["region"] : null,
+        });
+      } catch {
+        continue;
+      }
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
+/** Deletes one recording, refusing any path outside the recordings directory. */
+export function deleteRecording(file: string): void {
+  const root = recordingsDir();
+  const resolved = path.resolve(file);
+  // A path from a client is untrusted input even on a local server; without
+  // this, `../../` reaches anything the process can write.
+  if (!resolved.startsWith(path.resolve(root) + path.sep)) {
+    throw new Error("That path is not a recording.");
+  }
+  fs.rmSync(resolved);
+}

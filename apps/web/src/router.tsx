@@ -24,6 +24,7 @@ import { CLUSTER_TABS, ClusterPage } from "~/features/ecs/pages/ClusterPage";
 import { ClustersPage } from "~/features/ecs/pages/ClustersPage";
 import { DeploymentsPage } from "~/features/ecs/pages/DeploymentsPage";
 import { EcsIndexPage } from "~/features/ecs/pages/EcsIndexPage";
+import { InstancesPage } from "~/features/ec2/pages/InstancesPage";
 import { HomePage } from "~/pages/HomePage";
 import { NewSessionDialog } from "~/features/terminal/components/NewSessionDialog";
 import { TerminalDock } from "~/features/terminal/components/TerminalDock";
@@ -155,6 +156,12 @@ const bucketRoute = createRoute({
   component: BucketRoute,
 });
 
+const ec2InstancesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/ec2/instances",
+  component: InstancesPage,
+});
+
 const logsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/logs",
@@ -179,6 +186,7 @@ const routeTree = rootRoute.addChildren([
   s3IndexRoute,
   bucketsRoute,
   bucketRoute,
+  ec2InstancesRoute,
   logsRoute,
   settingsRoute,
 ]);

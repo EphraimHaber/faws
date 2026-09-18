@@ -2,7 +2,7 @@ import type { EcsContainerInstance, EcsService, EcsTask } from "@faws/contracts"
 import { relativeTime } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, Boxes, Cpu, ScrollText, Server } from "lucide-react";
+import { AlertTriangle, Boxes, Cpu, ScrollText, Server, TerminalSquare } from "lucide-react";
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
@@ -15,7 +15,9 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
+import { Button } from "~/components/ui/button";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { useSessions } from "~/stores/sessions";
 import { cpuLabel, memoryLabel, uptimeLabel } from "~/lib/format";
 import { serviceTone, taskTone } from "~/lib/status";
 import { HiddenCount, SilenceMenu } from "~/components/SilenceMenu";
@@ -481,6 +483,8 @@ function InstancesTable({
   query: QueryLike<EcsContainerInstance>;
   filter: string;
 }) {
+  const scope = useAwsScope();
+  const openSession = useSessions((state) => state.open);
   const columns = React.useMemo<Column<EcsContainerInstance>[]>(
     () => [
       {
@@ -558,8 +562,38 @@ function InstancesTable({
         value: (row) => row.capacityProvider ?? "-",
         mono: true,
       },
+      {
+        id: "shell",
+        header: "",
+        align: "right",
+        value: (row) => row.ec2InstanceId ?? "",
+        cell: (row) =>
+          row.ec2InstanceId ? (
+            <Button
+              // Session Manager rather than SSH: a container instance is
+              // reachable by agent whether or not it has a public address or a
+              // key pair, and this table already knows the agent is connected.
+              onClick={() =>
+                openSession({
+                  kind: "ssm",
+                  profile: scope.profile,
+                  region: scope.region,
+                  instanceId: row.ec2InstanceId ?? "",
+                })
+              }
+              disabled={!row.agentConnected}
+              title={
+                row.agentConnected
+                  ? `Open a Session Manager shell on ${row.ec2InstanceId}`
+                  : "The ECS agent on this instance is not connected"
+              }
+            >
+              <TerminalSquare className="size-3" /> Shell
+            </Button>
+          ) : null,
+      },
     ],
-    [],
+    [openSession, scope.profile, scope.region],
   );
 
   if (query.isPending) return <LoadingRows />;

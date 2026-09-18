@@ -1,6 +1,8 @@
-import { listExecTargets } from "@faws/core";
+import { listExecTargets, listSshHosts, readSshConfig } from "@faws/core";
+import { z } from "zod";
 
 import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
+import { deleteRecording, listRecordings } from "./recorder.ts";
 import { listSessions } from "./session.registry.ts";
 import { resolveSessionPlugin } from "./sessionPlugin.ts";
 
@@ -28,5 +30,17 @@ export const execRouter = router({
     .input(scopeInput)
     .query(({ input }) => guard(() => listExecTargets(input))),
 
+  /** Host aliases from ~/.ssh/config, for the new-session picker. */
+  sshHosts: publicProcedure.query(() => listSshHosts(readSshConfig())),
+
   sessions: publicProcedure.query(() => listSessions()),
+
+  recordings: publicProcedure.query(() => listRecordings()),
+
+  deleteRecording: publicProcedure
+    .input(z.object({ path: z.string().min(1) }))
+    .mutation(({ input }) => {
+      deleteRecording(input.path);
+      return { ok: true } as const;
+    }),
 });

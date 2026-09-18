@@ -10,6 +10,7 @@ import {
   Layers,
   Rocket,
   ScrollText,
+  Server,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -87,6 +88,15 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
     status: "available",
     basePath: "/s3",
     sections: [{ id: "buckets", label: "Buckets", icon: Database, to: "/s3/buckets" }],
+  },
+  {
+    id: "ec2",
+    label: "EC2",
+    description: "Instances, and shells onto them",
+    icon: Server,
+    status: "available",
+    basePath: "/ec2",
+    sections: [{ id: "instances", label: "Instances", icon: Server, to: "/ec2/instances" }],
   },
   {
     id: "lambda",

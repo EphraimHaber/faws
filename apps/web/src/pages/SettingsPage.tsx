@@ -6,6 +6,7 @@ import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
+import { RecordingsPanel } from "~/features/terminal/components/RecordingsPanel";
 import {
   DEFAULT_LOG_GUTTER,
   DEFAULT_LOG_TASK_GUTTER,
@@ -91,6 +92,8 @@ export function SettingsPage() {
           </KeyValue>
         </KeyValueGrid>
       </Panel>
+
+      <RecordingsPanel />
 
       <SilencedPanel />
 
