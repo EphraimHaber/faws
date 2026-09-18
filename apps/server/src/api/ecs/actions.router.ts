@@ -8,7 +8,7 @@
  * real SDK call goes.
  */
 import { stopTaskSchema, updateServiceSchema } from "@faws/contracts";
-import { assertMutable, isReadOnly, setReadOnly } from "@faws/core";
+import { assertMutable } from "@faws/core";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -30,13 +30,6 @@ function begin(operation: string): void {
 }
 
 export const ecsActionsRouter = router({
-  readOnly: publicProcedure.query(() => ({ readOnly: isReadOnly() })),
-
-  setReadOnly: publicProcedure.input(z.object({ readOnly: z.boolean() })).mutation(({ input }) => {
-    setReadOnly(input.readOnly);
-    return { readOnly: isReadOnly() };
-  }),
-
   updateService: publicProcedure.input(scopeInput.and(updateServiceSchema)).mutation(() => {
     begin("ecs:UpdateService");
     notImplemented("Update service");

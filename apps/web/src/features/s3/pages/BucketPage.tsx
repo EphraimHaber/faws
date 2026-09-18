@@ -28,6 +28,13 @@ export function BucketPage({ bucket }: { bucket: string }) {
     staleTime: Infinity,
   });
 
+  // Whether a delete here can be undone is part of what a confirmation has to
+  // say, so it is read alongside the bucket rather than guessed at the dialog.
+  const versioning = useQuery({
+    ...trpc.s3.versioning.queryOptions({ ...scope, bucket }),
+    staleTime: 5 * 60_000,
+  });
+
   if (region.isError) {
     return (
       <Panel className="flex-1">
@@ -55,6 +62,7 @@ export function BucketPage({ bucket }: { bucket: string }) {
           <ObjectBrowser
             bucket={bucket}
             prefix={prefix}
+            versioned={versioning.data ?? null}
             onNavigate={(next) => {
               const normalized = normalizePrefix(next);
               void navigate({

@@ -1,9 +1,10 @@
 import { relativeTime } from "@faws/shared";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
 import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import {
   DEFAULT_LOG_GUTTER,
@@ -16,6 +17,47 @@ import { useTheme } from "~/contexts/ThemeContext";
 import { trpc } from "~/lib/trpc";
 import { type SilenceEntry, useSilenced } from "~/stores/silenced";
 import { cn } from "~/lib/utils";
+
+/**
+ * The two switches in front of every mutation.
+ *
+ * Read-only is the state this build starts in, and arming deletion is a
+ * second, separate act: writing something new and destroying something that
+ * was already there are different risks, and the session forgets the second
+ * one when it ends.
+ */
+function WriteMode() {
+  const queryClient = useQueryClient();
+  const mode = useQuery(trpc.aws.writeMode.queryOptions());
+  const setMode = useMutation(
+    trpc.aws.setWriteMode.mutationOptions({
+      onSuccess: () => void queryClient.invalidateQueries(),
+    }),
+  );
+
+  const readOnly = mode.data?.readOnly ?? true;
+  const destructive = mode.data?.destructive ?? false;
+
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <Badge tone={readOnly ? "success" : destructive ? "danger" : "warning"}>
+        {readOnly ? "read-only" : destructive ? "deletion armed" : "read-write"}
+      </Badge>
+      <Button size="sm" onClick={() => setMode.mutate({ readOnly: !readOnly })}>
+        {readOnly ? "Allow writes" : "Return to read-only"}
+      </Button>
+      {readOnly ? null : (
+        <Button
+          size="sm"
+          variant={destructive ? "danger" : "outline"}
+          onClick={() => setMode.mutate({ destructive: !destructive })}
+        >
+          {destructive ? "Disarm deletion" : "Arm deletion"}
+        </Button>
+      )}
+    </span>
+  );
+}
 
 export function SettingsPage() {
   const scope = useAwsScope();
@@ -32,7 +74,6 @@ export function SettingsPage() {
   const { theme, toggle } = useTheme();
 
   const whoami = useQuery({ ...trpc.aws.whoami.queryOptions(scope), retry: false });
-  const readOnly = useQuery(trpc.ecsActions.readOnly.queryOptions());
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto">
@@ -46,9 +87,7 @@ export function SettingsPage() {
           <KeyValue label="Account">{whoami.data?.accountId ?? "-"}</KeyValue>
           <KeyValue label="Identity">{whoami.data?.arn ?? "-"}</KeyValue>
           <KeyValue label="Mode">
-            <Badge tone={readOnly.data?.readOnly ? "warning" : "success"}>
-              {readOnly.data?.readOnly ? "read-only" : "read-write"}
-            </Badge>
+            <WriteMode />
           </KeyValue>
         </KeyValueGrid>
       </Panel>

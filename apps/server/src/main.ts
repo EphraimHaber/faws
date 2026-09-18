@@ -59,8 +59,29 @@ server.setErrorHandler((error: FastifyError, request, reply) => {
   });
 });
 
+/**
+ * Loopback only.
+ *
+ * `origin: true` reflects whatever asked, which was survivable while the API
+ * could only read an inventory. It can now delete objects, so a page that
+ * guesses this port is no longer harmless: the allowlist is what keeps the
+ * answer to a drive by request a refusal.
+ */
+function isLocalOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "[::1]";
+  } catch {
+    return false;
+  }
+}
+
 await server.register(fastifyCors, {
-  origin: true,
+  origin: (origin, callback) => {
+    // A request with no origin is not a browser one, so there is nothing for
+    // the policy to protect against.
+    callback(null, origin === undefined || isLocalOrigin(origin));
+  },
   credentials: true,
   methods: ["GET", "POST", "OPTIONS"],
   // `range` is what lets a viewer read a leading slice of a large object;

@@ -12,13 +12,15 @@
  * and it would need the customer's bucket to allow this origin in its CORS
  * policy before a browser would fetch it at all.
  */
+import type { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
-import { getObjectStream } from "@faws/core";
+import { getObjectStream, putObject, uploadPart } from "@faws/core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { toTrpcError } from "../../trpc/index.ts";
+import { closeUpload, findUpload } from "./uploads.ts";
 
 const objectQuery = z.object({
   profile: z.string(),
@@ -67,7 +69,96 @@ function downloadName(key: string): string {
   return name.replaceAll(/["\\\r\n]/g, "_");
 }
 
+const uploadQuery = z.object({
+  uploadToken: z.string().min(1),
+  /** Absent for a single request upload, which has no parts. */
+  partNumber: z.coerce.number().int().min(1).max(10_000).optional(),
+});
+
+/**
+ * A browser sends a file's bytes as a stream, and Fastify would otherwise try
+ * to parse or buffer them. Handing the raw request through is what keeps a
+ * large part from becoming a large allocation.
+ */
+function passThroughBody(server: FastifyInstance): void {
+  server.addContentTypeParser("application/octet-stream", (_request, payload, done) =>
+    done(null, payload),
+  );
+}
+
 export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
+  passThroughBody(server);
+
+  /**
+   * One part, or a whole small object.
+   *
+   * POST rather than PUT so the allowed method list stays as it is: opening a
+   * write method across the origin policy buys nothing here.
+   */
+  server.post("/s3/upload", async (request: FastifyRequest, reply: FastifyReply) => {
+    const parsed = uploadQuery.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "BadRequest", message: parsed.error.message });
+    }
+
+    const session = findUpload(parsed.data.uploadToken);
+    if (!session) {
+      return reply.status(404).send({
+        error: "NOT_FOUND",
+        message: "That upload is no longer open.",
+      });
+    }
+
+    const length = Number(request.headers["content-length"] ?? 0);
+    if (!Number.isFinite(length) || length <= 0) {
+      return reply.status(411).send({
+        error: "LengthRequired",
+        message: "The part needs a content length.",
+      });
+    }
+
+    const body = request.body as Readable;
+
+    try {
+      if (session.uploadId === null) {
+        const result = await putObject(session.scope, {
+          bucket: session.bucket,
+          key: session.key,
+          body,
+          contentLength: length,
+          contentType: session.contentType,
+          overwrite: session.overwrite,
+        });
+        closeUpload(session.token);
+        return reply.send(result);
+      }
+
+      const partNumber = parsed.data.partNumber;
+      if (partNumber === undefined) {
+        return reply.status(400).send({
+          error: "BadRequest",
+          message: "A multipart upload needs a part number.",
+        });
+      }
+
+      const etag = await uploadPart(session.scope, {
+        bucket: session.bucket,
+        key: session.key,
+        uploadId: session.uploadId,
+        partNumber,
+        body,
+        contentLength: length,
+      });
+      // Returned in the body rather than read off a header, so nothing depends
+      // on which headers the origin policy exposes.
+      return reply.send({ partNumber, etag });
+    } catch (err) {
+      const mapped = toTrpcError(err);
+      const status = mapped.code === "FORBIDDEN" ? 403 : 400;
+      return reply.status(status).send({ error: mapped.code, message: mapped.message });
+    }
+  });
+
   server.get("/s3/object", async (request: FastifyRequest, reply: FastifyReply) => {
     const parsed = objectQuery.safeParse(request.query);
     if (!parsed.success) {

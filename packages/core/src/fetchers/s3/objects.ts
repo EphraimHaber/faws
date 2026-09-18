@@ -165,7 +165,7 @@ export async function getObjectStream(
         ...(ref.versionId ? { VersionId: ref.versionId } : {}),
         ...(options.range ? { Range: options.range } : {}),
       }),
-      { ...(options.signal ? { abortSignal: options.signal } : {}) },
+      options.signal ? { abortSignal: options.signal } : {},
     ),
   );
 

@@ -1,10 +1,12 @@
 import type { S3ObjectHead } from "@faws/contracts";
 import { byteSize, relativeTime } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
-import { Archive, Binary, Download, FileQuestion, X } from "lucide-react";
+import { Archive, Binary, Copy, Download, FileQuestion, Tag, X } from "lucide-react";
 import * as React from "react";
 
 import { JsonViewer } from "~/components/JsonViewer";
+import { CopyMoveDialog } from "~/features/s3/components/CopyMoveDialog";
+import { TagEditor } from "~/features/s3/components/TagEditor";
 import { HexViewer } from "~/features/s3/viewers/HexViewer";
 import {
   AudioViewer,
@@ -40,6 +42,10 @@ export function ObjectViewer({
   onClose: () => void;
 }) {
   const scope = useAwsScope();
+  const [dialog, setDialog] = React.useState<"copy" | "tags" | null>(null);
+  const writeMode = useQuery(trpc.aws.writeMode.queryOptions());
+  const canWrite = writeMode.data ? !writeMode.data.readOnly : false;
+
   const head = useQuery({
     ...trpc.s3.head.queryOptions({ ...scope, bucket, key: objectKey }),
     staleTime: 60_000,
@@ -55,6 +61,26 @@ export function ObjectViewer({
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {head.data ? <Badge>{head.data.openAs}</Badge> : null}
           <CopyButton size="icon" variant="ghost" value={objectKey} label="Copy key" />
+          {canWrite ? (
+            <>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Copy or move"
+                onClick={() => setDialog("copy")}
+              >
+                <Copy className="size-3" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Edit tags"
+                onClick={() => setDialog("tags")}
+              >
+                <Tag className="size-3" />
+              </Button>
+            </>
+          ) : null}
           <Button
             size="icon"
             variant="ghost"
@@ -87,6 +113,22 @@ export function ObjectViewer({
           <ObjectBody head={head.data} />
         </>
       )}
+
+      {dialog === "copy" ? (
+        <CopyMoveDialog bucket={bucket} sourceKey={objectKey} onClose={() => setDialog(null)} />
+      ) : null}
+
+      {dialog === "tags" ? (
+        <TagEditor
+          bucket={bucket}
+          objectKey={objectKey}
+          // The head carries user metadata, not the tag set, which is its own
+          // call; the editor starts from what is already known and the save
+          // replaces whatever is there.
+          tags={{}}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
     </Panel>
   );
 }
