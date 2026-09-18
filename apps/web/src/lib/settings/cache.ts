@@ -10,7 +10,7 @@
  *
  * It exists because theme and scope were read synchronously before, and a
  * round trip in their place is a flash of the wrong colour scheme followed by
- * a re-render. In packaged builds the server injects `window.__FAWS_SETTINGS__`
+ * a re-render. In packaged builds the server injects `window.fawsSettings`
  * and this is never consulted; it is what covers the dev server and a plain
  * browser tab on their second load onward.
  */
@@ -21,7 +21,7 @@ const CACHE_KEY = "faws:settings-cache";
 declare global {
   interface Window {
     /** Written into the served HTML by the server. Absent under Vite. */
-    __FAWS_SETTINGS__?: unknown;
+    fawsSettings?: unknown;
   }
 }
 
@@ -40,8 +40,8 @@ export function seedSettings(): Settings {
 
 function readInjected(): Settings | null {
   try {
-    if (window.__FAWS_SETTINGS__ === undefined) return null;
-    return settingsSchema.parse(window.__FAWS_SETTINGS__);
+    if (window.fawsSettings === undefined) return null;
+    return settingsSchema.parse(window.fawsSettings);
   } catch {
     return null;
   }

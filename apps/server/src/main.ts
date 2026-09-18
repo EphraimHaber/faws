@@ -17,7 +17,7 @@ import * as path from "node:path";
 import fastifyCors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
-import Fastify, { type FastifyBaseLogger, type FastifyError } from "fastify";
+import Fastify, { type FastifyBaseLogger, type FastifyError, type FastifyReply } from "fastify";
 
 import { attachExecNamespace } from "./api/exec/exec.service.ts";
 import { registerExecDrivers } from "./api/exec/index.ts";
@@ -25,8 +25,9 @@ import { closeAllSessions } from "./api/exec/session.registry.ts";
 import { s3BytesRoutes } from "./api/s3/bytes.routes.ts";
 import { attachS3ScanNamespace } from "./api/s3/scan.service.ts";
 import { attachSettingsBroadcast } from "./api/settings/settings.events.ts";
-import { flushSettings, loadSettings } from "./api/settings/settings.instance.ts";
+import { flushSettings, loadSettings, settingsStore } from "./api/settings/settings.instance.ts";
 import { appRouter, type AppRouter } from "./router.ts";
+import { createIndexHtmlRenderer } from "./shared/indexHtml.ts";
 import { getRootLogger } from "./shared/logger.ts";
 import {
   closeSocketIO,
@@ -99,6 +100,10 @@ await server.register(fastifyCors, {
   exposedHeaders: ["content-range", "accept-ranges", "content-length", "etag"],
 });
 
+// Before listen, so the very first request already sees the stored values
+// rather than defaults it would have to correct a moment later.
+await loadSettings();
+
 await server.register(fastifyTRPCPlugin, {
   prefix: "/trpc",
   trpcOptions: {
@@ -118,21 +123,25 @@ const webDist = process.env["FAWS_WEB_DIST"];
 if (webDist) {
   const root = path.resolve(webDist);
   if (fs.existsSync(path.join(root, "index.html"))) {
-    await server.register(fastifyStatic, { root, wildcard: false });
+    // `index: false` so the shell always goes through the renderer below: a
+    // statically served copy would reach the browser without the settings in
+    // it, and the desktop app would be back to flashing on every launch.
+    await server.register(fastifyStatic, { root, wildcard: false, index: false });
+    const renderIndex = createIndexHtmlRenderer(root);
+    const sendShell = async (reply: FastifyReply) =>
+      reply.type("text/html").send(await renderIndex(settingsStore().get().settings));
+
+    server.get("/", (_request, reply) => sendShell(reply));
     server.setNotFoundHandler((request, reply) => {
       if (request.url.startsWith("/trpc") || request.url.startsWith("/s3/")) {
         return reply.status(404).send({ error: "Not Found", message: request.url });
       }
-      return reply.type("text/html").sendFile("index.html");
+      return sendShell(reply);
     });
   } else {
     server.log.warn({ webDist: root }, "FAWS_WEB_DIST set but index.html not found");
   }
 }
-
-// Before listen, so the very first request already sees the stored values
-// rather than defaults it would have to correct a moment later.
-await loadSettings();
 
 const address = await server.listen({ host: HOST, port: PORT });
 const resolvedPort = (server.server.address() as { port: number } | null)?.port ?? PORT;

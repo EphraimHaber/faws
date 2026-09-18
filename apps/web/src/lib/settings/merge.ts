@@ -18,7 +18,7 @@ export function mergePatches(base: SettingsPatch, next: SettingsPatch): Settings
   for (const key of SECTIONS) {
     const incoming = next[key];
     if (!incoming) continue;
-    merged[key] = { ...(base[key] ?? {}), ...incoming };
+    merged[key] = { ...base[key], ...incoming };
   }
   return merged as SettingsPatch;
 }
