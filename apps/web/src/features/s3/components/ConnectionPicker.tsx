@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Check, HardDrive, ShieldAlert } from "lucide-react";
 import * as React from "react";
 
@@ -79,6 +80,18 @@ export function ConnectionPicker() {
                 }}
               />
             ))}
+
+            {/* Picking an endpoint and editing one are the same thought a
+                moment apart, and the list was the only place that named them
+                at all - so this is where someone looks for the way in. */}
+            <span aria-hidden className="mx-2 my-1 block h-px bg-border" />
+            <Link
+              to="/s3/connections"
+              onClick={() => setOpen(false)}
+              className="block rounded px-2 py-1.5 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              Manage endpoints…
+            </Link>
           </div>
         </>
       ) : null}

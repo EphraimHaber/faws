@@ -19,7 +19,7 @@ import { trpc } from "~/lib/trpc";
  * needs that AWS does not - a URL, keys, a CA, a client certificate - is
  * described per endpoint here.
  */
-export function ConnectionsPanel() {
+export function ConnectionsList() {
   const { connectionId, setConnectionId } = useScope();
   const [editing, setEditing] = React.useState<S3Connection | null | "new">(null);
 

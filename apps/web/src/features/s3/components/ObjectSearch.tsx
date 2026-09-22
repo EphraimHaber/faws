@@ -1,13 +1,14 @@
 import { type S3ObjectSummary, type S3ScanProgress, toS3Scope } from "@faws/contracts";
-import { byteSize, requiresDeep } from "@faws/shared";
-import { Download, Search, Square, Telescope } from "lucide-react";
+import { byteSize } from "@faws/shared";
+import { Download, Square } from "lucide-react";
 import * as React from "react";
 
+import { SearchField } from "~/components/SearchField";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import { Kbd } from "~/components/ui/kbd";
 import { Spinner } from "~/components/ui/spinner";
 import { useS3Scope } from "~/contexts/ScopeContext";
+import { parseText, useSearchState } from "~/hooks/useSearchState";
 import { startScan, type RunningScan } from "~/lib/s3-scan";
 import { cn } from "~/lib/utils";
 
@@ -15,14 +16,25 @@ import { cn } from "~/lib/utils";
 const MAX_OBJECTS = 200_000;
 const MAX_SECONDS = 120;
 
+/** How long the box holds still before the pattern lands in the URL. */
+const PATTERN_DEBOUNCE_MS = 200;
+
 export interface ScanState {
   readonly running: boolean;
   readonly hits: ReadonlyArray<S3ObjectSummary>;
   readonly progress: S3ScanProgress | null;
   readonly error: string | null;
+  /** The pattern these hits came from, which is not what the box now says. */
+  readonly pattern: string;
 }
 
-export const IDLE_SCAN: ScanState = { running: false, hits: [], progress: null, error: null };
+export const IDLE_SCAN: ScanState = {
+  running: false,
+  hits: [],
+  progress: null,
+  error: null,
+  pattern: "",
+};
 
 /**
  * Recursive search across a prefix.
@@ -30,6 +42,11 @@ export const IDLE_SCAN: ScanState = { running: false, hits: [], progress: null, 
  * Applying is explicit rather than debounced: a scan is a walk over every key
  * under the prefix, billed per thousand, and a keystroke-per-request search
  * box is a surprising thing to find on a bill.
+ *
+ * The pattern rides in the URL so a scan can be described to someone, but the
+ * URL carries only the text, never the fact that it ran. A link opens with the
+ * box filled in and the listing still on screen, waiting for Enter: a pasted
+ * link that spends money on arrival is the one behaviour this must not have.
  */
 export function ObjectSearch({
   bucket,
@@ -43,7 +60,12 @@ export function ObjectSearch({
   onState: (next: ScanState) => void;
 }) {
   const scope = useS3Scope();
-  const [query, setQuery] = React.useState("");
+  const [query, setQuery] = useSearchState<string>({
+    key: "scan",
+    fallback: "",
+    parse: parseText,
+    debounceMs: PATTERN_DEBOUNCE_MS,
+  });
   const running = React.useRef<RunningScan | null>(null);
 
   // A scan outlives the render that started it, so leaving the page has to
@@ -51,6 +73,16 @@ export function ObjectSearch({
   React.useEffect(() => {
     return () => running.current?.cancel();
   }, []);
+
+  // The listing can also be restored from the panel header, which puts the
+  // state back to idle without coming through `stop`. A walk that is still
+  // billing after the screen says it is over is the worst version of that, so
+  // the socket follows the state rather than only the button.
+  React.useEffect(() => {
+    if (state.running) return;
+    running.current?.cancel();
+    running.current = null;
+  }, [state.running]);
 
   const stop = React.useCallback(() => {
     running.current?.cancel();
@@ -64,7 +96,7 @@ export function ObjectSearch({
 
     running.current?.cancel();
     let hits: S3ObjectSummary[] = [];
-    onState({ running: true, hits, progress: null, error: null });
+    onState({ running: true, hits, progress: null, error: null, pattern });
 
     running.current = startScan(
       {
@@ -79,16 +111,16 @@ export function ObjectSearch({
       {
         onChunk: (objects) => {
           hits = [...hits, ...objects];
-          onState({ running: true, hits, progress: null, error: null });
+          onState({ running: true, hits, progress: null, error: null, pattern });
         },
-        onProgress: (progress) => onState({ running: true, hits, progress, error: null }),
+        onProgress: (progress) => onState({ running: true, hits, progress, error: null, pattern }),
         onDone: (progress) => {
           running.current = null;
-          onState({ running: false, hits, progress, error: null });
+          onState({ running: false, hits, progress, error: null, pattern });
         },
         onError: (message) => {
           running.current = null;
-          onState({ running: false, hits, progress: null, error: message });
+          onState({ running: false, hits, progress: null, error: message, pattern });
         },
       },
     );
@@ -106,56 +138,59 @@ export function ObjectSearch({
     URL.revokeObjectURL(url);
   }, [state.hits, bucket]);
 
-  const deep = requiresDeep(query);
+  const pattern = query.trim();
+  // What the box says and what produced the hits are separate on purpose: a
+  // link arrives with the first and none of the second.
+  const unapplied = pattern.length > 0 && pattern !== state.pattern;
 
   return (
-    <div className="flex shrink-0 flex-col gap-1.5 border-b border-border px-3 py-2">
-      <div className="flex items-center gap-2">
-        <Search className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={1.7} />
-        <Input
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") start();
-          }}
-          placeholder="Search every key under this prefix, e.g. **/*.json"
-          aria-label="Search keys"
-          className="max-w-lg font-mono"
-        />
-        {state.running ? (
-          <Button size="sm" variant="danger" onClick={stop}>
-            <Square className="size-3" /> Stop
-          </Button>
-        ) : (
-          <Button size="sm" onClick={start} disabled={query.trim().length === 0}>
-            Search <Kbd>↵</Kbd>
-          </Button>
-        )}
-        {state.hits.length > 0 ? (
-          <Button size="sm" variant="ghost" onClick={exportKeys}>
-            <Download className="size-3" /> Export {state.hits.length} keys
-          </Button>
-        ) : null}
-      </div>
-
-      <div className="flex items-center gap-3 font-mono text-[10.5px] text-muted-foreground">
-        {state.running ? <Spinner className="size-3" /> : null}
-        {deep ? (
-          <span className="flex items-center gap-1 text-info">
-            <Telescope className="size-3" /> crosses folders
-          </span>
-        ) : (
-          <span>* stops at a slash, ** crosses one</span>
-        )}
-        {state.progress ? (
-          <span className={cn(state.progress.truncated && "text-warning")}>
-            {state.progress.matched} of {state.progress.scanned} keys ·{" "}
-            {byteSize(state.progress.bytes)}
-            {state.progress.truncated ? " · stopped at the limit" : ""}
-          </span>
-        ) : null}
-        {state.error ? <span className="text-danger">{state.error}</span> : null}
-      </div>
+    <div className="flex shrink-0 flex-col border-b border-border px-3 py-2">
+      <SearchField
+        surface="remote"
+        value={query}
+        onChange={setQuery}
+        onSubmit={start}
+        placeholder="Search every key under this prefix, e.g. **/*.json"
+        inputClassName="w-full max-w-lg font-mono"
+        actions={
+          <>
+            {state.running ? (
+              <Button size="sm" variant="danger" onClick={stop}>
+                <Square className="size-3" /> Stop
+              </Button>
+            ) : (
+              <Button size="sm" onClick={start} disabled={pattern.length === 0}>
+                Search <Kbd>↵</Kbd>
+              </Button>
+            )}
+            {state.hits.length > 0 ? (
+              <Button size="sm" variant="ghost" onClick={exportKeys}>
+                <Download className="size-3" /> Export {state.hits.length} keys
+              </Button>
+            ) : null}
+          </>
+        }
+        hint={
+          <>
+            {state.running ? <Spinner className="size-3" /> : null}
+            {unapplied && !state.running ? (
+              <span className="text-warning">
+                Press <Kbd>↵</Kbd> to walk this prefix
+              </span>
+            ) : (
+              <span>* stops at a slash, ** crosses one</span>
+            )}
+            {state.progress ? (
+              <span className={cn(state.progress.truncated && "text-warning")}>
+                {state.progress.matched} of {state.progress.scanned} keys ·{" "}
+                {byteSize(state.progress.bytes)}
+                {state.progress.truncated ? " · stopped at the limit" : ""}
+              </span>
+            ) : null}
+            {state.error ? <span className="text-danger">{state.error}</span> : null}
+          </>
+        }
+      />
     </div>
   );
 }

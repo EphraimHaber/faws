@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compileMatcher, globToRegex, isPattern, requiresDeep } from "./glob.ts";
+import { classifyQuery, compileMatcher, globToRegex, isPattern, requiresDeep } from "./glob.ts";
 
 describe("isPattern", () => {
   it("is true only for a query carrying a wildcard", () => {
@@ -83,5 +83,41 @@ describe("globToRegex", () => {
 
   it("ignores case, as the rest of the filtering does", () => {
     expect(globToRegex("*.JSON").test("app.json")).toBe(true);
+  });
+});
+
+describe("classifyQuery", () => {
+  it("calls a blank query empty, whitespace included", () => {
+    expect(classifyQuery("")).toBe("empty");
+    expect(classifyQuery("   ")).toBe("empty");
+  });
+
+  it("calls plain text a substring", () => {
+    expect(classifyQuery("report")).toBe("substring");
+    expect(classifyQuery("  report  ")).toBe("substring");
+  });
+
+  it("calls a wildcard within one folder a shallow glob", () => {
+    expect(classifyQuery("*.json")).toBe("glob-shallow");
+    expect(classifyQuery("log?")).toBe("glob-shallow");
+    expect(classifyQuery("[abc].txt")).toBe("glob-shallow");
+  });
+
+  it("calls anything spanning a separator deep, pattern or not", () => {
+    // `logs/app` carries no wildcard at all and still cannot be answered from
+    // one folder's listing, which is the whole reason the label exists.
+    expect(classifyQuery("**/*.json")).toBe("glob-deep");
+    expect(classifyQuery("logs/app")).toBe("glob-deep");
+  });
+
+  it("stays in step with the helpers it is composed from", () => {
+    for (const query of ["", "report", "*.json", "logs/app", "**/*.json"]) {
+      const trimmed = query.trim();
+      const shape = classifyQuery(query);
+      expect(shape === "glob-deep").toBe(trimmed.length > 0 && requiresDeep(trimmed));
+      expect(shape === "glob-shallow").toBe(
+        trimmed.length > 0 && isPattern(trimmed) && !requiresDeep(trimmed),
+      );
+    }
   });
 });
