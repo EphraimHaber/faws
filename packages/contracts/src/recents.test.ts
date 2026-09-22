@@ -161,13 +161,27 @@ describe("pruneRecents", () => {
 });
 
 describe("recentsSettingsSchema", () => {
-  it("costs one unreadable entry only itself", () => {
+  it("costs one unreadable map only itself", () => {
     const parsed = recentsSettingsSchema.parse({
       visited: { good: { ...ref(), at: AT.toISOString() } },
       pinned: "nonsense",
     });
     expect(parsed.visited["good"]).toBeDefined();
     expect(parsed.pinned).toEqual({});
+  });
+
+  it("costs one unreadable entry only itself", () => {
+    // A kind from a newer build is the realistic case: it must not take the
+    // entries this build can read down with it.
+    const parsed = recentsSettingsSchema.parse({
+      visited: {
+        good: { ...ref(), at: AT.toISOString() },
+        future: { ...ref(), kind: "future-kind", at: AT.toISOString() },
+      },
+      pinned: { good: { ...ref(), at: AT.toISOString() }, broken: { label: "" } },
+    });
+    expect(Object.keys(parsed.visited)).toEqual(["good"]);
+    expect(Object.keys(parsed.pinned)).toEqual(["good"]);
   });
 
   it("fills a missing scope rather than dropping the entry", () => {

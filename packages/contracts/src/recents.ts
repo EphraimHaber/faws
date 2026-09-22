@@ -28,6 +28,8 @@
  */
 import { z } from "zod";
 
+import { recordOfEach } from "./persisted.ts";
+
 /**
  * What can be remembered.
  *
@@ -90,7 +92,7 @@ export const recentEntrySchema = resourceRefSchema.extend({ at: z.string().min(1
 
 export type RecentEntry = z.infer<typeof recentEntrySchema>;
 
-const refMapSchema = z.record(z.string(), recentEntrySchema).catch({});
+const refMapSchema = recordOfEach(recentEntrySchema);
 
 export const recentsSettingsSchema = z.object({
   /** Everywhere you have been, newest write wins. */

@@ -98,6 +98,18 @@ describe("settingsPatchSchema", () => {
   });
 });
 
+describe("silencedSettingsSchema", () => {
+  it("costs one unreadable entry only itself", () => {
+    const parsed = settingsSchema.parse({
+      silenced: {
+        muted: { good: entry("good", "2026-01-01T00:00:00.000Z"), broken: { arn: "" } },
+        dismissed: {},
+      },
+    });
+    expect(Object.keys(parsed.silenced.muted)).toEqual(["good"]);
+  });
+});
+
 describe("pruneSilenced", () => {
   it("leaves a map under the cap alone", () => {
     const muted = { a: entry("a", "2026-01-01T00:00:00.000Z") };

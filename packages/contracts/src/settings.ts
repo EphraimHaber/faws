@@ -22,6 +22,7 @@
  */
 import { z } from "zod";
 
+import { recordOfEach } from "./persisted.ts";
 import { recentsSettingsSchema } from "./recents.ts";
 import { s3ConnectionSchema } from "./s3-connections.ts";
 
@@ -104,7 +105,7 @@ export const silenceEntrySchema = z.object({
 
 export type SilenceEntry = z.infer<typeof silenceEntrySchema>;
 
-const silenceMapSchema = z.record(z.string(), silenceEntrySchema).catch({});
+const silenceMapSchema = recordOfEach(silenceEntrySchema);
 
 export const scopeSettingsSchema = z.object({
   profile: z.string().min(1).catch("default"),
