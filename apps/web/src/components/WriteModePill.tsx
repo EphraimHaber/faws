@@ -30,10 +30,9 @@ const LEVELS: Record<WriteLevel, { label: string; hint: string; className: strin
  * What this session is allowed to do, in the title bar.
  *
  * It sits with the profile and the region because it belongs to the same
- * question those answer - what am I about to change, and where - and because
- * it is the one piece of that answer the app used to keep to itself. The mode
- * was a badge at the top of the Settings page, which is exactly where someone
- * who does not already know about it will never look.
+ * question those answer - what am I about to change, and where. A badge in
+ * Settings would be exactly where someone who does not already know about the
+ * mode will never look.
  *
  * Arming is deliberate and disarming is not. Turning writes on, or arming
  * deletion, asks; going back to read-only is one click, because the safe

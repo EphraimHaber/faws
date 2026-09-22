@@ -1,9 +1,8 @@
 /**
  * The preferences the server persists, and the shapes for changing them.
  *
- * These used to be a dozen independent `localStorage` keys in the renderer.
- * They live here because the server now owns them: it parses this schema when
- * it reads the file, the tRPC procedures validate writes with the patch and
+ * They live here because the server owns them, not the renderer's
+ * `localStorage`: it parses this schema when it reads the file, the tRPC procedures validate writes with the patch and
  * op schemas below, and the renderer builds its state from the same types.
  *
  * Two conventions run through the whole file:
@@ -60,7 +59,7 @@ export const MIN_SIDEBAR_WIDTH = 180;
  * room from the thing being read without showing anything more of itself.
  */
 export const MAX_SIDEBAR_WIDTH = 480;
-/** `w-64`, which is what it was fixed at before it could be dragged. */
+/** `w-64`. */
 export const DEFAULT_SIDEBAR_WIDTH = 256;
 
 /** Clock time is enough to follow a tail; the full stamp is what you paste

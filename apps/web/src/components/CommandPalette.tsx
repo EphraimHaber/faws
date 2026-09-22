@@ -182,8 +182,8 @@ function PaletteBody({
 
   // Ranked rather than filtered. A subsequence test answers "could these
   // letters be found in order", which is a fine filter and no order at all:
-  // typing `inst` used to leave "Instances" wherever it happened to sit in the
-  // array. `rankBy` keeps every match the old test would have kept.
+  // typing `inst` would leave "Instances" wherever it happened to sit in the
+  // array. `rankBy` keeps every subsequence match, below the better ones.
   const matches = React.useMemo(
     () => rankBy(entries, query, entryText, groupBoost).slice(0, 40),
     [entries, query],

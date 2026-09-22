@@ -59,10 +59,9 @@ export function entryText(entry: PaletteEntry): ReadonlyArray<string> {
 /**
  * Every place in the app you can navigate to, from the service registry.
  *
- * Derived rather than listed, because a hardcoded copy drifts: EC2 had been a
- * built, sidebar-listed section for some time and had no palette entry at all,
- * so the one screen designed for "I know what I want, take me there" was the
- * one place you could not reach it from.
+ * Derived rather than listed, because a hand-kept copy drifts: a section the
+ * sidebar shows and the palette does not makes the one screen designed for "I
+ * know what I want, take me there" the one place it cannot be reached from.
  *
  * Planned services are left out. The sidebar lists them so the gap is known;
  * offering a jump to a page that does not exist is a different thing.
@@ -88,10 +87,9 @@ export function navEntries(
 
     out.push({
       // The description rides as the hint rather than being split into
-      // keywords. Split, each of its words became an exact match of its own,
-      // so typing "instances" scored EC2's front door identically to EC2's
-      // actual instance list and won on insertion order - the card page
-      // beating the page with the rows on it. Whole, it can only ever be a
+      // keywords. Split, each of its words would be an exact match of its own,
+      // so typing "instances" would score EC2's front door the same as EC2's
+      // instance list and win on insertion order. Whole, it can only ever be a
       // prefix or substring match, which is what a description should be.
       id: `nav:${service.id}`,
       icon: service.icon,

@@ -26,13 +26,12 @@ import { useSessions } from "~/stores/sessions";
  * rather than a general-purpose inventory. An instance nothing can reach says
  * so plainly instead of offering a button that cannot succeed.
  *
- * It is a `DataTable`, like every other list in the app. It used to be a
- * hand-rolled flex row per instance, which cost it three things the shared
- * table gives away: headers, so the columns are named at all; a fixed grid, so
- * a row with two addresses or a wider badge stops shoving every cell after it
- * out of line with the rows above; and sorting plus `column:value` filtering.
- * Thirty rows of unlabelled, unaligned columns is not something anyone can
- * read down.
+ * It is a `DataTable`, like every other list in the app, rather than a flex
+ * row per instance, for three things the shared table gives away: headers, so
+ * the columns are named at all; a fixed grid, so a row with two addresses or a
+ * wider badge does not shove every cell after it out of line with the rows
+ * above; and sorting plus `column:value` filtering. Thirty rows of unlabelled,
+ * unaligned columns is not something anyone can read down.
  */
 export function InstancesPage() {
   const scope = useAwsScope();

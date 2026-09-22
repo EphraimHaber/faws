@@ -102,9 +102,9 @@ function tabSearch<const T extends readonly [string, ...string[]]>(tabs: T) {
 /**
  * The text in a page's filter box.
  *
- * Every list in the app has one, and until now it lived in component state and
- * died on reload. In the URL it survives a refresh, it can be pasted to
- * someone, and the back button reaches it - `useFilterSearch` writes it and
+ * Every list in the app has one, and it lives in the URL rather than in
+ * component state: there it survives a refresh, it can be pasted to someone,
+ * and the back button reaches it - `useFilterSearch` writes it and
  * every route that renders a filter declares it here so the router keeps it.
  */
 const filterSearch = z.object({ q: z.string().max(200).optional().catch(undefined) });

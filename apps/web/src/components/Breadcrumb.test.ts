@@ -94,8 +94,7 @@ describe("deriveCrumbs", () => {
   });
 
   it("reaches the EC2 instance list", () => {
-    // It used to stop at "EC2", whose own crumb pointed at a route that did
-    // not exist - so the trail's last step was both missing and broken.
+    // Stopping at "EC2" would leave the page it is on out of the trail.
     expect(labels("/ec2/instances")).toEqual(["Overview", "EC2", "Instances"]);
     expect(paths("/ec2/instances")).toEqual(["/", "/ec2", "/ec2/instances"]);
   });

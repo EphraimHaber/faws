@@ -71,10 +71,10 @@ export function HomePage() {
 /**
  * What you were last doing, above the service you are about to pick.
  *
- * The overview is the screen a cold session starts on, and it used to open on
- * a choice between five services regardless of whether four of them had been
- * touched in a month. Pins first, then the last few places, because a pin is
- * an answer someone gave deliberately and recency is only a guess.
+ * The overview is the screen a cold session starts on, and a bare choice
+ * between five services ignores that four of them may not have been touched
+ * in a month. Pins first, then the last few places, because a pin is an answer
+ * someone gave deliberately and recency is only a guess.
  *
  * Absent entirely until there is something in it: a panel headed "Jump back
  * in" with nothing under it is a worse first run than no panel.

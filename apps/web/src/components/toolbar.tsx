@@ -8,7 +8,7 @@ import { SearchField } from "~/components/SearchField";
  * It filters the rows this page has already loaded and nothing else, which is
  * why it is a `SearchField` on the `loaded` surface: the S3 object browser
  * puts one of these directly above a box that walks the whole bucket, and the
- * two used to be indistinguishable.
+ * two must not look alike.
  */
 export function FilterInput({
   value,

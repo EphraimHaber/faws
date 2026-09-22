@@ -49,7 +49,7 @@ describe("scoreMatch", () => {
 
 describe("rankBy", () => {
   it("puts the obvious answer first regardless of input order", () => {
-    // The bug this module fixes: insertion order used to decide this.
+    // Insertion order must not decide this.
     expect(order(["invoice-ingest", "notification-stack", "Instances"], "inst")[0]).toBe(
       "Instances",
     );

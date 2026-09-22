@@ -10,10 +10,10 @@ export function useDisabledReason(need: WriteNeed): string | null {
 /**
  * Renders a control that knows why it cannot be used.
  *
- * The app used to answer read-only mode by *hiding* mutating controls. That is
- * tidy and it teaches nothing: a delete button that is absent and a delete
- * button this build does not have look identical, so the mode people are in is
- * invisible until they go looking in Settings for something they cannot find.
+ * Disabled rather than hidden. Hiding a mutating control is tidy and teaches
+ * nothing: a delete button that is absent and a delete button this build does
+ * not have look identical, so the mode people are in is invisible until they
+ * go looking in Settings for something they cannot find.
  * A disabled control with a reason on it says what is true and what to do about
  * it, in the place where the question came up.
  *

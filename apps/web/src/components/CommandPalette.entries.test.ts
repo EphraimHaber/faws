@@ -30,7 +30,7 @@ describe("navEntries", () => {
     }
   });
 
-  it("includes EC2, which the hardcoded list had omitted entirely", () => {
+  it("puts EC2's instance list first for its own name", () => {
     const ranked = rankBy(allEntries(), "instances", entryText, groupBoost);
     expect(ranked[0]?.id).toBe("nav:ec2:instances");
   });

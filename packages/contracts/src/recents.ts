@@ -1,9 +1,9 @@
 /**
  * The resources this account has been looking at, and the ones it keeps.
  *
- * Every session used to start from a cold list: the bucket you were walking an
- * hour ago and the service you deploy every day were both exactly as far away
- * as a bucket you have never opened. These two maps are the memory of that,
+ * Without them every session starts from a cold list: the bucket you were
+ * walking an hour ago and the service you deploy every day are as far away as
+ * a bucket you have never opened. These two maps are the memory of that,
  * and they live in the settings file rather than in `localStorage` for the same
  * reason the mute list does - the answer to "what am I working on" should
  * follow the person from the browser to the desktop app, not be a property of

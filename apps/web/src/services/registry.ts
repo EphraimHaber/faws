@@ -115,7 +115,7 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
       { id: "buckets", label: "Buckets", icon: Database, to: "/s3/buckets" },
       // S3 is the one service that can be pointed somewhere other than AWS, so
       // where it is pointed is part of S3 rather than a preference buried in
-      // Settings - which is where it used to be, and where nobody found it.
+      // Settings, where nobody would look for it.
       { id: "connections", label: "Endpoints", icon: Plug, to: "/s3/connections" },
     ],
   },

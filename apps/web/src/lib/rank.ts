@@ -1,13 +1,13 @@
 /**
  * Ranking for the places that search a list of things by name.
  *
- * The palette used to filter with a bare subsequence test, which answers "could
- * these letters be found in order" and nothing else. That is a fine *filter* and
- * a poor *sort*: typing `inst` put every entry containing an i, an n, an s and a
- * t in insertion order, so "Instances" could sit below a cluster that merely
- * happened to be declared first. The fix is not a stricter test - a subsequence
- * match is genuinely wanted, and `apsv` should still find `api-service` - but a
- * score, so the obvious answer sorts above the clever one.
+ * A bare subsequence test answers "could these letters be found in order" and
+ * nothing else. That is a fine *filter* and a poor *sort*: typing `inst` would
+ * put every entry containing an i, an n, an s and a t in insertion order, so
+ * "Instances" could sit below a cluster that merely happened to be declared
+ * first. A stricter test is not the answer - a subsequence match is genuinely
+ * wanted, and `apsv` should still find `api-service` - a score is, so the
+ * obvious answer sorts above the clever one.
  *
  * The ladder below is ordered by how deliberate a match looks. Each tier is far
  * enough above the next that no within-tier tie-break can cross it: a substring

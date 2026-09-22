@@ -19,8 +19,7 @@ import { serviceForPath } from "~/services/registry";
 export function AppHeader({ onOpenPalette }: { onOpenPalette: () => void }) {
   const { theme, toggle } = useTheme();
   const { location } = useRouterState();
-  // Which section is open, rather than the name of the first one ever built.
-  // The wordmark read "ecs" on every page, including the S3 ones.
+  // Which section is open, so the wordmark on an S3 page does not say "ecs".
   const service = serviceForPath(location.pathname);
 
   return (
