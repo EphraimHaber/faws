@@ -31,8 +31,13 @@ export function AppSidebar() {
   }, [clusters.data, filter]);
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-chrome">
-      <nav className="flex flex-col gap-px px-2.5 pt-3 pb-2">
+    // One scroll region for the whole rail rather than a pinned nav above a
+    // scrolling list. The nav is as tall as the registry makes it, and on a
+    // short window - or once pinned and recent rows join it - a nav that could
+    // not scroll simply lost its bottom rows: Settings and Diagnostics were
+    // clipped off the end with no way to reach them.
+    <aside className="flex w-64 shrink-0 flex-col overflow-y-auto border-r border-border bg-chrome">
+      <nav className="flex shrink-0 flex-col gap-px px-2.5 pt-3 pb-2">
         <NavLink to="/" icon={Home} label="Overview" active={location.pathname === "/"} />
 
         <span aria-hidden className="mx-2 my-1.5 h-px bg-border" />
@@ -81,7 +86,7 @@ export function AppSidebar() {
         />
       </nav>
 
-      <div className="mx-3.5 mt-2 mb-1.5 flex items-center gap-2.5 border-t border-border pt-3.5">
+      <div className="mx-3.5 mt-2 mb-1.5 flex shrink-0 items-center gap-2.5 border-t border-border pt-3.5">
         <span className="font-mono text-[9.5px] tracking-[0.26em] text-muted-foreground uppercase">
           Clusters
         </span>
@@ -91,7 +96,7 @@ export function AppSidebar() {
         </span>
       </div>
 
-      <div className="px-2.5 pb-2">
+      <div className="shrink-0 px-2.5 pb-2">
         <input
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
@@ -100,7 +105,7 @@ export function AppSidebar() {
         />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-px overflow-y-auto px-2 pb-3">
+      <div className="flex shrink-0 flex-col gap-px px-2 pb-3">
         {clusters.isPending ? (
           <div className="flex flex-col gap-1 px-0.5">
             {Array.from({ length: 5 }, (_, i) => (
