@@ -55,6 +55,15 @@ describe("navEntries", () => {
     expect(sessions?.label).toBe("Sessions");
   });
 
+  it("offers session recordings as a section of Sessions", () => {
+    const navigate = vi.fn();
+    const recordings = navEntries(navigate, EVERYTHING).find(
+      (entry) => entry.id === "nav:sessions:recordings",
+    );
+    recordings?.run();
+    expect(navigate).toHaveBeenCalledWith("/sessions/recordings");
+  });
+
   it("offers Virtual machines only on a cluster that has KubeVirt, as the sidebar does", () => {
     const id = "nav:kubernetes:virtual-machines";
     const without = navEntries(() => {}, { kubeVirt: false }).map((entry) => entry.id);

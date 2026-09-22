@@ -3,6 +3,7 @@ import {
   Container,
   Database,
   FileJson,
+  Film,
   FunctionSquare,
   Gauge,
   HardDrive,
@@ -164,8 +165,8 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
    * Every terminal the app has open, whatever it is connected to.
    *
    * Here rather than beside Diagnostics and Settings because it is somewhere
-   * you go to do something, and because sessions to connect to and recordings
-   * of past ones belong under it as sections.
+   * you go to do something. The page itself lists what is open and what can be
+   * opened; recordings of past sessions are a section under it.
    */
   {
     id: "sessions",
@@ -174,7 +175,7 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
     icon: TerminalSquare,
     status: "available",
     basePath: "/sessions",
-    sections: [],
+    sections: [{ id: "recordings", label: "Recordings", icon: Film, to: "/sessions/recordings" }],
   },
   {
     id: "lambda",

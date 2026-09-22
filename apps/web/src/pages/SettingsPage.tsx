@@ -9,7 +9,6 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { TextAction, textActionClass } from "~/components/ui/text-action";
-import { RecordingsPanel } from "~/features/terminal/components/RecordingsPanel";
 import {
   DEFAULT_LOG_GUTTER,
   DEFAULT_LOG_TASK_GUTTER,
@@ -92,11 +91,9 @@ export function SettingsPage() {
         </KeyValueGrid>
       </Panel>
 
-      <RecordingsPanel />
-
-      {/* The endpoints moved to their own page under S3, where they belong.
-          The row stays because this is where they lived, and a section that
-          vanishes from the place someone last saw it reads as removed. */}
+      {/* Pointers rather than the lists themselves: endpoints belong to S3 and
+          recordings to Sessions, but Settings is where people look for both,
+          and a thing that is simply absent from here reads as removed. */}
       <Panel className="shrink-0">
         <PanelHeader>
           <PanelTitle>S3 endpoints</PanelTitle>
@@ -107,6 +104,18 @@ export function SettingsPage() {
         <p className="px-3.5 py-2.5 text-[12.5px] text-muted-foreground">
           S3 compatible servers on your own network are managed under S3, alongside the buckets they
           serve.
+        </p>
+      </Panel>
+
+      <Panel className="shrink-0">
+        <PanelHeader>
+          <PanelTitle>Session recordings</PanelTitle>
+          <Link to="/sessions/recordings" className={cn(textActionClass, "ml-auto")}>
+            open recordings
+          </Link>
+        </PanelHeader>
+        <p className="px-3.5 py-2.5 text-[12.5px] text-muted-foreground">
+          Recordings of past sessions, and whether new ones are recorded, are under Sessions.
         </p>
       </Panel>
 

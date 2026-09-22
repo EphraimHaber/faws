@@ -25,7 +25,7 @@ function sizeLabel(bytes: number): string {
  * or to someone else - playback in the app would be a second terminal renderer
  * for a job the format already has a tool for.
  */
-export function RecordingsPanel() {
+export function RecordingsPage() {
   const recordings = useQuery(trpc.exec.recordings.queryOptions());
   const queryClient = useQueryClient();
   const recordByDefault = useSettings((state) => state.settings.terminal.recordByDefault);
@@ -38,13 +38,14 @@ export function RecordingsPanel() {
   const rows = recordings.data ?? [];
 
   return (
-    <Panel className="shrink-0">
+    <Panel className="min-h-0 flex-1">
       <PanelHeader>
         <PanelTitle>Session recordings</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
         <label className="ml-auto flex items-center gap-1.5 text-[12px]">
           <input
             type="checkbox"
+            className="size-3.5 cursor-pointer accent-primary"
             checked={recordByDefault}
             onChange={(event) =>
               updateSettings({ terminal: { recordByDefault: event.target.checked } })
@@ -61,7 +62,7 @@ export function RecordingsPanel() {
           hint="Every session is written as an asciicast, replayable with `asciinema play`"
         />
       ) : (
-        <div className="max-h-80 overflow-auto">
+        <div className="min-h-0 overflow-auto">
           {rows.map((row) => (
             <div
               key={row.path}
@@ -80,6 +81,7 @@ export function RecordingsPanel() {
               </span>
               <CopyButton value={row.path} />
               <Button
+                size="xs"
                 variant="ghost"
                 title="Delete this recording"
                 aria-label={`Delete ${row.name}`}
