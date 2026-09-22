@@ -9,9 +9,9 @@
  */
 import * as path from "node:path";
 
-import { forgetBinary, resolveBinary } from "../../shared/binaries.ts";
+import { type BinarySource, forgetBinary, resolveBinary } from "../../shared/binaries.ts";
 
-export type PluginSource = "env" | "bundled" | "path" | "well-known" | "missing";
+export type PluginSource = BinarySource;
 
 export interface PluginResolution {
   readonly path: string | null;

@@ -4,7 +4,7 @@ import * as path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { forgetBinary, resolveBinary } from "./binaries.ts";
+import { forgetBinary, machOArchitectures, resolveBinary, runsOn } from "./binaries.ts";
 
 let dir: string;
 const platform = process.platform;
@@ -114,5 +114,61 @@ describe("memoization", () => {
     expect(resolveBinary("virtctl").path).toBeNull();
     forgetBinary("virtctl");
     expect(resolveBinary("virtctl").path).toBe(virtctl);
+  });
+});
+
+/** The first bytes of a thin 64-bit Mach-O binary for one CPU type. */
+function thinMachO(cpuType: number): Buffer {
+  const header = Buffer.alloc(32);
+  header.writeUInt32LE(0xfeedfacf, 0);
+  header.writeUInt32LE(cpuType, 4);
+  return header;
+}
+
+/** The first bytes of a universal binary carrying these CPU types. */
+function fatMachO(cpuTypes: number[]): Buffer {
+  const header = Buffer.alloc(8 + cpuTypes.length * 20);
+  header.writeUInt32BE(0xcafebabe, 0);
+  header.writeUInt32BE(cpuTypes.length, 4);
+  cpuTypes.forEach((cpu, index) => header.writeUInt32BE(cpu, 8 + index * 20));
+  return header;
+}
+
+const X86_64 = 0x01000007;
+const ARM64 = 0x0100000c;
+
+describe("machOArchitectures", () => {
+  it("reads the CPU a thin binary was built for", () => {
+    expect(machOArchitectures(thinMachO(X86_64))).toEqual(["x64"]);
+    expect(machOArchitectures(thinMachO(ARM64))).toEqual(["arm64"]);
+  });
+
+  it("reads every CPU in a universal binary", () => {
+    expect(machOArchitectures(fatMachO([X86_64, ARM64]))).toEqual(["x64", "arm64"]);
+  });
+
+  it("answers null for anything that is not Mach-O, such as a script", () => {
+    expect(machOArchitectures(Buffer.from("#!/bin/sh\n"))).toBeNull();
+    expect(machOArchitectures(Buffer.alloc(2))).toBeNull();
+  });
+});
+
+describe("runsOn", () => {
+  it("runs a binary built for this CPU", () => {
+    expect(runsOn(["arm64"], { arch: "arm64", rosetta: false })).toBe(true);
+    expect(runsOn(["x64", "arm64"], { arch: "arm64", rosetta: false })).toBe(true);
+  });
+
+  it("runs an Intel binary on Apple silicon only through Rosetta", () => {
+    expect(runsOn(["x64"], { arch: "arm64", rosetta: false })).toBe(false);
+    expect(runsOn(["x64"], { arch: "arm64", rosetta: true })).toBe(true);
+  });
+
+  it("does not run an Apple silicon binary on an Intel Mac", () => {
+    expect(runsOn(["arm64"], { arch: "x64", rosetta: true })).toBe(false);
+  });
+
+  it("assumes a file it cannot read the architecture of will run", () => {
+    expect(runsOn(null, { arch: "arm64", rosetta: false })).toBe(true);
   });
 });
