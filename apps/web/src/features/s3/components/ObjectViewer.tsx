@@ -24,6 +24,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Spinner } from "~/components/ui/spinner";
+import { DisabledHint, useDisabledReason } from "~/components/WriteGuard";
 import { useS3Scope } from "~/contexts/ScopeContext";
 import { scopeKey } from "~/features/s3/scopeKey";
 import { fullTimestamp } from "~/lib/format";
@@ -44,8 +45,7 @@ export function ObjectViewer({
 }) {
   const scope = useS3Scope();
   const [dialog, setDialog] = React.useState<"copy" | "tags" | null>(null);
-  const writeMode = useQuery(trpc.aws.writeMode.queryOptions());
-  const canWrite = writeMode.data ? !writeMode.data.readOnly : false;
+  const writeReason = useDisabledReason("write");
 
   const head = useQuery({
     ...trpc.s3.head.queryOptions({ ...scope, bucket, key: objectKey }),
@@ -62,26 +62,28 @@ export function ObjectViewer({
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           {head.data ? <Badge>{head.data.openAs}</Badge> : null}
           <CopyButton size="icon" variant="ghost" value={objectKey} label="Copy key" />
-          {canWrite ? (
-            <>
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label="Copy or move"
-                onClick={() => setDialog("copy")}
-              >
-                <Copy className="size-3" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label="Edit tags"
-                onClick={() => setDialog("tags")}
-              >
-                <Tag className="size-3" />
-              </Button>
-            </>
-          ) : null}
+          <DisabledHint reason={writeReason}>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Copy or move"
+              disabled={writeReason !== null}
+              onClick={() => setDialog("copy")}
+            >
+              <Copy className="size-3" />
+            </Button>
+          </DisabledHint>
+          <DisabledHint reason={writeReason}>
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Edit tags"
+              disabled={writeReason !== null}
+              onClick={() => setDialog("tags")}
+            >
+              <Tag className="size-3" />
+            </Button>
+          </DisabledHint>
           <Button
             size="icon"
             variant="ghost"
