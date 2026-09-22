@@ -15,15 +15,13 @@ import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { useKubeScope } from "~/contexts/ScopeContext";
 import { KubeScopePicker } from "~/features/kube/components/KubeScopePicker";
+import { VmSshDialog } from "~/features/kube/components/VmSshDialog";
 import { hasNoCli, NoKubectl } from "~/features/kube/components/NoKubectl";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { useFilterSearch } from "~/hooks/useSearchState";
 import type { ExecTarget } from "~/lib/terminal/handshake";
 import { trpc } from "~/lib/trpc";
 import { useSessions } from "~/stores/sessions";
-
-/** The guest login `virtctl ssh` uses when nobody has said otherwise. */
-const DEFAULT_GUEST_USER = "cloud-user";
 
 /**
  * KubeVirt machines, and the two ways onto one.
@@ -42,6 +40,7 @@ export function VirtualMachinesPage() {
   const navigate = useNavigate();
   const { context, namespace, ready } = useKubeScope();
   const open = useSessions((state) => state.open);
+  const [sshTo, setSshTo] = React.useState<string | null>(null);
   const [filter, setFilter] = useFilterSearch();
   const diagnostics = useKubeDiagnostics();
 
@@ -108,6 +107,7 @@ export function VirtualMachinesPage() {
             namespace={namespace}
             noVirtctl={noVirtctl}
             onOpen={open}
+            onSsh={() => setSshTo(row.name)}
           />
         ),
       },
@@ -166,6 +166,23 @@ export function VirtualMachinesPage() {
           }
         />
       )}
+
+      {sshTo ? (
+        <VmSshDialog
+          context={context}
+          namespace={namespace}
+          vm={sshTo}
+          onConnect={(user) =>
+            open({
+              kind: "kube",
+              context,
+              namespace,
+              target: { tool: "virtctl", mode: "ssh", vm: sshTo, user },
+            })
+          }
+          onClose={() => setSshTo(null)}
+        />
+      ) : null}
     </Panel>
   );
 }
@@ -176,12 +193,15 @@ function Connect({
   namespace,
   noVirtctl,
   onOpen,
+  onSsh,
 }: {
   row: KubeVirtualMachineInfo;
   context: string;
   namespace: string;
   noVirtctl: boolean;
   onOpen: (target: ExecTarget) => string;
+  /** SSH asks for the guest login first, so it opens a dialog rather than a session. */
+  onSsh: () => void;
 }) {
   if (!row.running) {
     return (
@@ -195,15 +215,6 @@ function Connect({
   const sshReason =
     consoleReason ??
     (row.ready ? null : "The guest agent is not reporting, so ssh has nothing to land on");
-  const target = (mode: "ssh" | "console"): ExecTarget => ({
-    kind: "kube",
-    context,
-    namespace,
-    target:
-      mode === "ssh"
-        ? { tool: "virtctl", mode: "ssh", vm: row.name, user: DEFAULT_GUEST_USER }
-        : { tool: "virtctl", mode: "console", vm: row.name },
-  });
 
   return (
     <span className="flex items-center justify-end gap-1.5">
@@ -211,8 +222,8 @@ function Connect({
         <Button
           variant="default"
           disabled={sshReason !== null}
-          title={`virtctl ssh ${DEFAULT_GUEST_USER}@${row.name}`}
-          onClick={() => onOpen(target("ssh"))}
+          title={`virtctl ssh into ${row.name}`}
+          onClick={onSsh}
         >
           <TerminalSquare className="size-3" />
           SSH
@@ -222,7 +233,14 @@ function Connect({
         <Button
           disabled={consoleReason !== null}
           title="Attach to the serial console"
-          onClick={() => onOpen(target("console"))}
+          onClick={() =>
+            onOpen({
+              kind: "kube",
+              context,
+              namespace,
+              target: { tool: "virtctl", mode: "console", vm: row.name },
+            })
+          }
         >
           Console
         </Button>
