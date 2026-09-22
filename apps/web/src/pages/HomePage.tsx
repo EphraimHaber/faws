@@ -333,14 +333,10 @@ function EcsOverview() {
     <>
       <Panel className="shrink-0">
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2 px-4 py-3.5">
-          <div className="min-w-0">
-            <p className="font-mono text-[9.5px] tracking-[0.24em] text-muted-foreground uppercase">
-              Account
-            </p>
-            <p className="font-mono text-[15px] tabular">
-              {whoami.data?.accountId ?? (whoami.isPending ? "…" : "not signed in")}
-            </p>
-          </div>
+          <Stat
+            label="Account"
+            value={whoami.data?.accountId ?? (whoami.isPending ? "…" : "not signed in")}
+          />
           <Stat label="Profile" value={profile} />
           <Stat label="Region" value={region} />
           <span aria-hidden className="h-8 w-px bg-border" />
