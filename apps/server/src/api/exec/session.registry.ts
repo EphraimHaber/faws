@@ -99,6 +99,10 @@ function describeTarget(auth: ExecHandshakeAuth): string {
       return auth.transport.via === "direct" || auth.transport.via === "jump"
         ? auth.transport.host
         : auth.transport.instanceId;
+    case "kube":
+      return auth.target.tool === "virtctl"
+        ? `${auth.context}/${auth.namespace}/${auth.target.vm}`
+        : `${auth.context}/${auth.namespace}/${auth.target.pod}`;
   }
 }
 
@@ -106,6 +110,9 @@ function scopeOf(auth: ExecHandshakeAuth): { profile: string | null; region: str
   if (auth.kind === "ecs" || auth.kind === "ssm") {
     return { profile: auth.profile, region: auth.region };
   }
+  // A kube session is scoped by context and namespace, which are not these two
+  // fields and are not AWS's: an account switch must not look like it moved it.
+  if (auth.kind === "kube") return { profile: null, region: null };
   const transport = auth.transport;
   if (transport.via === "ec2-instance-connect" || transport.via === "ssm-tunnel") {
     return { profile: transport.profile, region: transport.region };
