@@ -2,6 +2,7 @@ import type { EcsService } from "@faws/contracts";
 import { BellOff, Check, X } from "lucide-react";
 import * as React from "react";
 
+import { TextAction } from "~/components/ui/text-action";
 import { serviceFingerprint, useSilenced } from "~/stores/silenced";
 import { cn } from "~/lib/utils";
 
@@ -126,13 +127,5 @@ export function HiddenCount({
   revealed: boolean;
 }) {
   if (count === 0) return null;
-  return (
-    <button
-      type="button"
-      onClick={onReveal}
-      className="cursor-pointer font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
-    >
-      {revealed ? "hide" : `${count} silenced`}
-    </button>
-  );
+  return <TextAction onClick={onReveal}>{revealed ? "hide" : `${count} silenced`}</TextAction>;
 }

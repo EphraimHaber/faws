@@ -13,6 +13,7 @@ import { Panel, PanelHeader, PanelSearch, PanelTitle } from "~/components/ui/pan
 import { ScrollList } from "~/components/ui/scroll-list";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
+import { TextAction } from "~/components/ui/text-action";
 import { useAwsScope, useScope } from "~/contexts/ScopeContext";
 import { serviceTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
@@ -569,13 +570,12 @@ function ServiceRow({
         </span>
       ) : null}
       {silenced ? (
-        <button
-          type="button"
+        <TextAction
           onClick={() => restore(service.arn)}
-          className="shrink-0 cursor-pointer py-2 pr-3.5 pl-1 font-mono text-[10px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
+          className="shrink-0 py-2 pr-3.5 pl-1 text-[10px]"
         >
           restore
-        </button>
+        </TextAction>
       ) : null}
     </li>
   );

@@ -8,6 +8,7 @@ import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
+import { TextAction, textActionClass } from "~/components/ui/text-action";
 import { RecordingsPanel } from "~/features/terminal/components/RecordingsPanel";
 import {
   DEFAULT_LOG_GUTTER,
@@ -98,10 +99,7 @@ export function SettingsPage() {
       <Panel className="shrink-0">
         <PanelHeader>
           <PanelTitle>S3 endpoints</PanelTitle>
-          <Link
-            to="/s3/connections"
-            className="ml-auto font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
-          >
+          <Link to="/s3/connections" className={cn(textActionClass, "ml-auto")}>
             manage endpoints
           </Link>
         </PanelHeader>
@@ -118,13 +116,9 @@ export function SettingsPage() {
       <Panel className="shrink-0">
         <PanelHeader>
           <PanelTitle>Preferences</PanelTitle>
-          <button
-            type="button"
-            onClick={resetSettings}
-            className="ml-auto cursor-pointer font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
-          >
+          <TextAction onClick={resetSettings} className="ml-auto">
             reset all
-          </button>
+          </TextAction>
         </PanelHeader>
         {persistence.writable ? null : (
           <p className="border-b border-border bg-warning/10 px-3.5 py-2 text-[12px] text-muted-foreground">
@@ -240,13 +234,9 @@ function SilencedPanel() {
           {entries.length}
         </span>
         {entries.length > 0 ? (
-          <button
-            type="button"
-            onClick={restoreAll}
-            className="ml-auto cursor-pointer font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
-          >
+          <TextAction onClick={restoreAll} className="ml-auto">
             restore all
-          </button>
+          </TextAction>
         ) : null}
       </PanelHeader>
 
@@ -296,13 +286,9 @@ function RememberedPanel() {
         <PanelTitle>Recent and pinned</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
         {rows.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => recentActions.forgetAll("both")}
-            className="ml-auto cursor-pointer font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
-          >
+          <TextAction onClick={() => recentActions.forgetAll("both")} className="ml-auto">
             forget all
-          </button>
+          </TextAction>
         ) : null}
       </PanelHeader>
 

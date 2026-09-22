@@ -17,6 +17,7 @@ import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
 import { Button } from "~/components/ui/button";
+import { TextAction } from "~/components/ui/text-action";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { useRecordVisit } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
@@ -296,13 +297,7 @@ function ServicesTable({
             {troubled.hidden.length} silenced warning{troubled.hidden.length === 1 ? "" : "s"} in
             this cluster
           </span>
-          <button
-            type="button"
-            onClick={() => void navigate({ to: "/settings" })}
-            className="cursor-pointer font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
-          >
-            manage
-          </button>
+          <TextAction onClick={() => void navigate({ to: "/settings" })}>manage</TextAction>
         </div>
       ) : null}
 

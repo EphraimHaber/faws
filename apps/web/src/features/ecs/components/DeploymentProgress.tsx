@@ -18,6 +18,7 @@ import { TargetHealthPane } from "~/features/ecs/components/TargetHealthPane";
 import { Badge } from "~/components/ui/badge";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { StatusDot } from "~/components/ui/status-dot";
+import { TextAction } from "~/components/ui/text-action";
 import { fullTimestamp } from "~/lib/format";
 import {
   circuitBreakerThreshold,
@@ -134,13 +135,7 @@ export function DeploymentProgress({
             { value: "logs", label: "New revision logs" },
           ]}
         />
-        <button
-          type="button"
-          onClick={onOpenTasks}
-          className="cursor-pointer font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
-        >
-          see the individual tasks
-        </button>
+        <TextAction onClick={onOpenTasks}>see the individual tasks</TextAction>
 
         <div className="ml-auto flex items-center gap-3">
           <span className="flex items-center gap-1.5 font-mono text-[10.5px] text-muted-foreground">
