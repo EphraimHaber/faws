@@ -71,10 +71,12 @@ export function JsonViewer({ value }: { value: unknown }) {
     instance.setValue(text);
   }, [text]);
 
-  // The palette custom properties have already changed by the time this runs,
-  // so the theme is rebuilt from whatever is now on :root.
   React.useEffect(() => {
+    // `theme` is the trigger rather than an input: defineMonacoTheme reads the
+    // live computed palette, which is only correct once ThemeProvider has
+    // flipped the class on the document.
     defineMonacoTheme();
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
   }, [theme]);
 
   return <div ref={host} className="size-full" />;

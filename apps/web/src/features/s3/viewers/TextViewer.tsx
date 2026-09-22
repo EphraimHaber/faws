@@ -62,7 +62,11 @@ export function TextViewer({ text, language = "plaintext" }: { text: string; lan
   }, [text]);
 
   React.useEffect(() => {
+    // `theme` is the trigger rather than an input: defineMonacoTheme reads the
+    // live computed palette, which is only correct once ThemeProvider has
+    // flipped the class on the document.
     defineMonacoTheme();
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
   }, [theme]);
 
   return <div ref={host} className="size-full" />;

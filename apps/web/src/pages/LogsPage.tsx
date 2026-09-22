@@ -43,7 +43,10 @@ export function LogsPage() {
   }, [lines, filter]);
 
   React.useEffect(() => {
+    // The count is the trigger rather than an input: a line arriving is what
+    // should move the view, and the effect reads the DOM node instead.
     if (follow) bottomRef.current?.scrollIntoView({ block: "end" });
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
   }, [visible.length, follow]);
 
   return (
