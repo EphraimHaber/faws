@@ -43,7 +43,9 @@ describe("deriveCrumbs", () => {
   });
 
   it("shortens a task id rather than showing the whole thing", () => {
-    expect(labels("/ecs/clusters/prod/tasks/0123456789abcdef0123").at(-1)).toBe("task 0123456789ab");
+    expect(labels("/ecs/clusters/prod/tasks/0123456789abcdef0123").at(-1)).toBe(
+      "task 0123456789ab",
+    );
   });
 
   it("decodes a segment that had to be encoded", () => {

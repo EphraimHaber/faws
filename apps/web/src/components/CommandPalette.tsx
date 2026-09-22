@@ -1,36 +1,22 @@
 import { useHotkeys } from "@tanstack/react-hotkeys";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  Boxes,
-  Container,
-  CornerDownLeft,
-  Database,
-  FileJson,
-  Layers,
-  LayoutDashboard,
-  HardDrive,
-  Rocket,
-  ScrollText,
-  Settings2,
-  TerminalSquare,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Boxes, CornerDownLeft, Layers, ScrollText, Settings2, TerminalSquare } from "lucide-react";
 import * as React from "react";
 
+import {
+  entryText,
+  groupBoost,
+  navEntries,
+  shellEntries,
+  type PaletteEntry,
+} from "~/components/CommandPalette.entries";
 import { Kbd } from "~/components/ui/kbd";
+import { rankBy } from "~/lib/rank";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
 import { useOverlay } from "~/stores/overlays";
 import { cn } from "~/lib/utils";
-
-interface Entry {
-  readonly id: string;
-  readonly icon: LucideIcon;
-  readonly label: string;
-  readonly hint: string;
-  readonly run: () => void;
-}
 
 /**
  * Cmd+K jump-to.
@@ -100,13 +86,17 @@ function PaletteBody({
     enabled: Boolean(activeCluster),
   });
 
-  const entries = React.useMemo<Entry[]>(() => {
-    const out: Entry[] = [
+  const entries = React.useMemo<PaletteEntry[]>(() => {
+    const go = (to: string) => void navigate({ to: to as never });
+
+    const out: PaletteEntry[] = [
       {
         id: "terminal:open",
         icon: TerminalSquare,
         label: "Open a terminal",
         hint: "shell into an EC2 instance",
+        keywords: ["shell", "console", "ssm", "exec", "bash"],
+        group: "action",
         run: onOpenTerminal,
       },
       {
@@ -114,71 +104,12 @@ function PaletteBody({
         icon: TerminalSquare,
         label: "SSH to a host",
         hint: "a hostname, or an entry from ~/.ssh/config",
+        keywords: ["ssh", "shell", "host", "remote"],
+        group: "action",
         run: onOpenSsh,
       },
-      {
-        id: "nav:home",
-        icon: LayoutDashboard,
-        label: "Overview",
-        hint: "account summary",
-        run: () => void navigate({ to: "/" }),
-      },
-      {
-        id: "nav:ecs",
-        icon: Container,
-        label: "ECS",
-        hint: "section overview",
-        run: () => void navigate({ to: "/ecs" }),
-      },
-      {
-        id: "nav:clusters",
-        icon: Layers,
-        label: "Clusters",
-        hint: "every cluster in the region",
-        run: () => void navigate({ to: "/ecs/clusters" }),
-      },
-      {
-        id: "nav:deployments",
-        icon: Rocket,
-        label: "Recently deployed",
-        hint: "rollouts across the region",
-        run: () => void navigate({ to: "/ecs/deployments" }),
-      },
-      {
-        id: "nav:task-definitions",
-        icon: FileJson,
-        label: "Task definitions",
-        hint: "registry",
-        run: () => void navigate({ to: "/ecs/task-definitions" }),
-      },
-      {
-        id: "nav:s3",
-        icon: HardDrive,
-        label: "S3",
-        hint: "section overview",
-        run: () => void navigate({ to: "/s3" }),
-      },
-      {
-        id: "nav:buckets",
-        icon: Database,
-        label: "Buckets",
-        hint: "every bucket in the account",
-        run: () => void navigate({ to: "/s3/buckets" }),
-      },
-      {
-        id: "nav:logs",
-        icon: ScrollText,
-        label: "Diagnostics",
-        hint: "faws server logs",
-        run: () => void navigate({ to: "/logs" }),
-      },
-      {
-        id: "nav:settings",
-        icon: Settings2,
-        label: "Settings",
-        hint: "preferences",
-        run: () => void navigate({ to: "/settings" }),
-      },
+      ...navEntries(go),
+      ...shellEntries(go, { diagnostics: ScrollText, settings: Settings2 }),
     ];
 
     for (const cluster of clusters.data ?? []) {
@@ -186,7 +117,9 @@ function PaletteBody({
         id: `cluster:${cluster.arn}`,
         icon: Layers,
         label: cluster.name,
-        hint: `cluster · ${cluster.activeServices} services`,
+        hint: `cluster \u00b7 ${cluster.activeServices} services`,
+        keywords: ["cluster"],
+        group: "resource",
         run: () =>
           void navigate({ to: "/ecs/clusters/$cluster", params: { cluster: cluster.name } }),
       });
@@ -197,7 +130,9 @@ function PaletteBody({
         id: `service:${service.arn}`,
         icon: Boxes,
         label: service.name,
-        hint: `service · ${service.clusterName}`,
+        hint: `service \u00b7 ${service.clusterName}`,
+        keywords: ["service", service.clusterName],
+        group: "resource",
         run: () =>
           void navigate({
             to: "/ecs/clusters/$cluster/services/$service",
@@ -209,13 +144,16 @@ function PaletteBody({
     return out;
   }, [clusters.data, services.data, navigate, onOpenTerminal, onOpenSsh]);
 
-  const matches = React.useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return entries.slice(0, 40);
-    return entries.filter((entry) => fuzzyMatch(entry.label.toLowerCase(), needle)).slice(0, 40);
-  }, [entries, query]);
+  // Ranked rather than filtered. A subsequence test answers "could these
+  // letters be found in order", which is a fine filter and no order at all:
+  // typing `inst` used to leave "Instances" wherever it happened to sit in the
+  // array. `rankBy` keeps every match the old test would have kept.
+  const matches = React.useMemo(
+    () => rankBy(entries, query, entryText, groupBoost).slice(0, 40),
+    [entries, query],
+  );
 
-  function choose(entry: Entry | undefined) {
+  function choose(entry: PaletteEntry | undefined) {
     if (!entry) return;
     entry.run();
     onClose();
@@ -301,15 +239,4 @@ function PaletteBody({
       </div>
     </div>
   );
-}
-
-/** Subsequence match: "apsv" finds "api-service". */
-function fuzzyMatch(haystack: string, needle: string): boolean {
-  let position = 0;
-  for (const char of needle) {
-    position = haystack.indexOf(char, position);
-    if (position === -1) return false;
-    position += 1;
-  }
-  return true;
 }
