@@ -1,7 +1,10 @@
+import type { ExecInstanceTarget } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { Server, TerminalSquare } from "lucide-react";
 import * as React from "react";
 
+import { type Column, DataTable } from "~/components/data-table";
+import { FilterInput } from "~/components/toolbar";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { EmptyState } from "~/components/ui/empty";
@@ -9,9 +12,10 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
-import { trpc } from "~/lib/trpc";
-import { useSessions } from "~/stores/sessions";
 import { useFilterSearch } from "~/hooks/useSearchState";
+import { trpc } from "~/lib/trpc";
+import type { ExecTarget } from "~/lib/terminal/handshake";
+import { useSessions } from "~/stores/sessions";
 
 /**
  * EC2 instances, listed for one reason: getting a shell on one.
@@ -20,23 +24,101 @@ import { useFilterSearch } from "~/hooks/useSearchState";
  * can reach it, whether it has an address, which login its AMI ships with -
  * rather than a general-purpose inventory. An instance nothing can reach says
  * so plainly instead of offering a button that cannot succeed.
+ *
+ * It is a `DataTable`, like every other list in the app. It used to be a
+ * hand-rolled flex row per instance, which cost it three things the shared
+ * table gives away: headers, so the columns are named at all; a fixed grid, so
+ * a row with two addresses or a wider badge stops shoving every cell after it
+ * out of line with the rows above; and sorting plus `column:value` filtering.
+ * Thirty rows of unlabelled, unaligned columns is not something anyone can
+ * read down.
  */
 export function InstancesPage() {
   const scope = useAwsScope();
   const open = useSessions((state) => state.open);
   const [filter, setFilter] = useFilterSearch();
   const targets = useQuery(trpc.exec.targets.queryOptions(scope));
+  const rows = targets.data ?? [];
 
-  const rows = React.useMemo(() => {
-    const needle = filter.trim().toLowerCase();
-    const all = targets.data ?? [];
-    if (!needle) return all;
-    return all.filter((row) =>
-      `${row.name ?? ""} ${row.instanceId} ${row.privateIp ?? ""} ${row.publicIp ?? ""} ${row.instanceType ?? ""}`
-        .toLowerCase()
-        .includes(needle),
-    );
-  }, [targets.data, filter]);
+  const columns = React.useMemo<Column<ExecInstanceTarget>[]>(
+    () => [
+      {
+        id: "name",
+        header: "Instance",
+        value: (row) => `${row.name ?? ""} ${row.instanceId}`,
+        cell: (row) => (
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-[12.5px]">{row.name ?? row.instanceId}</span>
+            <span className="truncate font-mono text-[10.5px] text-muted-foreground">
+              {row.instanceId}
+            </span>
+          </span>
+        ),
+      },
+      {
+        id: "address",
+        header: "Address",
+        width: "11rem",
+        // The private address sorts and filters; a public one is shown under it
+        // rather than beside it, because an instance with both is reachable two
+        // ways and which one you get is the difference between the buttons.
+        value: (row) => row.privateIp ?? "",
+        cell: (row) => (
+          <span className="flex min-w-0 flex-col font-mono text-[11px] text-muted-foreground">
+            <span className="truncate">{row.privateIp ?? "-"}</span>
+            {row.publicIp ? <span className="truncate">{row.publicIp}</span> : null}
+          </span>
+        ),
+      },
+      {
+        id: "type",
+        header: "Type",
+        width: "9rem",
+        value: (row) => row.instanceType ?? "",
+        cell: (row) => (
+          <span className="flex min-w-0 flex-col text-[11px] text-muted-foreground">
+            <span className="truncate">{row.instanceType ?? "-"}</span>
+            <span className="truncate">{row.availabilityZone ?? "-"}</span>
+          </span>
+        ),
+      },
+      {
+        id: "state",
+        header: "State",
+        width: "6.5rem",
+        value: (row) => row.state,
+        cell: (row) => (
+          <Badge tone={row.state === "running" ? "success" : "neutral"}>{row.state}</Badge>
+        ),
+      },
+      {
+        id: "ssm",
+        header: "SSM",
+        width: "7rem",
+        value: (row) => (row.ssmManaged ? (row.ssmPingStatus ?? "managed") : ""),
+        cell: (row) =>
+          row.ssmManaged ? (
+            <Badge tone={row.ssmPingStatus === "Online" ? "info" : "warning"}>
+              {row.ssmPingStatus?.toLowerCase() ?? "?"}
+            </Badge>
+          ) : (
+            <span className="font-mono text-[10.5px] text-muted-foreground/50">-</span>
+          ),
+      },
+      {
+        id: "shell",
+        header: "Shell",
+        width: "15rem",
+        align: "right",
+        // Sortable and filterable by how it can be reached, which is the one
+        // question this page exists to answer: `shell:unreachable` lists every
+        // instance you cannot get onto.
+        value: (row) => (row.reachableBy.length === 0 ? "unreachable" : row.reachableBy.join(" ")),
+        cell: (row) => <Connect row={row} scope={scope} onOpen={open} />,
+      },
+    ],
+    [open, scope],
+  );
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
@@ -44,132 +126,150 @@ export function InstancesPage() {
         <PanelHeader>
           <PanelTitle>Instances</PanelTitle>
           <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
-          <input
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            placeholder="Filter by name, id, address or type"
-            className="ml-auto w-72 rounded-sm border border-border bg-transparent px-2 py-1 text-[12px] outline-none placeholder:text-muted-foreground focus:border-primary"
-          />
+          <div className="ml-auto">
+            <FilterInput
+              value={filter}
+              onChange={setFilter}
+              total={rows.length}
+              placeholder="Filter… (try type:t3)"
+            />
+          </div>
         </PanelHeader>
 
         {targets.isPending ? (
           <LoadingRows rows={10} />
         ) : targets.isError ? (
           <ErrorState error={targets.error} onRetry={() => void targets.refetch()} />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            icon={Server}
-            title="No instances"
-            hint={`Nothing running in ${scope.region}`}
-          />
         ) : (
-          <div className="min-h-0 flex-1 overflow-auto">
-            {rows.map((row) => {
-              const canSsm = row.reachableBy.includes("ssm");
-              const canSsh = row.reachableBy.includes("ssh-public");
-              const canTunnel = row.reachableBy.includes("ssh-ssm-tunnel");
-
-              return (
-                <div
-                  key={row.instanceId}
-                  className="flex items-center gap-3 border-b border-border/50 px-3.5 py-2 last:border-b-0"
-                >
-                  <div className="min-w-0 flex-[2]">
-                    <p className="truncate text-[12.5px]">{row.name ?? row.instanceId}</p>
-                    <p className="truncate font-mono text-[10.5px] text-muted-foreground">
-                      {row.instanceId}
-                    </p>
-                  </div>
-
-                  <div className="min-w-0 flex-1 font-mono text-[11px] text-muted-foreground">
-                    <p className="truncate">{row.privateIp ?? "-"}</p>
-                    {row.publicIp ? <p className="truncate">{row.publicIp}</p> : null}
-                  </div>
-
-                  <div className="min-w-0 flex-1 text-[11px] text-muted-foreground">
-                    <p className="truncate">{row.instanceType ?? "-"}</p>
-                    <p className="truncate">{row.availabilityZone ?? "-"}</p>
-                  </div>
-
-                  <Badge tone={row.state === "running" ? "success" : "neutral"}>{row.state}</Badge>
-                  {row.ssmManaged ? (
-                    <Badge tone={row.ssmPingStatus === "Online" ? "info" : "warning"}>
-                      ssm {row.ssmPingStatus?.toLowerCase() ?? "?"}
-                    </Badge>
-                  ) : null}
-
-                  <div className="flex shrink-0 items-center gap-1">
-                    {canSsm ? (
-                      <Button
-                        onClick={() =>
-                          open({
-                            kind: "ssm",
-                            profile: scope.profile,
-                            region: scope.region,
-                            instanceId: row.instanceId,
-                          })
-                        }
-                        title="Session Manager shell - no key and no inbound rule needed"
-                      >
-                        <TerminalSquare className="size-3" /> Shell
-                      </Button>
-                    ) : null}
-
-                    {canSsh ? (
-                      <Button
-                        variant="ghost"
-                        onClick={() =>
-                          open({
-                            kind: "ssh",
-                            transport: {
-                              via: "ec2-instance-connect",
-                              profile: scope.profile,
-                              region: scope.region,
-                              instanceId: row.instanceId,
-                              osUser: row.osUser,
-                            },
-                          })
-                        }
-                        title={`SSH as ${row.osUser} with a one-time key from EC2 Instance Connect`}
-                      >
-                        SSH
-                      </Button>
-                    ) : canTunnel ? (
-                      <Button
-                        variant="ghost"
-                        onClick={() =>
-                          open({
-                            kind: "ssh",
-                            transport: {
-                              via: "ssm-tunnel",
-                              profile: scope.profile,
-                              region: scope.region,
-                              instanceId: row.instanceId,
-                            },
-                            user: row.osUser,
-                          })
-                        }
-                        title={`SSH as ${row.osUser} over an SSM tunnel`}
-                      >
-                        SSH via SSM
-                      </Button>
-                    ) : null}
-
-                    {row.reachableBy.length === 0 ? (
-                      <span
-                        className="text-[10.5px] text-muted-foreground"
-                        title="No SSM agent, and no public address"
-                      >
-                        unreachable
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <DataTable
+            rows={rows}
+            columns={columns}
+            rowKey={(row) => row.instanceId}
+            filter={filter}
+            emptyState={
+              <EmptyState
+                icon={Server}
+                title="No instances"
+                hint={`Nothing running in ${scope.region}`}
+              />
+            }
+          />
         )}
       </Panel>
     </div>
   );
+}
+
+/** One way onto an instance: what to call it, why, and what to open. */
+interface ConnectRoute {
+  readonly label: string;
+  readonly title: string;
+  readonly target: ExecTarget;
+}
+
+/**
+ * The ways onto this instance, best first.
+ *
+ * Every one of them is a button of the same shape. They were a bordered
+ * "Shell" beside a borderless "SSH via SSM", which made two equally real
+ * actions look like a control and a caption - and put the second one in a
+ * different place on every row, since its width depended on the first.
+ *
+ * An instance nothing can reach still says so in plain text, deliberately:
+ * there the point *is* that there is nothing to press.
+ */
+function Connect({
+  row,
+  scope,
+  onOpen,
+}: {
+  row: ExecInstanceTarget;
+  scope: { profile: string; region: string };
+  onOpen: (target: ExecTarget) => string;
+}) {
+  const routes = routesFor(row, scope);
+
+  if (routes.length === 0) {
+    return (
+      <span
+        className="font-mono text-[10.5px] text-muted-foreground/70"
+        title="No SSM agent, and no address to reach it at"
+      >
+        unreachable
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex items-center justify-end gap-1.5">
+      {routes.map((route, index) => (
+        <Button
+          key={route.label}
+          size="sm"
+          // The first is the one to reach for; the rest are what you try when
+          // it does not work. Both are buttons either way.
+          variant={index === 0 ? "default" : "outline"}
+          title={route.title}
+          onClick={() => onOpen(route.target)}
+        >
+          {index === 0 ? <TerminalSquare className="size-3" /> : null}
+          {route.label}
+        </Button>
+      ))}
+    </span>
+  );
+}
+
+function routesFor(
+  row: ExecInstanceTarget,
+  scope: { profile: string; region: string },
+): ConnectRoute[] {
+  const routes: ConnectRoute[] = [];
+
+  if (row.reachableBy.includes("ssm")) {
+    routes.push({
+      label: "Shell",
+      title: "Session Manager shell - no key and no inbound rule needed",
+      target: {
+        kind: "ssm",
+        profile: scope.profile,
+        region: scope.region,
+        instanceId: row.instanceId,
+      },
+    });
+  }
+
+  if (row.reachableBy.includes("ssh-public")) {
+    routes.push({
+      label: "SSH",
+      title: `SSH as ${row.osUser} with a one-time key from EC2 Instance Connect`,
+      target: {
+        kind: "ssh",
+        transport: {
+          via: "ec2-instance-connect",
+          profile: scope.profile,
+          region: scope.region,
+          instanceId: row.instanceId,
+          osUser: row.osUser,
+        },
+      },
+    });
+  } else if (row.reachableBy.includes("ssh-ssm-tunnel")) {
+    routes.push({
+      label: "SSH via SSM",
+      title: `SSH as ${row.osUser} over an SSM tunnel`,
+      target: {
+        kind: "ssh",
+        transport: {
+          via: "ssm-tunnel",
+          profile: scope.profile,
+          region: scope.region,
+          instanceId: row.instanceId,
+        },
+        user: row.osUser,
+      },
+    });
+  }
+
+  return routes;
 }
