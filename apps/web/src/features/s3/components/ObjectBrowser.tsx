@@ -167,12 +167,12 @@ export function ObjectBrowser({
           row.kind === "prefix" ? (
             <span className="flex items-center gap-2">
               <Folder className="size-3.5 shrink-0 text-info" strokeWidth={1.7} />
-              <span className="truncate font-medium">{row.entry.name}</span>
+              <span className="font-medium">{row.entry.name}</span>
             </span>
           ) : (
             <span className="flex items-center gap-2">
               <FileText className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={1.7} />
-              <span className="truncate">{row.entry.name}</span>
+              <span className="">{row.entry.name}</span>
             </span>
           ),
       },
@@ -317,10 +317,12 @@ export function ObjectBrowser({
               <LoadingRows />
             ) : (
               <DataTable
+                tableId="s3-objects"
                 rows={rows}
                 columns={columns}
                 rowKey={(row) => row.id}
                 filter={filter}
+                onClearFilter={() => setFilter("")}
                 onOpen={open}
                 selection={{ selected, onChange: setSelected }}
                 selectable={(row) => row.kind === "object"}

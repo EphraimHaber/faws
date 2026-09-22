@@ -15,6 +15,7 @@
  */
 import {
   applyPatch,
+  applyTableLayoutOp,
   DEFAULT_SETTINGS,
   type Settings,
   type SettingsPatch,
@@ -22,6 +23,7 @@ import {
   type RecentOp,
   type SettingsSnapshot,
   type SilenceOp,
+  type TableLayoutOp,
 } from "@faws/contracts";
 import { create } from "zustand";
 
@@ -167,6 +169,25 @@ export function applySilence(op: SilenceOp): void {
  */
 export function applyRecent(op: RecentOp): void {
   void trpcClient.settings.recents
+    .mutate({ op })
+    .then((snapshot) => accept(snapshot, null))
+    .catch(() => undefined);
+}
+
+/**
+ * Rearranges one table's columns.
+ *
+ * Applied here first, unlike a silence or a recent: a column being dragged
+ * has to land where it was dropped on this frame, not after a round trip. The
+ * server's answer is then applied like anyone else's, since it is the same
+ * layout plus whatever another window did in between.
+ */
+export function applyTableLayout(op: TableLayoutOp): void {
+  const current = useSettings.getState().settings;
+  const next = { ...current, tables: applyTableLayoutOp(current.tables, op) };
+  useSettings.setState({ settings: next });
+  writeCache(next);
+  void trpcClient.settings.tables
     .mutate({ op })
     .then((snapshot) => accept(snapshot, null))
     .catch(() => undefined);

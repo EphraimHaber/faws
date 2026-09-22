@@ -24,6 +24,7 @@ import { z } from "zod";
 import { recordOfEach } from "./persisted.ts";
 import { recentsSettingsSchema } from "./recents.ts";
 import { s3ConnectionSchema } from "./s3-connections.ts";
+import { tablesSettingsSchema } from "./tables.ts";
 
 /**
  * Bumped whenever a migration is needed to read an older file. Contracts owns
@@ -212,6 +213,7 @@ export const settingsSchema = z.object({
   s3: section(s3SettingsSchema),
   silenced: section(silencedSettingsSchema),
   recents: section(recentsSettingsSchema),
+  tables: section(tablesSettingsSchema),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;

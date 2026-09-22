@@ -296,7 +296,7 @@ function ServiceTasks({
           return (
             <span className="flex items-center gap-2">
               <StatusDot tone={tone.tone} pulse={tone.pulse} />
-              <span className="truncate font-mono text-[11.5px]">{row.id}</span>
+              <span className="font-mono text-[11.5px]">{row.id}</span>
             </span>
           );
         },
@@ -406,6 +406,7 @@ function ServiceTasks({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <DataTable
+        tableId="ecs-service-tasks"
         rows={query.data ?? []}
         columns={columns}
         rowKey={(row) => row.arn}

@@ -102,14 +102,21 @@ function tabSearch<const T extends readonly [string, ...string[]]>(tabs: T) {
 }
 
 /**
- * The text in a page's filter box.
+ * How a page's list is being looked at: its filter text, its sort, and which
+ * columns it shows in what order.
  *
- * Every list in the app has one, and it lives in the URL rather than in
- * component state: there it survives a refresh, it can be pasted to someone,
- * and the back button reaches it - `useFilterSearch` writes it and
- * every route that renders a filter declares it here so the router keeps it.
+ * In the URL rather than in component state: there it survives a refresh, it
+ * can be pasted to someone, and the back button reaches it. `useFilterSearch`
+ * writes the filter and `DataTable` the rest, and every route that renders a
+ * list declares these here so the router keeps them.
  */
-const filterSearch = z.object({ q: z.string().max(200).optional().catch(undefined) });
+const filterSearch = z.object({
+  q: z.string().max(200).optional().catch(undefined),
+  /** The table's sort: a column id, with a leading `-` for descending. */
+  sort: z.string().max(80).optional().catch(undefined),
+  /** The table's visible columns, in order, comma separated. */
+  cols: z.string().max(2000).optional().catch(undefined),
+});
 
 const clustersRoute = createRoute({
   getParentRoute: () => rootRoute,

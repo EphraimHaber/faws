@@ -333,6 +333,19 @@ export interface ExecInstanceTarget {
   readonly vpcId: string | null;
   /** The EC2 key pair it was launched with, if any. */
   readonly keyName: string | null;
+  readonly privateDns: string | null;
+  readonly publicDns: string | null;
+  /** Primary, or the first on any network interface. */
+  readonly ipv6: string | null;
+  readonly subnetId: string | null;
+  readonly architecture: string | null;
+  readonly imageId: string | null;
+  /** ISO time it last started. */
+  readonly launchedAt: string | null;
+  /** The instance profile's name, not its ARN. */
+  readonly instanceProfile: string | null;
+  /** Security group names, comma separated. */
+  readonly securityGroups: string | null;
   /**
    * The login name this AMI ships with, read from the image name. A guess, but
    * a checked one, and the error when it is wrong says so.

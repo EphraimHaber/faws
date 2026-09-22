@@ -66,6 +66,24 @@ describe("the settings namespace", () => {
     expect(restored.settings.silenced.muted).toEqual({});
   });
 
+  it("stores a table layout and resets it", async () => {
+    const set = await caller.settings.tables({
+      op: {
+        op: "set",
+        table: "ec2-instances",
+        layout: { order: ["state"], hidden: ["type"], shown: [] },
+      },
+    });
+    expect(set.settings.tables.layouts["ec2-instances"]).toEqual({
+      order: ["state"],
+      hidden: ["type"],
+      shown: [],
+    });
+
+    const reset = await caller.settings.tables({ op: { op: "reset", table: "ec2-instances" } });
+    expect(reset.settings.tables.layouts).toEqual({});
+  });
+
   it("refuses a patch that tries to reach the silence maps", async () => {
     await expect(
       // @ts-expect-error - the point of the test is that the schema rejects it.

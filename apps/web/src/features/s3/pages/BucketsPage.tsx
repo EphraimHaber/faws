@@ -42,7 +42,7 @@ export function BucketsPage() {
         cell: (row) => (
           <span className="flex items-center gap-2">
             <Database className="size-3.5 text-muted-foreground" strokeWidth={1.7} />
-            <span className="truncate font-medium">{row.name}</span>
+            <span className="font-medium">{row.name}</span>
           </span>
         ),
       },
@@ -95,10 +95,12 @@ export function BucketsPage() {
         <LoadingRows />
       ) : (
         <DataTable
+          tableId="s3-buckets"
           rows={rows}
           columns={columns}
           rowKey={(row) => row.name}
           filter={filter}
+          onClearFilter={() => setFilter("")}
           onOpen={(row) =>
             void navigate({ to: "/s3/buckets/$bucket", params: { bucket: row.name } })
           }

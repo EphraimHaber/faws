@@ -135,6 +135,7 @@ function ServicesTable({
   query: QueryLike<EcsService>;
   filter: string;
 }) {
+  const [, setFilter] = useFilterSearch();
   const navigate = useNavigate();
   const dismissed = useSilenced((state) => state.dismissed);
   const muted = useSilenced((state) => state.muted);
@@ -150,7 +151,7 @@ function ServicesTable({
           return (
             <span className="flex items-center gap-2">
               <StatusDot tone={tone.tone} pulse={tone.pulse} />
-              <span className="truncate font-medium">{row.name}</span>
+              <span className="font-medium">{row.name}</span>
             </span>
           );
         },
@@ -302,10 +303,12 @@ function ServicesTable({
       ) : null}
 
       <DataTable
+        tableId="ecs-cluster-services"
         rows={rows}
         columns={columns}
         rowKey={(row) => row.arn}
         filter={filter}
+        onClearFilter={() => setFilter("")}
         onOpen={(row) =>
           void navigate({
             to: "/ecs/clusters/$cluster/services/$service",
@@ -361,6 +364,7 @@ function TasksTable({
   filter: string;
   emptyLabel: string;
 }) {
+  const [, setFilter] = useFilterSearch();
   const navigate = useNavigate();
   const [logsFor, setLogsFor] = React.useState<EcsTask | null>(null);
 
@@ -376,7 +380,7 @@ function TasksTable({
           return (
             <span className="flex items-center gap-2">
               <StatusDot tone={tone.tone} pulse={tone.pulse} />
-              <span className="truncate font-mono text-[11.5px]">{row.id}</span>
+              <span className="font-mono text-[11.5px]">{row.id}</span>
             </span>
           );
         },
@@ -474,10 +478,12 @@ function TasksTable({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <DataTable
+        tableId="ecs-cluster-tasks"
         rows={query.data ?? []}
         columns={columns}
         rowKey={(row) => row.arn}
         filter={filter}
+        onClearFilter={() => setFilter("")}
         onOpen={(row) =>
           void navigate({
             to: "/ecs/clusters/$cluster/tasks/$taskId",
@@ -498,6 +504,7 @@ function InstancesTable({
   query: QueryLike<EcsContainerInstance>;
   filter: string;
 }) {
+  const [, setFilter] = useFilterSearch();
   const scope = useAwsScope();
   const openSession = useSessions((state) => state.open);
   const columns = React.useMemo<Column<EcsContainerInstance>[]>(
@@ -616,10 +623,12 @@ function InstancesTable({
 
   return (
     <DataTable
+      tableId="ecs-container-instances"
       rows={query.data ?? []}
       columns={columns}
       rowKey={(row) => row.arn}
       filter={filter}
+      onClearFilter={() => setFilter("")}
       emptyState={
         <EmptyState
           icon={Server}

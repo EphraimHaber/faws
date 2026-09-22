@@ -1,3 +1,4 @@
+import type { TableLayout } from "@faws/contracts";
 import { useHotkeys } from "@tanstack/react-hotkeys";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import * as React from "react";
@@ -5,8 +6,22 @@ import * as React from "react";
 import { describe } from "~/lib/hotkeys";
 import { useOverlaysOpen } from "~/stores/overlays";
 
+import { COLUMN_DRAG_TYPE, TableSettings } from "~/components/table-settings";
 import { useListNavigation } from "~/hooks/useListNavigation";
+import { parseText, useSearchState } from "~/hooks/useSearchState";
+import {
+  arrangeColumns,
+  colsParam,
+  EMPTY_LAYOUT,
+  layoutFromCols,
+  moveColumn,
+  parseSort,
+  sortParam,
+  type SortState,
+  toggleColumn,
+} from "~/lib/table-layout";
 import { cn } from "~/lib/utils";
+import { applyTableLayout, useSettings } from "~/stores/settings";
 
 export interface Column<T> {
   readonly id: string;
@@ -23,6 +38,8 @@ export interface Column<T> {
    * sideways. For a column of actions, which is useless scrolled off-screen.
    */
   readonly pin?: "end";
+  /** Hidden until someone shows it from the table's gear, for detail most rows do not need. */
+  readonly defaultHidden?: boolean;
 }
 
 /**
@@ -49,12 +66,16 @@ export interface DataTableSelection {
 }
 
 export interface DataTableProps<T> {
+  /** Names the table in the settings file, where its column layout is kept. */
+  readonly tableId: string;
   readonly rows: ReadonlyArray<T>;
   readonly columns: ReadonlyArray<Column<T>>;
   readonly rowKey: (row: T) => string;
   readonly onOpen?: (row: T) => void;
   /** Text from the toolbar: plain text, or `column:value`. */
   readonly filter?: string;
+  /** Clears the page's filter, so the gear's reset can reach it. */
+  readonly onClearFilter?: () => void;
   readonly emptyState?: React.ReactNode;
   /** Adds a leading tick column; absent means no selection at all. */
   readonly selection?: DataTableSelection;
@@ -65,8 +86,6 @@ export interface DataTableProps<T> {
   /** Sits under the last row: a count, a spinner, a load more button. */
   readonly footer?: React.ReactNode;
 }
-
-type SortState = { columnId: string; direction: "asc" | "desc" } | null;
 
 /** Pixel widths keyed by column id, tagged with the column set they were
  *  measured from; absent until the first drag freezes a layout. */
@@ -92,11 +111,13 @@ const SORT_KEY_OFFSET = 2;
  * cursor that works with both j/k and the mouse.
  */
 export function DataTable<T>({
+  tableId,
   rows,
-  columns,
+  columns: declared,
   rowKey,
   onOpen,
   filter = "",
+  onClearFilter,
   emptyState,
   selection,
   selectable,
@@ -104,11 +125,42 @@ export function DataTable<T>({
   footer,
 }: DataTableProps<T>) {
   const overlayOpen = useOverlaysOpen();
-  const [sort, setSort] = React.useState<SortState>(null);
+  // Sort and columns ride in the URL beside the filter, so a pasted link opens
+  // on the same view. A `cols` link wins over the stored layout: it is the
+  // sender's view, and the stored one is only the default for no link at all.
+  const [sort, setSort] = useSearchState<SortState>({
+    key: "sort",
+    fallback: null,
+    parse: parseSort,
+    serialize: sortParam,
+  });
+  const [cols, setCols] = useSearchState<string>({ key: "cols", fallback: "", parse: parseText });
+  const stored = useSettings((state) => state.settings.tables.layouts[tableId]);
+  const linked = React.useMemo(() => layoutFromCols(cols || undefined, declared), [cols, declared]);
+  const layout = linked ?? stored;
+  const arranged = React.useMemo(() => arrangeColumns(declared, layout), [declared, layout]);
+  const columns = arranged.visible;
   const { widths, headerRef, startResize, resetWidths } = useColumnWidths(columns);
+  const [dropTarget, setDropTarget] = React.useState<string | null>(null);
 
-  const filtered = React.useMemo(() => applyFilter(rows, columns, filter), [rows, columns, filter]);
-  const sorted = React.useMemo(() => applySort(filtered, columns, sort), [filtered, columns, sort]);
+  // Filtering reads every declared column, shown or not: `az:1a` should
+  // still find rows while the zone column is hidden.
+  const filtered = React.useMemo(
+    () => applyFilter(rows, declared, filter),
+    [rows, declared, filter],
+  );
+  const sorted = React.useMemo(
+    () => applySort(filtered, declared, sort),
+    [filtered, declared, sort],
+  );
+
+  const setLayout = (next: TableLayout) => {
+    applyTableLayout({ op: "set", table: tableId, layout: next });
+    setCols(colsParam(arrangeColumns(declared, next).visible));
+  };
+  const currentOrder = () => arranged.all.map((entry) => entry.column.id);
+  const move = (id: string, beforeId: string | null) =>
+    setLayout({ ...EMPTY_LAYOUT, ...layout, order: moveColumn(currentOrder(), id, beforeId) });
 
   const open = React.useCallback(
     (row: T) => {
@@ -124,13 +176,14 @@ export function DataTable<T>({
     selectable,
   );
 
-  const toggleSort = React.useCallback((columnId: string) => {
-    setSort((prev) => {
-      if (prev?.columnId !== columnId) return { columnId, direction: "asc" };
-      if (prev.direction === "asc") return { columnId, direction: "desc" };
-      return null;
-    });
-  }, []);
+  const toggleSort = React.useCallback(
+    (columnId: string) => {
+      if (sort?.columnId !== columnId) setSort({ columnId, direction: "asc" });
+      else if (sort.direction === "asc") setSort({ columnId, direction: "desc" });
+      else setSort(null);
+    },
+    [sort, setSort],
+  );
 
   // Function keys sort by column, as in e1s - offset by one because F1 is
   // reserved for the help overlay, so F2 sorts the first column.
@@ -226,24 +279,43 @@ export function DataTable<T>({
             ) : null}
             {columns.map((column, index) => {
               const active = sort?.columnId === column.id;
+              const last = index === columns.length - 1;
+              const movable = column.pin !== "end";
               return (
                 <th
                   key={column.id}
                   ref={headerRef(column.id)}
                   style={!widths && column.width ? { width: column.width } : undefined}
+                  draggable={movable}
+                  onDragStart={(event) => event.dataTransfer.setData(COLUMN_DRAG_TYPE, column.id)}
+                  onDragOver={(event) => {
+                    if (!movable || !event.dataTransfer.types.includes(COLUMN_DRAG_TYPE)) return;
+                    event.preventDefault();
+                    setDropTarget(column.id);
+                  }}
+                  onDragLeave={() => setDropTarget(null)}
+                  onDragEnd={() => setDropTarget(null)}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    setDropTarget(null);
+                    const id = event.dataTransfer.getData(COLUMN_DRAG_TYPE);
+                    if (id && id !== column.id) move(id, column.id);
+                  }}
                   className={cn(
                     "relative h-8 cursor-pointer select-none px-3 font-mono text-[10px] font-normal tracking-[0.14em] whitespace-nowrap text-muted-foreground uppercase transition-colors hover:text-foreground",
                     column.align === "right" ? "text-right" : "text-left",
                     active && "text-foreground",
-                    column.pin === "end" &&
-                      "sticky right-0 z-[1] border-l border-border/45 bg-card",
+                    column.pin === "end" && PINNED_BASE,
+                    // Room for the gear, which sits in the last header cell.
+                    last && "pr-9",
+                    dropTarget === column.id && "shadow-[inset_2px_0_0_var(--primary)]",
                   )}
                   onClick={() => toggleSort(column.id)}
-                  title={`Sort by ${column.header} (F${index + SORT_KEY_OFFSET})`}
+                  title={`Sort by ${column.header} (F${index + SORT_KEY_OFFSET}); drag to reorder`}
                 >
                   <span
                     className={cn(
-                      "inline-flex max-w-full items-center gap-1 truncate align-middle",
+                      "inline-flex items-center gap-1 align-middle",
                       column.align === "right" && "flex-row-reverse",
                     )}
                   >
@@ -257,6 +329,31 @@ export function DataTable<T>({
                     ) : null}
                   </span>
                   <ResizeHandle column={column} onStart={startResize} onReset={resetWidths} />
+                  {last ? (
+                    <TableSettings
+                      columns={arranged.all.map(({ column: entry, hidden }) => ({
+                        id: entry.id,
+                        header: entry.header,
+                        hidden,
+                        pinned: entry.pin === "end",
+                      }))}
+                      onToggle={(id) =>
+                        setLayout(toggleColumn(declared, layout ?? EMPTY_LAYOUT, id))
+                      }
+                      onMove={move}
+                      onResetColumns={() => {
+                        applyTableLayout({ op: "reset", table: tableId });
+                        setCols("");
+                        resetWidths();
+                      }}
+                      onResetView={() => {
+                        setSort(null);
+                        resetWidths();
+                        onClearFilter?.();
+                      }}
+                      viewChanged={sort !== null || widths !== null || filter.trim() !== ""}
+                    />
+                  ) : null}
                 </th>
               );
             })}
@@ -299,19 +396,18 @@ export function DataTable<T>({
                 </td>
               ) : null}
               {columns.map((column) => {
-                // Cells ellipsize to keep columns aligned, so the full text
-                // goes in `title` - a truncated ARN or image digest is still
-                // readable on hover, and `c` copies the whole row as JSON.
+                // Cells wrap rather than ellipsize: a name or an ARN cut to
+                // "cloudbay-collector-de…" is a name nobody can read or tell
+                // from its neighbours. A long one makes its row taller.
                 const text = String(column.value(row) ?? "");
                 return (
                   <td
                     key={column.id}
-                    title={text}
                     className={cn(
-                      "h-[34px] truncate px-3",
-                      // Without measured widths the table is still auto-laid
-                      // out, where only a zero max-width makes a cell
-                      // ellipsize instead of stretching its column.
+                      "h-[34px] px-3 py-1.5 [overflow-wrap:anywhere]",
+                      // Without measured widths the table is auto-laid out,
+                      // where a zero max-width keeps a long value wrapping
+                      // inside its column instead of stretching the column.
                       !widths && "max-w-0",
                       column.align === "right" && "text-right",
                       column.mono && "font-mono text-[11.5px] tabular",
@@ -546,6 +642,12 @@ function ResizeHandle<T>({
       onDoubleClick={(event) => {
         event.stopPropagation();
         onReset();
+      }}
+      // The header is draggable to reorder; a resize must not start a move.
+      draggable={false}
+      onDragStart={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
       }}
       onPointerDown={(event) => {
         event.preventDefault();

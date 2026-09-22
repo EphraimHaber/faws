@@ -19,6 +19,7 @@ import {
   settingsPatchSchema,
   silenceOpSchema,
   silencedSettingsSchema,
+  tableLayoutOpSchema,
 } from "@faws/contracts";
 import { z } from "zod";
 
@@ -42,6 +43,10 @@ export const settingsRouter = router({
   recents: publicProcedure
     .input(z.object({ op: recentOpSchema, originId }))
     .mutation(({ input }) => settingsStore().applyRecents(input.op, input.originId ?? null)),
+
+  tables: publicProcedure
+    .input(z.object({ op: tableLayoutOpSchema, originId }))
+    .mutation(({ input }) => settingsStore().applyTableLayout(input.op, input.originId ?? null)),
 
   /**
    * Adopts what a browser had in `localStorage` before the server owned any of

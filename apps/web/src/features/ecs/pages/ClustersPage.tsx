@@ -38,7 +38,7 @@ export function ClustersPage() {
               tone={row.status === "ACTIVE" ? "success" : "neutral"}
               pulse={row.pendingTasks > 0}
             />
-            <span className="truncate font-medium">{row.name}</span>
+            <span className="font-medium">{row.name}</span>
           </span>
         ),
       },
@@ -93,7 +93,7 @@ export function ClustersPage() {
         header: "Capacity providers",
         value: (row) => row.capacityProviders.join(", "),
         cell: (row) => (
-          <span className="truncate font-mono text-[11px] text-muted-foreground">
+          <span className="font-mono text-[11px] text-muted-foreground">
             {row.capacityProviders.join(" · ") || "-"}
           </span>
         ),
@@ -127,10 +127,12 @@ export function ClustersPage() {
       ) : null}
       {clusters.isSuccess ? (
         <DataTable
+          tableId="ecs-clusters"
           rows={rows}
           columns={columns}
           rowKey={(row) => row.arn}
           filter={filter}
+          onClearFilter={() => setFilter("")}
           onOpen={(row) =>
             void navigate({ to: "/ecs/clusters/$cluster", params: { cluster: row.name } })
           }

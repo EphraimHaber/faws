@@ -13,7 +13,7 @@ import { cn } from "~/lib/utils";
  * The classes are exported for the one caller that has to be a router `Link`.
  */
 export const textActionClass =
-  "cursor-pointer font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground";
+  "cursor-pointer font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground disabled:cursor-default disabled:no-underline disabled:opacity-40";
 
 export function TextAction({ className, ...props }: React.ComponentProps<"button">) {
   return <button type="button" className={cn(textActionClass, className)} {...props} />;

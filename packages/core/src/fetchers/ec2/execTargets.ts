@@ -70,6 +70,37 @@ async function ssmManagedInstances(scope: AwsScope): Promise<Map<string, SsmInfo
  * fails after the key has already been pushed. The image name actually says
  * which distribution it is.
  */
+/**
+ * The details an instance list shows one to a column: every address, and
+ * where the instance sits and what it runs as.
+ *
+ * An IPv6 address is on the instance itself only when one was made primary;
+ * otherwise it is only on a network interface, so both are read.
+ */
+export function instanceFacts(instance: Instance) {
+  const ipv6 =
+    instance.Ipv6Address ??
+    instance.NetworkInterfaces?.flatMap((eni) => eni.Ipv6Addresses ?? []).find(
+      (entry) => entry.Ipv6Address,
+    )?.Ipv6Address ??
+    null;
+  const groups = (instance.SecurityGroups ?? [])
+    .map((group) => group.GroupName ?? group.GroupId)
+    .filter(Boolean);
+  return {
+    privateDns: instance.PrivateDnsName || null,
+    publicDns: instance.PublicDnsName || null,
+    ipv6,
+    subnetId: instance.SubnetId ?? null,
+    architecture: instance.Architecture ?? null,
+    imageId: instance.ImageId ?? null,
+    launchedAt: instance.LaunchTime ? instance.LaunchTime.toISOString() : null,
+    // The profile's name is the last segment of its ARN; the ARN is noise in a column.
+    instanceProfile: instance.IamInstanceProfile?.Arn?.split("/").at(-1) ?? null,
+    securityGroups: groups.length > 0 ? groups.join(", ") : null,
+  };
+}
+
 function osUserForImage(imageName: string | undefined): string {
   const name = (imageName ?? "").toLowerCase();
   if (name.includes("ubuntu")) return "ubuntu";
@@ -171,7 +202,7 @@ export async function listExecTargets(scope: AwsScope): Promise<ExecInstanceTarg
     )
     .map((instance) => {
       const info = ssm.get(instance.InstanceId);
-      return {
+      const target: ExecInstanceTarget = Object.assign(instanceFacts(instance), {
         instanceId: instance.InstanceId,
         name: tagValue(instance, "Name"),
         state: instance.State?.Name ?? "unknown",
@@ -187,7 +218,8 @@ export async function listExecTargets(scope: AwsScope): Promise<ExecInstanceTarg
         ssmPingStatus: info?.pingStatus ?? null,
         ssmAgentVersion: info?.agentVersion ?? null,
         reachableBy: reachability(instance, info),
-      } satisfies ExecInstanceTarget;
+      });
+      return target;
     })
     .toSorted((a, b) => {
       // Connectable first, then by name - a picker should open on something

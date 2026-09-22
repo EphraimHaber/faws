@@ -56,21 +56,17 @@ export function WorkloadsPage() {
 
   const columns = React.useMemo<Column<KubePodInfo>[]>(
     () => [
+      { id: "pod", header: "Pod", value: (row) => row.name },
       {
-        id: "pod",
-        header: "Pod",
-        value: (row) => row.name,
-        cell: (row) => (
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-[12.5px]">{row.name}</span>
-            <span className="truncate font-mono text-[10.5px] text-muted-foreground">
-              {row.containers
-                .filter((container) => !container.init)
-                .map((container) => container.name)
-                .join(", ") || "-"}
-            </span>
-          </span>
-        ),
+        id: "containers",
+        header: "Containers",
+        width: "12rem",
+        mono: true,
+        value: (row) =>
+          row.containers
+            .filter((container) => !container.init)
+            .map((container) => container.name)
+            .join(", "),
       },
       {
         id: "phase",
@@ -178,10 +174,12 @@ export function WorkloadsPage() {
         <ErrorState error={pods.error} onRetry={() => void pods.refetch()} />
       ) : (
         <DataTable
+          tableId="kube-pods"
           rows={rows}
           columns={columns}
           rowKey={(row) => row.name}
           filter={filter}
+          onClearFilter={() => setFilter("")}
           emptyState={
             <EmptyState
               icon={Boxes}

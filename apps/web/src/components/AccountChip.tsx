@@ -63,11 +63,11 @@ export function AccountChip() {
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         className="flex items-center gap-2 rounded px-1 py-0.5 leading-none transition-colors hover:bg-accent"
-        title="Switch AWS profile (Ctrl+P)"
+        title={`Switch AWS profile (Ctrl+P)${whoami.data?.accountId ? ` - account ${whoami.data.accountId}` : ""}`}
       >
         <span className="font-mono text-[11.5px] text-foreground">{profile}</span>
         {whoami.data?.accountId ? (
-          <span className="font-mono text-[10.5px] text-muted-foreground tabular">
+          <span className="hidden font-mono text-[10.5px] text-muted-foreground tabular lg:inline">
             {whoami.data.accountId}
           </span>
         ) : null}

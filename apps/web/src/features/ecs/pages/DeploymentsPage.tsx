@@ -64,7 +64,7 @@ export function DeploymentsPage() {
           return (
             <span className="flex items-center gap-2">
               <StatusDot tone={tone.tone} pulse={tone.pulse} />
-              <span className="truncate font-medium">{row.name}</span>
+              <span className="font-medium">{row.name}</span>
             </span>
           );
         },
@@ -168,10 +168,12 @@ export function DeploymentsPage() {
         <LoadingRows />
       ) : (
         <DataTable
+          tableId="ecs-deployments"
           rows={rows}
           columns={columns}
           rowKey={(row) => row.arn}
           filter={filter}
+          onClearFilter={() => setFilter("")}
           onOpen={(row) =>
             void navigate({
               to: "/ecs/clusters/$cluster/services/$service",

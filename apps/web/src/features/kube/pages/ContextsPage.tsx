@@ -44,7 +44,7 @@ export function ContextsPage() {
         value: (row) => row.name,
         cell: (row) => (
           <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-[12.5px]">{row.name}</span>
+            <span className="text-[12.5px]">{row.name}</span>
             {row.current ? <Badge tone="info">kubeconfig default</Badge> : null}
           </span>
         ),
@@ -76,12 +76,12 @@ export function ContextsPage() {
               title={`Running \`${row.execPlugin}\` gets this context's credentials. It runs inside your own kubectl, not from faws.`}
             >
               <Badge tone="warning">exec plugin</Badge>
-              <span className="truncate font-mono text-[10.5px] text-muted-foreground">
+              <span className="font-mono text-[10.5px] text-muted-foreground">
                 {row.execPlugin}
               </span>
             </span>
           ) : (
-            <span className="truncate font-mono text-[11px] text-muted-foreground">
+            <span className="font-mono text-[11px] text-muted-foreground">
               {row.userName || "-"}
             </span>
           ),
@@ -134,10 +134,12 @@ export function ContextsPage() {
         <ErrorState error={contexts.error} onRetry={() => void contexts.refetch()} />
       ) : (
         <DataTable
+          tableId="kube-contexts"
           rows={rows}
           columns={columns}
           rowKey={(row) => row.name}
           filter={filter}
+          onClearFilter={() => setFilter("")}
           emptyState={
             <EmptyState
               icon={Ship}

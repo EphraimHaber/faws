@@ -88,7 +88,7 @@ export function VersionsPane({
             ) : (
               <History className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={1.7} />
             )}
-            <span className="truncate">{row.key}</span>
+            <span className="">{row.key}</span>
           </span>
         ),
       },
@@ -188,10 +188,12 @@ export function VersionsPane({
       </div>
 
       <DataTable
+        tableId="s3-versions"
         rows={rows}
         columns={columns}
         rowKey={versionKey}
         filter={filter}
+        onClearFilter={() => setFilter("")}
         selection={{ selected, onChange: setSelected }}
         // A marker has no bytes, so there is nothing to compare it against.
         selectable={(row) => !row.isDeleteMarker}

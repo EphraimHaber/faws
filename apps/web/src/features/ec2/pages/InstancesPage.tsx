@@ -1,5 +1,6 @@
 import type { ExecInstanceTarget } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
+import { relativeTime } from "@faws/shared";
 import { Server } from "lucide-react";
 import * as React from "react";
 
@@ -43,46 +44,54 @@ export function InstancesPage() {
 
   const columns = React.useMemo<Column<ExecInstanceTarget>[]>(
     () => [
+      { id: "name", header: "Name", value: (row) => row.name ?? "" },
       {
-        id: "name",
-        header: "Instance",
-        value: (row) => `${row.name ?? ""} ${row.instanceId}`,
-        cell: (row) => (
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-[12.5px]">{row.name ?? row.instanceId}</span>
-            <span className="truncate font-mono text-[10.5px] text-muted-foreground">
-              {row.instanceId}
-            </span>
-          </span>
-        ),
+        id: "id",
+        header: "Instance ID",
+        width: "12rem",
+        mono: true,
+        value: (row) => row.instanceId,
       },
       {
-        id: "address",
-        header: "Address",
-        width: "11rem",
-        // The private address sorts and filters; a public one is shown under it
-        // rather than beside it, because an instance with both is reachable two
-        // ways and which one you get is the difference between the buttons.
-        value: (row) => row.privateIp ?? "",
-        cell: (row) => (
-          <span className="flex min-w-0 flex-col font-mono text-[11px] text-muted-foreground">
-            <span className="truncate">{row.privateIp ?? "-"}</span>
-            {row.publicIp ? <span className="truncate">{row.publicIp}</span> : null}
-          </span>
-        ),
+        id: "private-ip",
+        header: "Private IPv4",
+        width: "8.5rem",
+        mono: true,
+        value: (row) => row.privateIp,
       },
       {
-        id: "type",
-        header: "Type",
-        width: "9rem",
-        value: (row) => row.instanceType ?? "",
-        cell: (row) => (
-          <span className="flex min-w-0 flex-col text-[11px] text-muted-foreground">
-            <span className="truncate">{row.instanceType ?? "-"}</span>
-            <span className="truncate">{row.availabilityZone ?? "-"}</span>
-          </span>
-        ),
+        id: "public-ip",
+        header: "Public IPv4",
+        width: "8.5rem",
+        mono: true,
+        value: (row) => row.publicIp,
       },
+      {
+        id: "ipv6",
+        header: "IPv6",
+        width: "16rem",
+        mono: true,
+        defaultHidden: true,
+        value: (row) => row.ipv6,
+      },
+      {
+        id: "private-dns",
+        header: "Private DNS",
+        width: "16rem",
+        mono: true,
+        defaultHidden: true,
+        value: (row) => row.privateDns,
+      },
+      {
+        id: "public-dns",
+        header: "Public DNS",
+        width: "18rem",
+        mono: true,
+        defaultHidden: true,
+        value: (row) => row.publicDns,
+      },
+      { id: "type", header: "Type", width: "7.5rem", value: (row) => row.instanceType },
+      { id: "az", header: "Zone", width: "8rem", value: (row) => row.availabilityZone },
       {
         id: "state",
         header: "State",
@@ -95,7 +104,7 @@ export function InstancesPage() {
       {
         id: "ssm",
         header: "SSM",
-        width: "7rem",
+        width: "6.5rem",
         value: (row) => (row.ssmManaged ? (row.ssmPingStatus ?? "managed") : ""),
         cell: (row) =>
           row.ssmManaged ? (
@@ -105,6 +114,81 @@ export function InstancesPage() {
           ) : (
             <span className="font-mono text-[10.5px] text-muted-foreground/50">-</span>
           ),
+      },
+      {
+        id: "vpc",
+        header: "VPC",
+        width: "13rem",
+        mono: true,
+        defaultHidden: true,
+        value: (row) => row.vpcId,
+      },
+      {
+        id: "subnet",
+        header: "Subnet",
+        width: "14rem",
+        mono: true,
+        defaultHidden: true,
+        value: (row) => row.subnetId,
+      },
+      {
+        id: "platform",
+        header: "Platform",
+        width: "9rem",
+        defaultHidden: true,
+        value: (row) => row.platform,
+      },
+      {
+        id: "arch",
+        header: "Arch",
+        width: "5.5rem",
+        defaultHidden: true,
+        value: (row) => row.architecture,
+      },
+      {
+        id: "image",
+        header: "Image",
+        width: "13rem",
+        mono: true,
+        defaultHidden: true,
+        value: (row) => row.imageId,
+      },
+      {
+        id: "key",
+        header: "Key pair",
+        width: "9rem",
+        defaultHidden: true,
+        value: (row) => row.keyName,
+      },
+      {
+        id: "profile",
+        header: "Instance profile",
+        width: "12rem",
+        defaultHidden: true,
+        value: (row) => row.instanceProfile,
+      },
+      {
+        id: "groups",
+        header: "Security groups",
+        width: "14rem",
+        defaultHidden: true,
+        value: (row) => row.securityGroups,
+      },
+      {
+        id: "os-user",
+        header: "Login",
+        width: "7rem",
+        mono: true,
+        defaultHidden: true,
+        value: (row) => row.osUser,
+      },
+      {
+        id: "launched",
+        header: "Launched",
+        width: "8rem",
+        defaultHidden: true,
+        value: (row) => row.launchedAt,
+        cell: (row) => (row.launchedAt ? relativeTime(row.launchedAt) : "-"),
       },
       {
         id: "shell",
@@ -144,10 +228,12 @@ export function InstancesPage() {
           <ErrorState error={targets.error} onRetry={() => void targets.refetch()} />
         ) : (
           <DataTable
+            tableId="ec2-instances"
             rows={rows}
             columns={columns}
             rowKey={(row) => row.instanceId}
             filter={filter}
+            onClearFilter={() => setFilter("")}
             emptyState={
               <EmptyState
                 icon={Server}

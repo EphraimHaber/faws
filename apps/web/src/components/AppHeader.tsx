@@ -23,8 +23,8 @@ export function AppHeader({ onOpenPalette }: { onOpenPalette: () => void }) {
   const service = serviceForPath(location.pathname);
 
   return (
-    <header className="drag-region titlebar-inset z-30 flex h-12 shrink-0 items-center gap-5 border-b border-border bg-chrome px-4">
-      <Link to="/" className="flex items-center gap-2.5">
+    <header className="drag-region titlebar-inset z-30 flex h-12 shrink-0 items-center gap-3 border-b border-border bg-chrome px-4 whitespace-nowrap lg:gap-5">
+      <Link to="/" className="flex shrink-0 items-center gap-2.5">
         <BrandMark />
         <span className="flex items-baseline gap-1.5 leading-none">
           <span className="text-[15px] font-semibold tracking-tight text-foreground">faws</span>
@@ -34,18 +34,24 @@ export function AppHeader({ onOpenPalette }: { onOpenPalette: () => void }) {
         </span>
       </Link>
 
-      <span aria-hidden className="h-3.5 w-px bg-border" />
+      <span aria-hidden className="h-3.5 w-px shrink-0 bg-border" />
 
-      <Breadcrumb />
+      {/* The breadcrumb takes whatever the controls leave and truncates; the
+          controls never shrink, because a wrapped region or write mode is
+          harder to read than a shortened trail. */}
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <Breadcrumb />
+      </div>
 
-      <div className="ml-auto flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2 lg:gap-3">
         <button
           type="button"
           onClick={onOpenPalette}
+          aria-label="Jump to…"
           className="flex h-7 items-center gap-2 rounded-md border border-border bg-background/60 pl-2 pr-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground"
         >
           <Command className="size-3" strokeWidth={1.9} />
-          Jump to…
+          <span className="hidden lg:inline">Jump to…</span>
           <Kbd>⌘K</Kbd>
         </button>
         <span aria-hidden className="h-3.5 w-px bg-border" />

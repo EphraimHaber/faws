@@ -23,6 +23,7 @@ import {
   applyPatch,
   applyRecentOp,
   applyS3ConnectionOp,
+  applyTableLayoutOp,
   DEFAULT_SETTINGS,
   pruneRecents,
   pruneSilenced,
@@ -36,6 +37,7 @@ import {
   type SilenceOp,
   type SilencedSettings,
   settingsSchema,
+  type TableLayoutOp,
 } from "@faws/contracts";
 
 import { createLogger } from "../../shared/logger.ts";
@@ -82,6 +84,8 @@ export interface SettingsStore {
    * navigation and overwriting whatever the others had learned.
    */
   applyRecents(op: RecentOp, originId?: string | null): SettingsSnapshot;
+  /** Sets or resets one table's column layout, leaving every other table's alone. */
+  applyTableLayout(op: TableLayoutOp, originId?: string | null): SettingsSnapshot;
   /**
    * Adopts preferences a browser had in `localStorage` before this existed.
    * A no-op unless the store is still pristine, so two tabs racing to import
@@ -309,6 +313,10 @@ export function createSettingsStore(options: SettingsStoreOptions): SettingsStor
     applyRecents(op, originId = null) {
       const recents = applyRecentOp(settings.recents, op, now());
       return commit({ ...settings, recents: pruneRecents(recents) }, originId);
+    },
+
+    applyTableLayout(op, originId = null) {
+      return commit({ ...settings, tables: applyTableLayoutOp(settings.tables, op) }, originId);
     },
 
     importLegacy(patch, silenced, originId = null) {

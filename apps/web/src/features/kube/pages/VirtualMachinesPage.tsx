@@ -154,10 +154,12 @@ export function VirtualMachinesPage() {
         <ErrorState error={machines.error} onRetry={() => void machines.refetch()} />
       ) : (
         <DataTable
+          tableId="kube-virtual-machines"
           rows={rows}
           columns={columns}
           rowKey={(row) => row.name}
           filter={filter}
+          onClearFilter={() => setFilter("")}
           emptyState={
             <EmptyState
               icon={Monitor}
