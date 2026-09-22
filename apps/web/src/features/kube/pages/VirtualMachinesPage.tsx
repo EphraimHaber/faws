@@ -8,6 +8,7 @@ import { type Column, DataTable } from "~/components/data-table";
 import { FilterInput } from "~/components/toolbar";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { DisabledHint } from "~/components/WriteGuard";
 import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
@@ -190,7 +191,10 @@ function Connect({
     );
   }
 
-  const reason = noVirtctl ? "virtctl is not installed on this machine" : null;
+  const consoleReason = noVirtctl ? "virtctl is not installed on this machine" : null;
+  const sshReason =
+    consoleReason ??
+    (row.ready ? null : "The guest agent is not reporting, so ssh has nothing to land on");
   const target = (mode: "ssh" | "console"): ExecTarget => ({
     kind: "kube",
     context,
@@ -202,30 +206,27 @@ function Connect({
   });
 
   return (
-    // The reason rides on the wrapper rather than on the buttons: `Button` sets
-    // `disabled:pointer-events-none`, which suppresses the native tooltip on
-    // the very control whose disabling needs explaining.
-    <span className="flex items-center justify-end gap-1.5" title={reason ?? undefined}>
-      <Button
-        variant="default"
-        disabled={noVirtctl || !row.ready}
-        title={
-          row.ready
-            ? `virtctl ssh ${DEFAULT_GUEST_USER}@${row.name}`
-            : "The guest agent is not reporting, so ssh has nothing to land on"
-        }
-        onClick={() => onOpen(target("ssh"))}
-      >
-        <TerminalSquare className="size-3" />
-        SSH
-      </Button>
-      <Button
-        disabled={noVirtctl}
-        title="Attach to the serial console"
-        onClick={() => onOpen(target("console"))}
-      >
-        Console
-      </Button>
+    <span className="flex items-center justify-end gap-1.5">
+      <DisabledHint reason={sshReason}>
+        <Button
+          variant="default"
+          disabled={sshReason !== null}
+          title={`virtctl ssh ${DEFAULT_GUEST_USER}@${row.name}`}
+          onClick={() => onOpen(target("ssh"))}
+        >
+          <TerminalSquare className="size-3" />
+          SSH
+        </Button>
+      </DisabledHint>
+      <DisabledHint reason={consoleReason}>
+        <Button
+          disabled={consoleReason !== null}
+          title="Attach to the serial console"
+          onClick={() => onOpen(target("console"))}
+        >
+          Console
+        </Button>
+      </DisabledHint>
     </span>
   );
 }
