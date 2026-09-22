@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_LOG_GUTTER,
+  DEFAULT_SIDEBAR_WIDTH,
+  MAX_SIDEBAR_WIDTH,
+  MIN_SIDEBAR_WIDTH,
+  applyPatch,
   DEFAULT_SETTINGS,
   MAX_SILENCE_ENTRIES,
   pruneSilenced,
@@ -21,6 +25,25 @@ describe("settingsSchema", () => {
     expect(DEFAULT_SETTINGS.appearance.theme).toBe("dark");
     expect(DEFAULT_SETTINGS.terminal.recordByDefault).toBe(true);
     expect(DEFAULT_SETTINGS.silenced).toEqual({ dismissed: {}, muted: {} });
+  });
+
+  it("defaults the sidebar width, and clamps one that is out of range", () => {
+    expect(DEFAULT_SETTINGS.layout.sidebarWidth).toBe(DEFAULT_SIDEBAR_WIDTH);
+    // A width outside the range is a value the rail cannot render usefully, so
+    // it falls back rather than being honoured.
+    expect(
+      settingsSchema.parse({ layout: { sidebarWidth: MIN_SIDEBAR_WIDTH - 1 } }).layout,
+    ).toEqual({ sidebarWidth: DEFAULT_SIDEBAR_WIDTH });
+    expect(
+      settingsSchema.parse({ layout: { sidebarWidth: MAX_SIDEBAR_WIDTH + 1 } }).layout,
+    ).toEqual({ sidebarWidth: DEFAULT_SIDEBAR_WIDTH });
+  });
+
+  it("carries a layout patch through applyPatch", () => {
+    // The easy miss: `settingsPatchSchema` is strict, so a section added there
+    // but not to `applyPatch` validates and is then silently dropped.
+    const patch = settingsPatchSchema.parse({ layout: { sidebarWidth: 300 } });
+    expect(applyPatch(DEFAULT_SETTINGS, patch).layout.sidebarWidth).toBe(300);
   });
 
   it("costs one bad leaf only itself", () => {

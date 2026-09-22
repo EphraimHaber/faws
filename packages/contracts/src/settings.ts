@@ -46,6 +46,16 @@ export const DEFAULT_LOG_TASK_GUTTER = 128;
 export const MIN_DOCK_HEIGHT = 120;
 export const DEFAULT_DOCK_HEIGHT = 280;
 
+/** Narrower than this and a cluster name is an ellipsis with a dot beside it. */
+export const MIN_SIDEBAR_WIDTH = 180;
+/**
+ * Capped because the rail is navigation, not content: past this it is taking
+ * room from the thing being read without showing anything more of itself.
+ */
+export const MAX_SIDEBAR_WIDTH = 480;
+/** `w-64`, which is what it was fixed at before it could be dragged. */
+export const DEFAULT_SIDEBAR_WIDTH = 256;
+
 /** Clock time is enough to follow a tail; the full stamp is what you paste
  *  into a ticket or line up against another system's clock. */
 export type LogTimestamps = "clock" | "full";
@@ -105,6 +115,23 @@ export const logSettingsSchema = z.object({
   taskGutter: z.number().int().min(MIN_LOG_GUTTER).catch(DEFAULT_LOG_TASK_GUTTER),
 });
 
+/**
+ * How the shell's own panes are sized.
+ *
+ * Separate from `appearance`, which is about how things look rather than how
+ * much room they take, and separate from `terminal`, which owns the dock's
+ * height because the dock belongs to the terminal. The sidebar belongs to the
+ * shell.
+ */
+export const layoutSettingsSchema = z.object({
+  sidebarWidth: z
+    .number()
+    .int()
+    .min(MIN_SIDEBAR_WIDTH)
+    .max(MAX_SIDEBAR_WIDTH)
+    .catch(DEFAULT_SIDEBAR_WIDTH),
+});
+
 export const appearanceSettingsSchema = z.object({
   /** Dark-first: this tool lives next to a terminal. */
   theme: z.enum(["light", "dark"]).catch("dark"),
@@ -151,6 +178,7 @@ export const settingsSchema = z.object({
   scope: section(scopeSettingsSchema),
   logs: section(logSettingsSchema),
   appearance: section(appearanceSettingsSchema),
+  layout: section(layoutSettingsSchema),
   terminal: section(terminalSettingsSchema),
   s3: section(s3SettingsSchema),
   silenced: section(silencedSettingsSchema),
@@ -159,6 +187,7 @@ export const settingsSchema = z.object({
 export type Settings = z.infer<typeof settingsSchema>;
 export type ScopeSettings = Settings["scope"];
 export type LogSettings = Settings["logs"];
+export type LayoutSettings = Settings["layout"];
 export type TerminalSettings = Settings["terminal"];
 export type S3Settings = Settings["s3"];
 export type SilencedSettings = Settings["silenced"];
@@ -186,6 +215,7 @@ export const settingsPatchSchema = z
     scope: scopeSettingsSchema.partial(),
     logs: logSettingsSchema.partial(),
     appearance: appearanceSettingsSchema.partial(),
+    layout: layoutSettingsSchema.partial(),
     terminal: terminalSettingsSchema.partial(),
   })
   .partial()
@@ -253,6 +283,7 @@ export function applyPatch(current: Settings, patch: SettingsPatch): Settings {
     scope: mergeSection(current.scope, patch.scope),
     logs: mergeSection(current.logs, patch.logs),
     appearance: mergeSection(current.appearance, patch.appearance),
+    layout: mergeSection(current.layout, patch.layout),
     terminal: mergeSection(current.terminal, patch.terminal),
   };
 }
