@@ -100,6 +100,16 @@ export function deriveCrumbs(pathname: string): Crumb[] {
     return crumbs;
   }
 
+  // /kubernetes/{contexts,workloads,virtual-machines}
+  if (service.id === "kubernetes" && segments[1]) {
+    // From the registry rather than from a table here, so the crumb and the
+    // sidebar row can never disagree about what a section is called - and so
+    // "Virtual machines" is written once rather than title-cased out of a slug.
+    const section = service.sections.find((entry) => entry.id === segments[1]);
+    if (section?.to) crumbs.push({ label: section.label, to: section.to });
+    return crumbs;
+  }
+
   // /ec2/instances
   if (segments[1] === "instances") {
     crumbs.push({ label: "Instances", to: `${service.basePath}/instances` });
