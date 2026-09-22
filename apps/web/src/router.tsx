@@ -222,7 +222,7 @@ function BucketRoute() {
 function RootLayout() {
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
-  const [newSessionOpen, setNewSessionOpen] = React.useState(false);
+  const [newSession, setNewSession] = React.useState<"closed" | "instance" | "ssh">("closed");
   const { location } = useRouterState();
 
   // Capture server logs for the whole session, not just while /logs is open.
@@ -387,13 +387,21 @@ function RootLayout() {
         </main>
       </div>
       <TerminalDock />
-      <NewSessionDialog open={newSessionOpen} onClose={() => setNewSessionOpen(false)} />
-      <StatusBar onShowHelp={() => setHelpOpen(true)} />
+      <NewSessionDialog
+        open={newSession !== "closed"}
+        initialMode={newSession === "ssh" ? "ssh" : "instance"}
+        onClose={() => setNewSession("closed")}
+      />
+      <StatusBar
+        onShowHelp={() => setHelpOpen(true)}
+        onOpenTerminal={() => setNewSession("instance")}
+      />
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         activeCluster={activeCluster}
-        onOpenTerminal={() => setNewSessionOpen(true)}
+        onOpenTerminal={() => setNewSession("instance")}
+        onOpenSsh={() => setNewSession("ssh")}
       />
       <KeyboardHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>

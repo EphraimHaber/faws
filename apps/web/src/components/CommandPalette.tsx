@@ -44,17 +44,24 @@ export function CommandPalette({
   onClose,
   activeCluster,
   onOpenTerminal,
+  onOpenSsh,
 }: {
   open: boolean;
   onClose: () => void;
   activeCluster: string | null;
   onOpenTerminal: () => void;
+  onOpenSsh: () => void;
 }) {
   // Mounting the body only while open is what keeps the query text and the
   // highlighted row fresh on every invocation, with no reset bookkeeping.
   if (!open) return null;
   return (
-    <PaletteBody onClose={onClose} activeCluster={activeCluster} onOpenTerminal={onOpenTerminal} />
+    <PaletteBody
+      onClose={onClose}
+      activeCluster={activeCluster}
+      onOpenTerminal={onOpenTerminal}
+      onOpenSsh={onOpenSsh}
+    />
   );
 }
 
@@ -62,9 +69,11 @@ function PaletteBody({
   onClose,
   activeCluster,
   onOpenTerminal,
+  onOpenSsh,
 }: {
   onClose: () => void;
   onOpenTerminal: () => void;
+  onOpenSsh: () => void;
   activeCluster: string | null;
 }) {
   const scope = useAwsScope();
@@ -97,8 +106,15 @@ function PaletteBody({
         id: "terminal:open",
         icon: TerminalSquare,
         label: "Open a terminal",
-        hint: "shell into an instance or an SSH host",
+        hint: "shell into an EC2 instance",
         run: onOpenTerminal,
+      },
+      {
+        id: "terminal:ssh",
+        icon: TerminalSquare,
+        label: "SSH to a host",
+        hint: "a hostname, or an entry from ~/.ssh/config",
+        run: onOpenSsh,
       },
       {
         id: "nav:home",
@@ -191,7 +207,7 @@ function PaletteBody({
     }
 
     return out;
-  }, [clusters.data, services.data, navigate, onOpenTerminal]);
+  }, [clusters.data, services.data, navigate, onOpenTerminal, onOpenSsh]);
 
   const matches = React.useMemo(() => {
     const needle = query.trim().toLowerCase();

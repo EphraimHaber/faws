@@ -1,10 +1,11 @@
 import { useHotkeys } from "@tanstack/react-hotkeys";
-import { Pause, RotateCw, Timer } from "lucide-react";
+import { Pause, RotateCw, TerminalSquare, Timer } from "lucide-react";
 
 import { Kbd } from "~/components/ui/kbd";
 import { REFRESH_CHOICES, useScope } from "~/contexts/ScopeContext";
 import { useAutoRefresh } from "~/hooks/useAutoRefresh";
 import { describe } from "~/lib/hotkeys";
+import { useSessions } from "~/stores/sessions";
 import { useOverlaysOpen } from "~/stores/overlays";
 import { cn } from "~/lib/utils";
 
@@ -14,7 +15,16 @@ import { cn } from "~/lib/utils";
  * explicit because silent background polling is how a console lies to you
  * about how fresh the numbers are.
  */
-export function StatusBar({ onShowHelp }: { onShowHelp: () => void }) {
+export function StatusBar({
+  onShowHelp,
+  onOpenTerminal,
+}: {
+  onShowHelp: () => void;
+  onOpenTerminal: () => void;
+}) {
+  const sessionCount = useSessions((state) => state.sessions.length);
+  const dockOpen = useSessions((state) => state.dockOpen);
+  const toggleDock = useSessions((state) => state.toggleDock);
   const { profile, region, refreshSeconds, setRefreshSeconds } = useScope();
   const overlayOpen = useOverlaysOpen();
   const { secondsLeft, refreshNow } = useAutoRefresh();
@@ -75,6 +85,23 @@ export function StatusBar({ onShowHelp }: { onShowHelp: () => void }) {
       </span>
 
       <div className="ml-auto flex items-center gap-3">
+        {/* The only always-visible way in. Without it, opening a terminal means
+            knowing either the command palette entry or the chord, and a shell
+            is not a feature people should have to already know about. */}
+        <button
+          type="button"
+          onClick={() => (sessionCount > 0 ? toggleDock() : onOpenTerminal())}
+          title={
+            sessionCount > 0
+              ? `${dockOpen ? "Hide" : "Show"} the terminal dock (Ctrl+\`)`
+              : "Open a terminal (Cmd+Alt+T)"
+          }
+          className="flex cursor-pointer items-center gap-1 transition-colors hover:text-foreground"
+        >
+          <TerminalSquare className="size-3" />
+          {sessionCount > 0 ? <span className="tabular">{sessionCount}</span> : null}
+          <span>terminal</span>
+        </button>
         <span className="flex items-center gap-1">
           <Kbd>/</Kbd> filter
         </span>

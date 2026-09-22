@@ -30,20 +30,37 @@ type Mode = "instance" | "ssh";
  * be in AWS at all. A single combined field would have to guess which one an
  * input meant.
  */
-export function NewSessionDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [mode, setMode] = React.useState<Mode>("instance");
-  const { isTop } = useOverlay("terminal-new-session", open);
+export function NewSessionDialog({
+  open,
+  onClose,
+  initialMode = "instance",
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** Which half to land on, so "SSH to a host" does not open on the instance list. */
+  initialMode?: Mode;
+}) {
+  // Mounting the body only while open is what makes the entry point decide
+  // which half opens: the state starts fresh each time rather than keeping
+  // whichever half was last looked at.
+  if (!open) return null;
+  return <DialogBody onClose={onClose} initialMode={initialMode} />;
+}
+
+function DialogBody({ onClose, initialMode }: { onClose: () => void; initialMode: Mode }) {
+  const [mode, setMode] = React.useState<Mode>(initialMode);
+  // Open for as long as this body is mounted, which is the whole point of
+  // mounting it conditionally.
+  const { isTop } = useOverlay("terminal-new-session", true);
 
   React.useEffect(() => {
-    if (!open || !isTop) return;
+    if (!isTop) return;
     const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [open, isTop, onClose]);
-
-  if (!open) return null;
+  }, [isTop, onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-24">
