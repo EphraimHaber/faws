@@ -149,7 +149,7 @@ export function ConnectPanel() {
                             row.actions.map((action, index) => (
                               <Button
                                 key={action.label}
-                                size="sm"
+                                size="xs"
                                 variant={index === 0 ? "outline" : "ghost"}
                                 title={action.title}
                                 onClick={() => {

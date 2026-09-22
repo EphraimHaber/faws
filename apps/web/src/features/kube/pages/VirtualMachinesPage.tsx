@@ -1,7 +1,7 @@
 import type { KubeVirtualMachineInfo } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Monitor, TerminalSquare } from "lucide-react";
+import { Monitor } from "lucide-react";
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
@@ -97,8 +97,9 @@ export function VirtualMachinesPage() {
       {
         id: "connect",
         header: "Connect",
-        width: "14rem",
+        width: "9rem",
         align: "right",
+        pin: "end",
         value: (row) => (row.running ? "console" : "stopped"),
         cell: (row) => (
           <Connect
@@ -220,17 +221,18 @@ function Connect({
     <span className="flex items-center justify-end gap-1.5">
       <DisabledHint reason={sshReason}>
         <Button
-          variant="default"
+          size="xs"
           disabled={sshReason !== null}
           title={`virtctl ssh into ${row.name}`}
           onClick={onSsh}
         >
-          <TerminalSquare className="size-3" />
           SSH
         </Button>
       </DisabledHint>
       <DisabledHint reason={consoleReason}>
         <Button
+          size="xs"
+          variant="ghost"
           disabled={consoleReason !== null}
           title="Attach to the serial console"
           onClick={() =>

@@ -14,6 +14,8 @@ const buttonVariants = cva(
         danger: "bg-danger text-white hover:opacity-90",
       },
       size: {
+        /** For actions inside a table or list row, where a row is 34px tall. */
+        xs: "h-6 px-2 text-[11px]",
         sm: "h-7 px-2.5 text-[12px]",
         md: "h-8 px-3 text-[13px]",
         icon: "size-7",

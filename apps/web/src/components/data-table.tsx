@@ -18,7 +18,23 @@ export interface Column<T> {
   readonly width?: string;
   readonly align?: "left" | "right";
   readonly mono?: boolean;
+  /**
+   * Kept in view at the right edge while the rest of the table scrolls
+   * sideways. For a column of actions, which is useless scrolled off-screen.
+   */
+  readonly pin?: "end";
 }
+
+/**
+ * A pinned cell sits over the cells scrolling beneath it, so it needs an opaque
+ * background. The row's hover and active tints are translucent, so they are
+ * painted over the card colour rather than in place of it - the same colour
+ * the unpinned cells beside it show.
+ */
+const PINNED_BASE = "sticky right-0 z-[1] border-l border-border/45 bg-card";
+const PINNED_HOVER =
+  "group-hover:[background-image:linear-gradient(color-mix(in_oklab,var(--accent)_60%,transparent),color-mix(in_oklab,var(--accent)_60%,transparent))]";
+const PINNED_ACTIVE = "[background-image:linear-gradient(var(--accent),var(--accent))]";
 
 /**
  * Which rows are ticked, and how that changes.
@@ -175,7 +191,7 @@ export function DataTable<T>({
                 width: totalWidth(columns, widths) + (selection ? TICK_COLUMN_WIDTH : 0),
                 minWidth: "100%",
               }
-            : undefined
+            : { minWidth: hintedWidth(columns, selection !== undefined) }
         }
       >
         {widths ? (
@@ -219,6 +235,8 @@ export function DataTable<T>({
                     "relative h-8 cursor-pointer select-none px-3 font-mono text-[10px] font-normal tracking-[0.14em] whitespace-nowrap text-muted-foreground uppercase transition-colors hover:text-foreground",
                     column.align === "right" ? "text-right" : "text-left",
                     active && "text-foreground",
+                    column.pin === "end" &&
+                      "sticky right-0 z-[1] border-l border-border/45 bg-card",
                   )}
                   onClick={() => toggleSort(column.id)}
                   title={`Sort by ${column.header} (F${index + SORT_KEY_OFFSET})`}
@@ -253,7 +271,7 @@ export function DataTable<T>({
               onClick={() => open(row)}
               onDoubleClick={() => open(row)}
               className={cn(
-                "border-b border-border/45 transition-colors",
+                "group border-b border-border/45 transition-colors",
                 onOpen && "cursor-pointer",
                 index === activeIndex ? "bg-accent" : "hover:bg-accent/60",
               )}
@@ -297,6 +315,8 @@ export function DataTable<T>({
                       !widths && "max-w-0",
                       column.align === "right" && "text-right",
                       column.mono && "font-mono text-[11.5px] tabular",
+                      column.pin === "end" &&
+                        cn(PINNED_BASE, index === activeIndex ? PINNED_ACTIVE : PINNED_HOVER),
                     )}
                   >
                     {column.cell ? column.cell(row) : text || "-"}
@@ -482,6 +502,23 @@ function useColumnWidths<T>(columns: ReadonlyArray<Column<T>>) {
   }, []);
 
   return { widths, headerRef, startResize, resetWidths };
+}
+
+/** The narrowest a column without a width hint is allowed to get. */
+const FLEXIBLE_FLOOR = "10rem";
+
+/**
+ * What the width hints add up to, as the table's floor before any drag.
+ *
+ * Without it, an auto-laid-out table in a narrow window shrinks every column
+ * below its hint - `max-w-0` on the cells lets it - and a column of buttons is
+ * clipped rather than scrolled to. With it, the hints hold and the container
+ * scrolls sideways, as it does once a column has been dragged wider.
+ */
+function hintedWidth<T>(columns: ReadonlyArray<Column<T>>, selection: boolean): string {
+  const parts = columns.map((column) => column.width ?? FLEXIBLE_FLOOR);
+  if (selection) parts.push(`${TICK_COLUMN_WIDTH}px`);
+  return `calc(${parts.join(" + ")})`;
 }
 
 function totalWidth<T>(columns: ReadonlyArray<Column<T>>, widths: Record<string, number>): number {

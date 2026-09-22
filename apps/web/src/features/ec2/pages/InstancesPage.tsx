@@ -1,6 +1,6 @@
 import type { ExecInstanceTarget } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
-import { Server, TerminalSquare } from "lucide-react";
+import { Server } from "lucide-react";
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
@@ -109,8 +109,9 @@ export function InstancesPage() {
       {
         id: "shell",
         header: "Shell",
-        width: "15rem",
+        width: "11rem",
         align: "right",
+        pin: "end",
         // Sortable and filterable by how it can be reached, which is the one
         // question this page exists to answer: `shell:unreachable` lists every
         // instance you cannot get onto.
@@ -201,10 +202,10 @@ function Connect({
       {routes.map((route, index) => (
         <Button
           key={route.label}
-          size="sm"
+          size="xs"
           // The first is the one to reach for; the rest are what you try when
           // it does not work. Both are buttons either way.
-          variant={index === 0 ? "default" : "outline"}
+          variant={index === 0 ? "outline" : "ghost"}
           title={route.title}
           onClick={() => {
             // Recorded on the shell rather than on a dwell, because this list
@@ -214,7 +215,6 @@ function Connect({
             onOpen(route.target);
           }}
         >
-          {index === 0 ? <TerminalSquare className="size-3" /> : null}
           {route.label}
         </Button>
       ))}

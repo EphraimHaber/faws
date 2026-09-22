@@ -79,10 +79,10 @@ export function SessionsPage() {
                             >
                               {describeStatus(session)}
                             </span>
-                            <Button size="sm" onClick={() => focus(session.id)}>
+                            <Button size="xs" onClick={() => focus(session.id)}>
                               Focus
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => close(session.id)}>
+                            <Button size="xs" variant="ghost" onClick={() => close(session.id)}>
                               {isFinished(session) ? "Dismiss" : "Close"}
                             </Button>
                           </>

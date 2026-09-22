@@ -1,7 +1,7 @@
 import type { KubePodInfo } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { Boxes, TerminalSquare } from "lucide-react";
+import { Boxes } from "lucide-react";
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
@@ -127,8 +127,9 @@ export function WorkloadsPage() {
       {
         id: "shell",
         header: "Shell",
-        width: "13rem",
+        width: "8rem",
         align: "right",
+        pin: "end",
         // Sortable and filterable by whether a shell can land, which is the one
         // question this page exists to answer: `shell:no shell` lists the pods
         // that are up in name only.
@@ -230,7 +231,8 @@ function Connect({
       {podActions(row, context, namespace, openShift).map((action, index) => (
         <Button
           key={action.label}
-          variant={index === 0 ? "default" : "outline"}
+          size="xs"
+          variant={index === 0 ? "outline" : "ghost"}
           title={action.title}
           onClick={() => {
             // Recorded on the shell rather than on a dwell, because this list
@@ -241,7 +243,6 @@ function Connect({
             onOpen(action.target);
           }}
         >
-          {index === 0 ? <TerminalSquare className="size-3" /> : null}
           {action.label}
         </Button>
       ))}
