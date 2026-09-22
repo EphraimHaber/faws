@@ -1,3 +1,4 @@
+import { settingsPatchSchema } from "@faws/contracts";
 import { describe, expect, it } from "vitest";
 
 import { isEmptyPatch, mergePatches } from "./merge.ts";
@@ -20,6 +21,23 @@ describe("mergePatches", () => {
       appearance: { theme: "light" },
       logs: { gutter: 90 },
     });
+  });
+
+  it("carries the kube scope and the sidebar width", () => {
+    expect(mergePatches({ kube: { context: "prod" } }, { layout: { sidebarWidth: 300 } })).toEqual({
+      kube: { context: "prod" },
+      layout: { sidebarWidth: 300 },
+    });
+  });
+
+  it("carries every section the patch schema accepts", () => {
+    // A section the server accepts but this merge does not know is kept on
+    // screen and in the cache and never sent, so it looks saved until reload.
+    for (const key of Object.keys(settingsPatchSchema.shape)) {
+      const patch = { [key]: { probe: 1 } } as never;
+      expect(mergePatches({}, patch), key).toEqual(patch);
+      expect(isEmptyPatch(patch), key).toBe(false);
+    }
   });
 });
 

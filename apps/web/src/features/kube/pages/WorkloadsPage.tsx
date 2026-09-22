@@ -1,5 +1,6 @@
-import type { KubePodInfo, ResourceRef } from "@faws/contracts";
+import type { KubePodInfo } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Boxes, TerminalSquare } from "lucide-react";
 import * as React from "react";
 
@@ -14,12 +15,14 @@ import { LoadingRows } from "~/components/ui/spinner";
 import { useKubeScope } from "~/contexts/ScopeContext";
 import { KubeScopePicker } from "~/features/kube/components/KubeScopePicker";
 import { hasNoCli, NoKubectl } from "~/features/kube/components/NoKubectl";
+import { kubeContextRef } from "~/features/kube/scope-link";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { useFilterSearch } from "~/hooks/useSearchState";
 import type { ExecTarget } from "~/lib/terminal/handshake";
 import { trpc } from "~/lib/trpc";
 import { recentActions } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
+import { updateSettings, useSettings } from "~/stores/settings";
 
 /**
  * Pods in the scoped namespace, listed for one reason: getting a shell in one.
@@ -37,6 +40,7 @@ import { useSessions } from "~/stores/sessions";
  * button quietly deciding on the cluster's behalf.
  */
 export function WorkloadsPage() {
+  useAdoptLinkedScope();
   const { context, namespace, ready } = useKubeScope();
   const open = useSessions((state) => state.open);
   const [filter, setFilter] = useFilterSearch();
@@ -237,7 +241,7 @@ function Connect({
           // that you got into it. The ref points at the context, since a pod
           // name changes on every rollout and a link to a dead one is a link to
           // nothing.
-          recentActions.record(contextRef(context, namespace));
+          recentActions.record(kubeContextRef(context, namespace));
           onOpen({ kind: "kube", context, namespace, target: { tool: "kubectl", ...target } });
         }}
       >
@@ -251,7 +255,7 @@ function Connect({
         <Button
           title={`oc rsh into ${container ?? row.name}`}
           onClick={() => {
-            recentActions.record(contextRef(context, namespace));
+            recentActions.record(kubeContextRef(context, namespace));
             onOpen({ kind: "kube", context, namespace, target: { tool: "oc", ...target } });
           }}
         >
@@ -263,22 +267,25 @@ function Connect({
 }
 
 /**
- * The context, pointed at the list it was used from.
+ * Moves the stored kube scope to the one a link asked for, then takes it out
+ * of the URL so a reload or a copied address does not keep forcing it back.
  *
- * A pod is not the thing to remember: its name carries a replica-set hash and
- * changes on every rollout, so a stored one navigates to something that no
- * longer exists within the day. The context and namespace are what somebody
- * comes back to.
+ * Waits for the first settings load: a change written before it lands is
+ * overwritten by it, which on a cold open would leave the old cluster selected.
  */
-function contextRef(context: string, namespace: string): ResourceRef {
-  return {
-    kind: "kube-context",
-    id: `${context}/${namespace}`,
-    label: context,
-    detail: namespace,
-    // Unscoped: a cluster is reached from this machine rather than through an
-    // AWS account, so it stays listed whichever profile is in view.
-    scope: { profile: "", region: "", connectionId: "" },
-    to: "/kubernetes/workloads",
-  };
+function useAdoptLinkedScope() {
+  const search = useSearch({ from: "/kubernetes/workloads" });
+  const navigate = useNavigate();
+  const loaded = useSettings((state) => state.ready);
+  const { context, namespace } = search;
+
+  React.useLayoutEffect(() => {
+    if (!loaded || context === undefined) return;
+    updateSettings({ kube: { context, namespace: namespace ?? "" } });
+    void navigate({
+      to: ".",
+      search: ({ context: _context, namespace: _namespace, ...rest }) => rest,
+      replace: true,
+    });
+  }, [loaded, context, namespace, navigate]);
 }

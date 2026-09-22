@@ -7,11 +7,15 @@
  * than replacing matters when a drag and an unrelated toggle overlap: the
  * toggle must not be dropped just because the drag wrote last.
  */
-import type { SettingsPatch } from "@faws/contracts";
+import { type SettingsPatch, settingsPatchSchema } from "@faws/contracts";
 
 type Section = keyof SettingsPatch;
 
-const SECTIONS: ReadonlyArray<Section> = ["scope", "logs", "appearance", "terminal"];
+/**
+ * Read from the schema rather than listed here: a section missing from a hand
+ * written list is merged away and never sent, while every screen still shows it.
+ */
+const SECTIONS = Object.keys(settingsPatchSchema.shape) as ReadonlyArray<Section>;
 
 export function mergePatches(base: SettingsPatch, next: SettingsPatch): SettingsPatch {
   const merged: Record<string, unknown> = { ...base };

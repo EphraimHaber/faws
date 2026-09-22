@@ -30,6 +30,7 @@ import { ContextsPage } from "~/features/kube/pages/ContextsPage";
 import { KubeIndexPage } from "~/features/kube/pages/KubeIndexPage";
 import { VirtualMachinesPage } from "~/features/kube/pages/VirtualMachinesPage";
 import { WorkloadsPage } from "~/features/kube/pages/WorkloadsPage";
+import { kubeScopeSearch } from "~/features/kube/scope-link";
 import { HomePage } from "~/pages/HomePage";
 import { NewSessionDialog } from "~/features/terminal/components/NewSessionDialog";
 import { TerminalDock } from "~/features/terminal/components/TerminalDock";
@@ -228,7 +229,7 @@ const kubeContextsRoute = createRoute({
 const kubeWorkloadsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/kubernetes/workloads",
-  validateSearch: filterSearch,
+  validateSearch: filterSearch.extend(kubeScopeSearch.shape),
   component: WorkloadsPage,
 });
 
