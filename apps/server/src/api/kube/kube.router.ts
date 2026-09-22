@@ -19,7 +19,7 @@ import { z } from "zod";
 
 import { publicProcedure, router } from "../../trpc/index.ts";
 import { isExecSessionError } from "../exec/errors.ts";
-import { kubeDiagnostics } from "./binaries.ts";
+import { kubeDiagnostics } from "./diagnostics.ts";
 import { listKubeContexts } from "./kubeconfig.ts";
 import { listNamespaces, listPods, listVirtualMachines, probeCapabilities } from "./resources.ts";
 
