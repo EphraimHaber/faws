@@ -1,12 +1,12 @@
 import { relativeTime } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
-import { ConnectionsPanel } from "~/features/s3/components/ConnectionsPanel";
 import { RecordingsPanel } from "~/features/terminal/components/RecordingsPanel";
 import {
   DEFAULT_LOG_GUTTER,
@@ -90,7 +90,24 @@ export function SettingsPage() {
 
       <RecordingsPanel />
 
-      <ConnectionsPanel />
+      {/* The endpoints moved to their own page under S3, where they belong.
+          The row stays because this is where they lived, and a section that
+          vanishes from the place someone last saw it reads as removed. */}
+      <Panel className="shrink-0">
+        <PanelHeader>
+          <PanelTitle>S3 endpoints</PanelTitle>
+          <Link
+            to="/s3/connections"
+            className="ml-auto font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
+          >
+            manage endpoints
+          </Link>
+        </PanelHeader>
+        <p className="px-3.5 py-2.5 text-[12.5px] text-muted-foreground">
+          S3 compatible servers on your own network are managed under S3, alongside the buckets they
+          serve.
+        </p>
+      </Panel>
 
       <SilencedPanel />
 

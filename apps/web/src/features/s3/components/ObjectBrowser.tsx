@@ -2,7 +2,15 @@ import type { S3CommonPrefix, S3ObjectSummary } from "@faws/contracts";
 import { byteSize, parentPrefix, relativeTime } from "@faws/shared";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useHotkeys } from "@tanstack/react-hotkeys";
-import { CornerLeftUp, FileText, Folder, FolderOpen, FolderPlus, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  CornerLeftUp,
+  FileText,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  Trash2,
+} from "lucide-react";
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
@@ -253,7 +261,24 @@ export function ObjectBrowser({
               </DisabledHint>
             </>
           ) : null}
-          <FilterInput value={filter} onChange={setFilter} total={loaded} />
+          {searching ? (
+            <>
+              {/* The listing does not come back on its own: a scan answers with
+                  keys from anywhere below, so its hits replace the folder view
+                  entirely. Until this button existed the only way back was to
+                  empty the box, which is not a thing anyone guesses. */}
+              <Badge tone="info">scan results - {scan.hits.length} keys</Badge>
+              <Button size="sm" variant="outline" onClick={() => setScan(IDLE_SCAN)}>
+                <ArrowLeft className="size-3" /> Back to listing
+              </Button>
+            </>
+          ) : null}
+          <FilterInput
+            value={filter}
+            onChange={setFilter}
+            placeholder="Filter loaded rows… (try name:log)"
+            total={loaded}
+          />
         </div>
       </PanelHeader>
 

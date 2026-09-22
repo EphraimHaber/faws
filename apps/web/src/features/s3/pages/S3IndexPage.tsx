@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Database } from "lucide-react";
+import { Database, Plug } from "lucide-react";
 
 import { SectionCard } from "~/components/section-card";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { useS3Scope } from "~/contexts/ScopeContext";
+import { useS3Connections } from "~/features/s3/useS3Connections";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -15,6 +16,7 @@ export function S3IndexPage() {
   const scope = useS3Scope();
   const buckets = useQuery(trpc.s3.buckets.queryOptions(scope));
   const count = buckets.data?.length ?? 0;
+  const endpoints = useS3Connections();
 
   if (buckets.isError) {
     return (
@@ -43,6 +45,14 @@ export function S3IndexPage() {
           description="Every bucket the account can see, and the region each one answers in."
           metric={buckets.isPending ? "…" : String(count)}
           metricLabel={count === 1 ? "bucket" : "buckets"}
+        />
+        <SectionCard
+          to="/s3/connections"
+          icon={Plug}
+          label="Endpoints"
+          description="S3 compatible servers on your own network, and the keys each one is reached with."
+          metric={String(endpoints.length)}
+          metricLabel={endpoints.length === 1 ? "endpoint" : "endpoints"}
         />
       </div>
     </Panel>

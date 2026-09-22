@@ -52,6 +52,11 @@ describe("deriveCrumbs", () => {
     expect(labels("/s3/buckets/my%2Fodd%20bucket").at(-1)).toBe("my/odd bucket");
   });
 
+  it("names the S3 endpoint list, which is a section and not a bucket", () => {
+    expect(labels("/s3/connections")).toEqual(["Overview", "S3", "Endpoints"]);
+    expect(paths("/s3/connections")).toEqual(["/", "/s3", "/s3/connections"]);
+  });
+
   it("reaches the EC2 instance list", () => {
     // It used to stop at "EC2", whose own crumb pointed at a route that did
     // not exist - so the trail's last step was both missing and broken.

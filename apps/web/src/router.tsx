@@ -35,6 +35,7 @@ import { LogsPage } from "~/pages/LogsPage";
 import { SERVICE_TABS, ServicePage } from "~/features/ecs/pages/ServicePage";
 import { BUCKET_TABS, BucketPage } from "~/features/s3/pages/BucketPage";
 import { BucketsPage } from "~/features/s3/pages/BucketsPage";
+import { ConnectionsPage } from "~/features/s3/pages/ConnectionsPage";
 import { S3IndexPage } from "~/features/s3/pages/S3IndexPage";
 import { SettingsPage } from "~/pages/SettingsPage";
 import { TaskDefinitionsPage } from "~/features/ecs/pages/TaskDefinitionsPage";
@@ -173,9 +174,21 @@ const bucketRoute = createRoute({
     prefix: z.string().max(1024).optional().catch(undefined),
     /** The key open in the viewer, so a link can carry one object. */
     object: z.string().max(1024).optional().catch(undefined),
+    /**
+     * The recursive scan's pattern - the text of it, not the fact that it ran.
+     * A link can describe a search without the page arriving and billing for
+     * it, so this pre-fills the box and waits to be applied.
+     */
+    scan: z.string().max(1024).optional().catch(undefined),
     tab: z.enum(BUCKET_TABS).optional().catch(undefined),
   }),
   component: BucketRoute,
+});
+
+const s3ConnectionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/s3/connections",
+  component: ConnectionsPage,
 });
 
 const ec2IndexRoute = createRoute({
@@ -216,6 +229,7 @@ const routeTree = rootRoute.addChildren([
   s3IndexRoute,
   bucketsRoute,
   bucketRoute,
+  s3ConnectionsRoute,
   ec2IndexRoute,
   ec2InstancesRoute,
   logsRoute,

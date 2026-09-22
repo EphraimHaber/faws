@@ -98,3 +98,24 @@ export function globToRegex(pattern: string): RegExp {
 function escapeLiteral(char: string): string {
   return /[.+^${}()|\\]/.test(char) ? `\\${char}` : char;
 }
+
+/**
+ * What a query is asking for, in the terms a person needs before they run it.
+ *
+ * The distinction matters most where two search boxes sit on one screen: one
+ * filters the rows already in the browser, the other walks every key under a
+ * prefix and is billed for it. Naming the shape of the query is how each box
+ * can say what it is about to do rather than leaving both looking identical.
+ *
+ * `glob-deep` covers a query that cannot be answered from one folder's listing
+ * at all - it spans separators - which is the same test `requiresDeep` makes,
+ * kept in one place so the label and the behaviour cannot disagree.
+ */
+export type QueryShape = "empty" | "substring" | "glob-shallow" | "glob-deep";
+
+export function classifyQuery(query: string): QueryShape {
+  const trimmed = query.trim();
+  if (trimmed.length === 0) return "empty";
+  if (requiresDeep(trimmed)) return "glob-deep";
+  return isPattern(trimmed) ? "glob-shallow" : "substring";
+}
