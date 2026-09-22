@@ -19,7 +19,12 @@
  */
 import { ExecSessionError } from "../errors.ts";
 import type { ExecDriver, ExecDriverFactory } from "../exec.service.ts";
-import { buildKubeArgv, type KubeBinaries, type KubeExecAuth } from "../kube/argv.ts";
+import {
+  buildKubeArgv,
+  type KubeBinaries,
+  type KubeExecAuth,
+  kubeScopeFlags,
+} from "../kube/argv.ts";
 import { classifyKubeOutput, translateKubeError } from "../kube/translate.ts";
 import { spawnInteractive, type InteractiveChild } from "../pty.ts";
 import { resolveKubeBinary } from "../../kube/binaries.ts";
@@ -53,11 +58,11 @@ export const kubeDriverFactory: ExecDriverFactory = async (auth, sink, ctx) => {
     throw new ExecSessionError("Internal", "The Kubernetes driver got a non-Kubernetes handshake.");
 
   const binaries = resolveBinaries(auth);
-  const scopeFlags = [
-    ...(binaries.kubeconfig ? [`--kubeconfig=${binaries.kubeconfig}`] : []),
-    `--context=${auth.context}`,
-    `--namespace=${auth.namespace}`,
-  ];
+  const scopeFlags = kubeScopeFlags({
+    kubeconfig: binaries.kubeconfig,
+    context: auth.context,
+    namespace: auth.namespace,
+  });
 
   sink.status(`Checking ${auth.context}/${auth.namespace}...`);
 

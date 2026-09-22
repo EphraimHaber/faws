@@ -23,6 +23,7 @@ import type {
 import { resolveKubeBinary } from "./binaries.ts";
 import { runKubeJson, runKubeText } from "./cli.ts";
 import { ExecSessionError } from "../exec/errors.ts";
+import { kubeScopeFlags } from "../exec/kube/argv.ts";
 import { translateKubeError } from "../exec/kube/translate.ts";
 import { assertKnownContext, pinnedKubeconfig } from "./kubeconfig.ts";
 
@@ -44,7 +45,7 @@ export interface KubeCapabilities {
  * `kubectl get` with extra subcommands - and falling back to `oc` means a
  * machine with only the OpenShift CLI installed still gets every list.
  */
-function reader(): { file: string; scope: string[] } {
+function reader(): { file: string; kubeconfig: string | null } {
   const kubectl = resolveKubeBinary("kubectl");
   const oc = resolveKubeBinary("oc");
   const found = kubectl.path ?? oc.path;
@@ -54,8 +55,7 @@ function reader(): { file: string; scope: string[] } {
       kubectl.problem ?? "kubectl was not found on this machine.",
     );
   }
-  const pinned = pinnedKubeconfig();
-  return { file: found, scope: pinned ? [`--kubeconfig=${pinned}`] : [] };
+  return { file: found, kubeconfig: pinnedKubeconfig() };
 }
 
 /**
@@ -68,16 +68,9 @@ async function args(
   namespace: string | null,
   signal: AbortSignal | undefined,
 ): Promise<{ file: string; prefix: string[] }> {
-  const { file, scope } = reader();
+  const { file, kubeconfig } = reader();
   await assertKnownContext(context, signal ? { signal } : {});
-  return {
-    file,
-    prefix: [
-      ...scope,
-      `--context=${context}`,
-      ...(namespace === null ? [] : [`--namespace=${namespace}`]),
-    ],
-  };
+  return { file, prefix: kubeScopeFlags({ kubeconfig, context, namespace }) };
 }
 
 interface ListOf<T> {

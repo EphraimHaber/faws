@@ -13,6 +13,7 @@
  * should be able to say so before anyone presses anything. It answers with
  * facts and never throws, so there is always something to render.
  */
+import { kubeContextSchema, kubeLabelSchema } from "@faws/contracts";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -23,14 +24,14 @@ import { listKubeContexts } from "./kubeconfig.ts";
 import { listNamespaces, listPods, listVirtualMachines, probeCapabilities } from "./resources.ts";
 
 /** A context alone: namespaces and capabilities are not namespaced. */
-const contextInput = z.object({ context: z.string().min(1).max(253) });
+const contextInput = z.object({ context: kubeContextSchema });
 
 /** The pair every list of workloads is scoped by. */
-const scopeInput = contextInput.extend({ namespace: z.string().min(1).max(63) });
+const scopeInput = contextInput.extend({ namespace: kubeLabelSchema });
 
 export const kubeRouter = router({
   diagnostics: publicProcedure
-    .input(z.object({ context: z.string().max(253).optional() }).default({}))
+    .input(z.object({ context: kubeContextSchema.optional() }).default({}))
     .query(({ input, signal }) =>
       kubeDiagnostics({
         ...(input.context ? { context: input.context } : {}),

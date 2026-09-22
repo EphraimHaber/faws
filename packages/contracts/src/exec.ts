@@ -83,7 +83,7 @@ const dnsLabel = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
 const dnsSubdomain = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
 
 const kubeNameSchema = z.string().min(1).max(253).regex(dnsSubdomain, "Not a Kubernetes name.");
-const kubeLabelSchema = z.string().min(1).max(63).regex(dnsLabel, "Not a Kubernetes name.");
+export const kubeLabelSchema = z.string().min(1).max(63).regex(dnsLabel, "Not a Kubernetes name.");
 
 /**
  * A context NAME, never a kubeconfig path.
@@ -97,7 +97,7 @@ const kubeLabelSchema = z.string().min(1).max(63).regex(dnsLabel, "Not a Kuberne
  * ARN - so this cannot be a DNS name. What it can insist on is no whitespace
  * and no leading `-`, which is the fence that matters here too.
  */
-const kubeContextSchema = z
+export const kubeContextSchema = z
   .string()
   .min(1)
   .max(253)

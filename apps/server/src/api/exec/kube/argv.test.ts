@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildKubeArgv, type KubeBinaries, type KubeExecAuth } from "./argv.ts";
+import { buildKubeArgv, type KubeBinaries, type KubeExecAuth, kubeScopeFlags } from "./argv.ts";
 
 const BINARIES: KubeBinaries = {
   kubectl: "/usr/local/bin/kubectl",
@@ -152,5 +152,19 @@ describe("a missing binary", () => {
         virtctl: null,
       }),
     ).toThrow(/virtctl/);
+  });
+});
+
+describe("kubeScopeFlags", () => {
+  it("writes every part of the scope as a single --flag=value", () => {
+    expect(
+      kubeScopeFlags({ kubeconfig: "/home/dev/.kube/config", context: "-n", namespace: "-o" }),
+    ).toEqual(["--kubeconfig=/home/dev/.kube/config", "--context=-n", "--namespace=-o"]);
+  });
+
+  it("leaves out the kubeconfig when none is pinned, and the namespace for cluster-wide reads", () => {
+    expect(kubeScopeFlags({ kubeconfig: null, context: "prod", namespace: null })).toEqual([
+      "--context=prod",
+    ]);
   });
 });

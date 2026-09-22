@@ -41,14 +41,31 @@ export interface KubeArgv {
   readonly args: readonly string[];
 }
 
+/** Which cluster and namespace a command talks to, and through which kubeconfig. */
+export interface KubeCommandScope {
+  readonly kubeconfig: string | null;
+  readonly context: string;
+  /** Null for a read that is not namespaced, such as listing namespaces. */
+  readonly namespace: string | null;
+}
+
+/** The flags that point a command at a scope, each as one `--flag=value`. */
+export function kubeScopeFlags(scope: KubeCommandScope): string[] {
+  return [
+    ...(scope.kubeconfig ? [`--kubeconfig=${scope.kubeconfig}`] : []),
+    `--context=${scope.context}`,
+    ...(scope.namespace === null ? [] : [`--namespace=${scope.namespace}`]),
+  ];
+}
+
 export function buildKubeArgv(auth: KubeExecAuth, binaries: KubeBinaries): KubeArgv {
   const { target } = auth;
   const file = requireBinary(target.tool, binaries);
-  const scope = [
-    ...(binaries.kubeconfig ? [`--kubeconfig=${binaries.kubeconfig}`] : []),
-    `--context=${auth.context}`,
-    `--namespace=${auth.namespace}`,
-  ];
+  const scope = kubeScopeFlags({
+    kubeconfig: binaries.kubeconfig,
+    context: auth.context,
+    namespace: auth.namespace,
+  });
 
   switch (target.tool) {
     case "kubectl":
