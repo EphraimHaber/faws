@@ -2,7 +2,7 @@ import { diffLines, diffStat, type DiffLine } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
-import { Dialog } from "~/features/s3/components/Dialog";
+import { Dialog } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
 import { ErrorState } from "~/components/ui/error-state";
 import { Spinner } from "~/components/ui/spinner";

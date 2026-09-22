@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
+import { EntityRow } from "~/components/entity-row";
 import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -257,24 +258,15 @@ function SilencedPanel() {
       ) : (
         <ul className="flex flex-col divide-y divide-border">
           {entries.map(({ entry, kind }) => (
-            <li key={`${kind}:${entry.arn}`} className="flex items-center gap-3 px-3.5 py-2">
-              <Badge tone={kind === "muted" ? "warning" : "neutral"}>{kind}</Badge>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12.5px]">{entry.label}</span>
-                <span className="block truncate font-mono text-[10.5px] text-muted-foreground">
-                  {entry.context}
-                </span>
-              </span>
-              <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground tabular">
-                {relativeTime(entry.at)}
-              </span>
-              <button
-                type="button"
-                onClick={() => restore(entry.arn)}
-                className="shrink-0 cursor-pointer rounded border border-border px-2 py-0.5 text-[11.5px] transition-colors hover:bg-accent"
-              >
-                Restore
-              </button>
+            <li key={`${kind}:${entry.arn}`}>
+              <EntityRow
+                icon={<Badge tone={kind === "muted" ? "warning" : "neutral"}>{kind}</Badge>}
+                label={entry.label}
+                detail={entry.context}
+                actions={
+                  <RowAction at={entry.at} label="Restore" onClick={() => restore(entry.arn)} />
+                }
+              />
             </li>
           ))}
         </ul>
@@ -322,29 +314,52 @@ function RememberedPanel() {
       ) : (
         <ul className="flex flex-col divide-y divide-border">
           {rows.map(({ entry, key, pinned }) => (
-            <li key={key} className="flex items-center gap-3 px-3.5 py-2">
-              <Badge tone={pinned ? "primary" : "neutral"}>{pinned ? "pinned" : entry.kind}</Badge>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12.5px]">{entry.label}</span>
-                <span className="block truncate font-mono text-[10.5px] text-muted-foreground">
-                  {entry.detail || entry.to}
-                </span>
-              </span>
-              <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground tabular">
-                {relativeTime(entry.at)}
-              </span>
-              <button
-                type="button"
-                onClick={() => recentActions.forget(key)}
-                className="shrink-0 cursor-pointer rounded border border-border px-2 py-0.5 text-[11.5px] transition-colors hover:bg-accent"
-              >
-                Forget
-              </button>
+            <li key={key}>
+              <EntityRow
+                icon={
+                  <Badge tone={pinned ? "primary" : "neutral"}>
+                    {pinned ? "pinned" : entry.kind}
+                  </Badge>
+                }
+                label={entry.label}
+                detail={entry.detail || entry.to}
+                actions={
+                  <RowAction
+                    at={entry.at}
+                    label="Forget"
+                    onClick={() => recentActions.forget(key)}
+                  />
+                }
+              />
             </li>
           ))}
         </ul>
       )}
     </Panel>
+  );
+}
+
+/**
+ * When something was remembered, and the one way to undo it.
+ *
+ * The time sits with the button rather than beside it because it is the reason
+ * the button gets pressed: a mute from an hour ago is a different decision from
+ * one left over from last month.
+ */
+function RowAction({ at, label, onClick }: { at: string; label: string; onClick: () => void }) {
+  return (
+    <>
+      <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground tabular">
+        {relativeTime(at)}
+      </span>
+      <button
+        type="button"
+        onClick={onClick}
+        className="shrink-0 cursor-pointer rounded border border-border px-2 py-0.5 text-[11.5px] transition-colors hover:bg-accent"
+      >
+        {label}
+      </button>
+    </>
   );
 }
 

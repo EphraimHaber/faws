@@ -1,6 +1,5 @@
 import type { EcsService, UpdateServiceFormValues } from "@faws/contracts";
 import { updateServiceFormSchema } from "@faws/contracts";
-import { useHotkeys } from "@tanstack/react-hotkeys";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -14,11 +13,11 @@ import {
   SubmitButton,
   useZodForm,
 } from "~/components/form";
+import { DialogFrame } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kbd";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
-import { useOverlay } from "~/stores/overlays";
 
 /**
  * The e1s "update service" flow: desired count, task definition revision,
@@ -44,20 +43,6 @@ export function UpdateServiceDialog({
 
 function UpdateServiceForm({ service, onClose }: { service: EcsService; onClose: () => void }) {
   const scope = useAwsScope();
-  const { isTop } = useOverlay("update-service", true);
-
-  useHotkeys(
-    [
-      {
-        hotkey: "Escape",
-        callback: onClose,
-        // `ignoreInputs: false` so it still cancels from inside a field, which
-        // is where the cursor is for the whole life of this dialog.
-        options: { enabled: isTop, ignoreInputs: false, conflictBehavior: "allow" },
-      },
-    ],
-    { preventDefault: true },
-  );
 
   const revisions = useQuery({
     ...trpc.ecs.taskDefinitionRevisions.queryOptions({
@@ -106,18 +91,16 @@ function UpdateServiceForm({ service, onClose }: { service: EcsService; onClose:
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-[2px]">
-      <button
-        type="button"
-        aria-label="Cancel"
-        className="absolute inset-0 cursor-default"
-        onClick={onClose}
-      />
-      <Form
-        form={form}
-        onSubmit={submit}
-        className="relative w-[min(460px,92vw)] rounded-xl border border-border bg-popover p-5 shadow-2xl"
-      >
+    // Centred and narrow, unlike the S3 dialogs: this is three fields read in
+    // order and answered, not a browser you work inside.
+    <DialogFrame
+      id="update-service"
+      label="Update service"
+      onClose={onClose}
+      backdropClassName="items-center bg-black/45 backdrop-blur-[2px]"
+      className="w-[min(460px,92vw)] rounded-xl border border-border bg-popover p-5 shadow-2xl"
+    >
+      <Form form={form} onSubmit={submit}>
         <div>
           <h2 className="text-[14px] font-semibold">Update service</h2>
           <p className="mt-0.5 font-mono text-[11.5px] text-muted-foreground">
@@ -159,7 +142,7 @@ function UpdateServiceForm({ service, onClose }: { service: EcsService; onClose:
           </SubmitButton>
         </FormActions>
       </Form>
-    </div>
+    </DialogFrame>
   );
 }
 
