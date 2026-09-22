@@ -1,6 +1,7 @@
 import { TerminalSquare } from "lucide-react";
 
 import { EntityRow } from "~/components/entity-row";
+import { ConnectPanel } from "~/features/terminal/components/ConnectPanel";
 import { Button } from "~/components/ui/button";
 import { EmptyState } from "~/components/ui/empty";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
@@ -22,7 +23,7 @@ import { useSessions } from "~/stores/sessions";
  * the dock, and Focus brings its tab forward and opens the dock over whatever
  * page this is. What this page adds is the whole list at once, with each
  * session's environment and state written out, which a strip of tabs has no
- * room for.
+ * room for - and, below it, everything a new one can be opened to.
  */
 export function SessionsPage() {
   const sessions = useSessions((state) => state.sessions);
@@ -38,61 +39,65 @@ export function SessionsPage() {
   };
 
   return (
-    <Panel className="min-h-0 flex-1">
-      <PanelHeader>
-        <PanelTitle>Open sessions</PanelTitle>
-        <span className="font-mono text-[11px] text-muted-foreground tabular">
-          {sessions.length}
-        </span>
-      </PanelHeader>
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <Panel className="max-h-[45%] shrink-0">
+        <PanelHeader>
+          <PanelTitle>Open sessions</PanelTitle>
+          <span className="font-mono text-[11px] text-muted-foreground tabular">
+            {sessions.length}
+          </span>
+        </PanelHeader>
 
-      {sessions.length === 0 ? (
-        <EmptyState
-          icon={TerminalSquare}
-          title="No sessions open"
-          hint="Open one from an ECS task, an EC2 instance or a pod, or from the terminal button in the status bar."
-        />
-      ) : (
-        <div className="flex min-h-0 flex-col overflow-auto pb-2">
-          {groupSessions(sessions).map((group) => (
-            <section key={group.kind}>
-              <SectionHeader
-                title={KIND_LABELS[group.kind]}
-                count={group.sessions.length}
-                className="mx-3.5 mt-2 mb-1"
-              />
-              <ul>
-                {group.sessions.map((session) => (
-                  <li key={session.id}>
-                    <EntityRow
-                      icon={<StatusDot tone={statusTone(session)} />}
-                      label={session.title}
-                      detail={session.subtitle}
-                      active={dockOpen && session.id === activeId}
-                      actions={
-                        <>
-                          <span
-                            className="max-w-[18rem] shrink-0 truncate font-mono text-[10.5px] text-muted-foreground"
-                            title={describeStatus(session)}
-                          >
-                            {describeStatus(session)}
-                          </span>
-                          <Button size="sm" onClick={() => focus(session.id)}>
-                            Focus
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => close(session.id)}>
-                            {isFinished(session) ? "Dismiss" : "Close"}
-                          </Button>
-                        </>
-                      }
-                    />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-      )}
-    </Panel>
+        {sessions.length === 0 ? (
+          <EmptyState
+            icon={TerminalSquare}
+            title="No sessions open"
+            hint="Open one from an ECS task, an EC2 instance or a pod, or from the terminal button in the status bar."
+          />
+        ) : (
+          <div className="flex min-h-0 flex-col overflow-auto pb-2">
+            {groupSessions(sessions).map((group) => (
+              <section key={group.kind}>
+                <SectionHeader
+                  title={KIND_LABELS[group.kind]}
+                  count={group.sessions.length}
+                  className="mx-3.5 mt-2 mb-1"
+                />
+                <ul>
+                  {group.sessions.map((session) => (
+                    <li key={session.id}>
+                      <EntityRow
+                        icon={<StatusDot tone={statusTone(session)} />}
+                        label={session.title}
+                        detail={session.subtitle}
+                        active={dockOpen && session.id === activeId}
+                        actions={
+                          <>
+                            <span
+                              className="max-w-[18rem] shrink-0 truncate font-mono text-[10.5px] text-muted-foreground"
+                              title={describeStatus(session)}
+                            >
+                              {describeStatus(session)}
+                            </span>
+                            <Button size="sm" onClick={() => focus(session.id)}>
+                              Focus
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => close(session.id)}>
+                              {isFinished(session) ? "Dismiss" : "Close"}
+                            </Button>
+                          </>
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        )}
+      </Panel>
+
+      <ConnectPanel />
+    </div>
   );
 }

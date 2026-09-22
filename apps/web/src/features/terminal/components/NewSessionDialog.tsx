@@ -26,6 +26,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Segmented } from "~/components/segmented";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { instanceActions } from "~/lib/terminal/connectable";
 import { trpc } from "~/lib/trpc";
 import { recentActions } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
@@ -116,10 +117,6 @@ function InstancePicker({ onClose }: { onClose: () => void }) {
       className="max-h-[22rem]"
     >
       {(row) => {
-        const canSsm = row.reachableBy.includes("ssm");
-        const canSsh = row.reachableBy.includes("ssh-public");
-        const canTunnel = row.reachableBy.includes("ssh-ssm-tunnel");
-
         return (
           <EntityRow
             className="gap-2.5 border-b border-border/50 px-3 last:border-b-0"
@@ -140,66 +137,19 @@ function InstancePicker({ onClose }: { onClose: () => void }) {
                   </span>
                 ) : null}
 
-                {canSsm ? (
+                {instanceActions(row, scope).map((action, index) => (
                   <Button
+                    key={action.label}
+                    variant={index === 0 ? "outline" : "ghost"}
+                    title={action.title}
                     onClick={() => {
-                      open({
-                        kind: "ssm",
-                        profile: scope.profile,
-                        region: scope.region,
-                        instanceId: row.instanceId,
-                      });
+                      open(action.target);
                       onClose();
                     }}
-                    title="Session Manager shell - no key and no inbound rule needed"
                   >
-                    Shell
+                    {action.label}
                   </Button>
-                ) : null}
-
-                {/* Instance Connect pushes a key valid for about a minute, so
-                    it only makes sense where SSH can actually reach. */}
-                {canSsh ? (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      open({
-                        kind: "ssh",
-                        transport: {
-                          via: "ec2-instance-connect",
-                          profile: scope.profile,
-                          region: scope.region,
-                          instanceId: row.instanceId,
-                          osUser: row.osUser,
-                        },
-                      });
-                      onClose();
-                    }}
-                    title="SSH with a one-time key pushed by EC2 Instance Connect"
-                  >
-                    SSH
-                  </Button>
-                ) : canTunnel ? (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      open({
-                        kind: "ssh",
-                        transport: {
-                          via: "ssm-tunnel",
-                          profile: scope.profile,
-                          region: scope.region,
-                          instanceId: row.instanceId,
-                        },
-                        user: row.osUser,
-                      });
-                      onClose();
-                    }}
-                    title="SSH carried over an SSM tunnel - works without a public address"
-                  >
-                    SSH via SSM
-                  </Button>
-                ) : null}
+                ))}
               </>
             }
           />

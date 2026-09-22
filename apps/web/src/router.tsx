@@ -244,6 +244,7 @@ const kubeVirtualMachinesRoute = createRoute({
 const sessionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/sessions",
+  validateSearch: filterSearch,
   component: SessionsPage,
 });
 

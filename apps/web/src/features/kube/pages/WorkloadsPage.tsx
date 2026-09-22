@@ -16,6 +16,7 @@ import { useKubeScope } from "~/contexts/ScopeContext";
 import { KubeScopePicker } from "~/features/kube/components/KubeScopePicker";
 import { hasNoCli, NoKubectl } from "~/features/kube/components/NoKubectl";
 import { kubeContextRef } from "~/features/kube/scope-link";
+import { podActions } from "~/lib/terminal/connectable";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { useFilterSearch } from "~/hooks/useSearchState";
 import type { ExecTarget } from "~/lib/terminal/handshake";
@@ -224,44 +225,26 @@ function Connect({
     );
   }
 
-  const container = row.containers.find((entry) => !entry.init && entry.ready)?.name;
-  const target = {
-    pod: row.name,
-    ...(container ? { container } : {}),
-  };
-
   return (
     <span className="flex items-center justify-end gap-1.5">
-      <Button
-        variant="default"
-        title={`kubectl exec into ${container ?? row.name}`}
-        onClick={() => {
-          // Recorded on the shell rather than on a dwell, because this list has
-          // no per-pod page to sit on: what makes a pod worth remembering is
-          // that you got into it. The ref points at the context, since a pod
-          // name changes on every rollout and a link to a dead one is a link to
-          // nothing.
-          recentActions.record(kubeContextRef(context, namespace));
-          onOpen({ kind: "kube", context, namespace, target: { tool: "kubectl", ...target } });
-        }}
-      >
-        <TerminalSquare className="size-3" />
-        Shell
-      </Button>
-
-      {/* Only where `oc` has something to talk to: `rsh` on a cluster that is
-          not OpenShift is a command that will not run. */}
-      {openShift ? (
+      {podActions(row, context, namespace, openShift).map((action, index) => (
         <Button
-          title={`oc rsh into ${container ?? row.name}`}
+          key={action.label}
+          variant={index === 0 ? "default" : "outline"}
+          title={action.title}
           onClick={() => {
+            // Recorded on the shell rather than on a dwell, because this list
+            // has no per-pod page to sit on: what makes a pod worth remembering
+            // is that you got into it. The ref points at the context, since a
+            // pod name changes on every rollout.
             recentActions.record(kubeContextRef(context, namespace));
-            onOpen({ kind: "kube", context, namespace, target: { tool: "oc", ...target } });
+            onOpen(action.target);
           }}
         >
-          rsh
+          {index === 0 ? <TerminalSquare className="size-3" /> : null}
+          {action.label}
         </Button>
-      ) : null}
+      ))}
     </span>
   );
 }
