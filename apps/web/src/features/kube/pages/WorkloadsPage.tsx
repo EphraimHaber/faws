@@ -22,7 +22,7 @@ import type { ExecTarget } from "~/lib/terminal/handshake";
 import { trpc } from "~/lib/trpc";
 import { recentActions } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
-import { updateSettings, useSettings } from "~/stores/settings";
+import { updateSettings } from "~/stores/settings";
 
 /**
  * Pods in the scoped namespace, listed for one reason: getting a shell in one.
@@ -269,23 +269,19 @@ function Connect({
 /**
  * Moves the stored kube scope to the one a link asked for, then takes it out
  * of the URL so a reload or a copied address does not keep forcing it back.
- *
- * Waits for the first settings load: a change written before it lands is
- * overwritten by it, which on a cold open would leave the old cluster selected.
  */
 function useAdoptLinkedScope() {
   const search = useSearch({ from: "/kubernetes/workloads" });
   const navigate = useNavigate();
-  const loaded = useSettings((state) => state.ready);
   const { context, namespace } = search;
 
   React.useLayoutEffect(() => {
-    if (!loaded || context === undefined) return;
+    if (context === undefined) return;
     updateSettings({ kube: { context, namespace: namespace ?? "" } });
     void navigate({
       to: ".",
       search: ({ context: _context, namespace: _namespace, ...rest }) => rest,
       replace: true,
     });
-  }, [loaded, context, namespace, navigate]);
+  }, [context, namespace, navigate]);
 }

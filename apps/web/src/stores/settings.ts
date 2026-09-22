@@ -28,7 +28,7 @@ import { create } from "zustand";
 import { seedSettings, writeCache } from "~/lib/settings/cache";
 import { clearLegacyKeys, collectLegacySettings } from "~/lib/settings/importLegacy";
 import { reconcile } from "~/lib/settings/echo";
-import { isEmptyPatch, mergePatches } from "~/lib/settings/merge";
+import { createOutbox } from "~/lib/settings/outbox";
 import { getSocket } from "~/lib/socket";
 import { trpcClient } from "~/lib/trpc";
 
@@ -83,6 +83,7 @@ export function settingsSnapshot(): Settings {
  */
 function accept(snapshot: SettingsSnapshot, originId: string | null): void {
   const state = useSettings.getState();
+  const settings = outbox.show(snapshot.settings);
   const verdict = reconcile(
     { revision: snapshot.revision, originId },
     {
@@ -95,12 +96,12 @@ function accept(snapshot: SettingsSnapshot, originId: string | null): void {
     revision: verdict.revision,
     ready: true,
     persistence: snapshot.persistence,
-    ...(verdict.apply ? { settings: snapshot.settings } : {}),
+    ...(verdict.apply ? { settings } : {}),
   });
-  if (verdict.apply) writeCache(snapshot.settings);
+  if (verdict.apply) writeCache(settings);
 }
 
-let pending: SettingsPatch = {};
+const outbox = createOutbox();
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 /**
@@ -115,22 +116,25 @@ export function updateSettings(patch: SettingsPatch): void {
   useSettings.setState({ settings: next });
   writeCache(next);
 
-  pending = mergePatches(pending, patch);
+  outbox.queue(patch);
   if (timer) clearTimeout(timer);
   timer = setTimeout(sendPending, SEND_DEBOUNCE_MS);
 }
 
 function sendPending(): void {
   timer = null;
-  const patch = pending;
-  pending = {};
-  if (isEmptyPatch(patch)) return;
+  const sent = outbox.take();
+  if (!sent) return;
   void trpcClient.settings.update
-    .mutate({ patch, originId: ORIGIN_ID })
-    .then((snapshot) => accept(snapshot, ORIGIN_ID))
+    .mutate({ patch: sent.patch, originId: ORIGIN_ID })
+    .then((snapshot) => {
+      outbox.settle(sent.id);
+      accept(snapshot, ORIGIN_ID);
+    })
     .catch(() => {
       // The server is the source of truth and will be re-read on reconnect;
       // rolling the UI back here would fight the person's own input.
+      outbox.settle(sent.id);
     });
 }
 
