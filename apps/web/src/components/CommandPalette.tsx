@@ -33,12 +33,14 @@ export function CommandPalette({
   activeCluster,
   onOpenTerminal,
   onOpenSsh,
+  onOpenKube,
 }: {
   open: boolean;
   onClose: () => void;
   activeCluster: string | null;
   onOpenTerminal: () => void;
   onOpenSsh: () => void;
+  onOpenKube: () => void;
 }) {
   // Mounting the body only while open is what keeps the query text and the
   // highlighted row fresh on every invocation, with no reset bookkeeping.
@@ -49,6 +51,7 @@ export function CommandPalette({
       activeCluster={activeCluster}
       onOpenTerminal={onOpenTerminal}
       onOpenSsh={onOpenSsh}
+      onOpenKube={onOpenKube}
     />
   );
 }
@@ -58,10 +61,12 @@ function PaletteBody({
   activeCluster,
   onOpenTerminal,
   onOpenSsh,
+  onOpenKube,
 }: {
   onClose: () => void;
   onOpenTerminal: () => void;
   onOpenSsh: () => void;
+  onOpenKube: () => void;
   activeCluster: string | null;
 }) {
   const scope = useAwsScope();
@@ -116,6 +121,15 @@ function PaletteBody({
         group: "action",
         run: onOpenSsh,
       },
+      {
+        id: "terminal:kube",
+        icon: TerminalSquare,
+        label: "Shell into a pod",
+        hint: "kubectl exec, in the context and namespace you name",
+        keywords: ["kube", "kubernetes", "pod", "kubectl", "exec", "oc", "rsh", "openshift"],
+        group: "action",
+        run: onOpenKube,
+      },
       ...refEntries(pinned, "pinned", go),
       ...refEntries(recent, "recent", go),
       ...navEntries(go),
@@ -152,7 +166,16 @@ function PaletteBody({
     }
 
     return out;
-  }, [clusters.data, services.data, pinned, recent, navigate, onOpenTerminal, onOpenSsh]);
+  }, [
+    clusters.data,
+    services.data,
+    pinned,
+    recent,
+    navigate,
+    onOpenTerminal,
+    onOpenSsh,
+    onOpenKube,
+  ]);
 
   // Ranked rather than filtered. A subsequence test answers "could these
   // letters be found in order", which is a fine filter and no order at all:

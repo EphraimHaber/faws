@@ -1,4 +1,10 @@
-import { type ResourceRef, sshSessionFormSchema, type SshSessionFormValues } from "@faws/contracts";
+import {
+  kubeExecFormSchema,
+  type KubeExecFormValues,
+  type ResourceRef,
+  sshSessionFormSchema,
+  type SshSessionFormValues,
+} from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { Search, TerminalSquare } from "lucide-react";
 import * as React from "react";
@@ -7,6 +13,7 @@ import {
   Form,
   FormActions,
   NumberField,
+  SelectField,
   SubmitButton,
   TextField,
   useZodForm,
@@ -20,16 +27,17 @@ import { useOverlay } from "~/stores/overlays";
 import { recentActions } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
 
-type Mode = "instance" | "ssh";
+type Mode = "instance" | "ssh" | "kube";
 
 /**
  * Picking something to open a shell on.
  *
- * Two modes rather than one list, because the two are genuinely different
+ * Three modes rather than one list, because they are genuinely different
  * questions. "Which of my instances" is a search over things the account
  * already knows about; "ssh somewhere" is an address someone types, and may not
- * be in AWS at all. A single combined field would have to guess which one an
- * input meant.
+ * be in AWS at all; and a pod is named inside a context and a namespace, which
+ * is a scope AWS has no notion of. A single combined field would have to guess
+ * which one an input meant.
  */
 export function NewSessionDialog({
   open,
@@ -81,11 +89,18 @@ function DialogBody({ onClose, initialMode }: { onClose: () => void; initialMode
               options={[
                 { value: "instance", label: "Instance" },
                 { value: "ssh", label: "SSH" },
+                { value: "kube", label: "Pod" },
               ]}
             />
           </div>
         </div>
-        {mode === "instance" ? <InstancePicker onClose={onClose} /> : <SshForm onClose={onClose} />}
+        {mode === "instance" ? (
+          <InstancePicker onClose={onClose} />
+        ) : mode === "ssh" ? (
+          <SshForm onClose={onClose} />
+        ) : (
+          <KubeForm onClose={onClose} />
+        )}
       </div>
     </div>
   );
@@ -321,6 +336,111 @@ function SshForm({ onClose }: { onClose: () => void }) {
       />
 
       <NumberField name="port" label="Port" min={1} max={65535} className="w-24" />
+
+      <FormActions className="border-t border-border pt-3">
+        <Button type="button" variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+        <SubmitButton>Connect</SubmitButton>
+      </FormActions>
+    </Form>
+  );
+}
+
+/**
+ * Splits what someone typed into an argv.
+ *
+ * On whitespace and nothing else, deliberately. There is no shell between here
+ * and the container, so a quoted string would have to be taken apart by a
+ * quoting parser - and one that disagreed with the shell people expect would be
+ * worse than not having one. A command that needs quoting is a command to run
+ * from inside the shell this opens.
+ */
+function toArgv(command: string): string[] {
+  const parts = command.trim().split(/\s+/).filter(Boolean);
+  return parts.length > 0 ? parts : ["/bin/sh"];
+}
+
+/**
+ * A pod, named rather than picked.
+ *
+ * Typed fields, because the Workloads page is where a pod is chosen from a
+ * list. This is the way in for a name someone already has - from a colleague, a
+ * runbook, or the `kubectl` they ran in the window next door.
+ */
+function KubeForm({ onClose }: { onClose: () => void }) {
+  const open = useSessions((state) => state.open);
+  const form = useZodForm(kubeExecFormSchema, {
+    defaultValues: {
+      tool: "kubectl",
+      context: "",
+      namespace: "default",
+      pod: "",
+      container: "",
+      command: "/bin/sh",
+    },
+  });
+
+  function submit(values: KubeExecFormValues) {
+    const pod = {
+      pod: values.pod,
+      ...(values.container ? { container: values.container } : {}),
+      command: toArgv(values.command),
+    };
+    open({
+      kind: "kube",
+      context: values.context,
+      namespace: values.namespace,
+      target: values.tool === "oc" ? { tool: "oc", ...pod } : { tool: "kubectl", ...pod },
+    });
+    onClose();
+  }
+
+  return (
+    <Form form={form} onSubmit={submit} className="p-3">
+      <div className="flex flex-wrap gap-3">
+        <TextField
+          name="context"
+          label="Context"
+          hint="A context from your kubeconfig"
+          placeholder="prod"
+          autoFocus
+          mono
+          className="w-64"
+        />
+        <TextField name="namespace" label="Namespace" placeholder="default" mono className="w-48" />
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <TextField name="pod" label="Pod" placeholder="api-7f9c4d8b6-x2k4p" mono className="w-64" />
+        <TextField
+          name="container"
+          label="Container"
+          hint="Blank picks the pod's default"
+          mono
+          className="w-48"
+        />
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <SelectField
+          name="tool"
+          label="Tool"
+          hint="oc rsh is the same call, with OpenShift's login behind it"
+          options={[
+            { value: "kubectl", label: "kubectl exec" },
+            { value: "oc", label: "oc rsh" },
+          ]}
+          className="w-36"
+        />
+        <TextField
+          name="command"
+          label="Command"
+          hint="Split on spaces; there is no shell in between"
+          mono
+          className="w-64"
+        />
+      </div>
 
       <FormActions className="border-t border-border pt-3">
         <Button type="button" variant="ghost" onClick={onClose}>

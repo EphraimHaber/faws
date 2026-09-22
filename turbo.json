@@ -18,7 +18,11 @@
     "AWS_SECRET_ACCESS_KEY",
     "AWS_SESSION_TOKEN",
     "AWS_CONFIG_FILE",
-    "AWS_SHARED_CREDENTIALS_FILE"
+    "AWS_SHARED_CREDENTIALS_FILE",
+    "KUBECONFIG",
+    "FAWS_KUBECTL",
+    "FAWS_OC",
+    "FAWS_VIRTCTL"
   ],
   "tasks": {
     "build": {

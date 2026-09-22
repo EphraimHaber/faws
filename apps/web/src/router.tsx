@@ -26,6 +26,10 @@ import { DeploymentsPage } from "~/features/ecs/pages/DeploymentsPage";
 import { EcsIndexPage } from "~/features/ecs/pages/EcsIndexPage";
 import { Ec2IndexPage } from "~/features/ec2/pages/Ec2IndexPage";
 import { InstancesPage } from "~/features/ec2/pages/InstancesPage";
+import { ContextsPage } from "~/features/kube/pages/ContextsPage";
+import { KubeIndexPage } from "~/features/kube/pages/KubeIndexPage";
+import { VirtualMachinesPage } from "~/features/kube/pages/VirtualMachinesPage";
+import { WorkloadsPage } from "~/features/kube/pages/WorkloadsPage";
 import { HomePage } from "~/pages/HomePage";
 import { NewSessionDialog } from "~/features/terminal/components/NewSessionDialog";
 import { TerminalDock } from "~/features/terminal/components/TerminalDock";
@@ -204,6 +208,37 @@ const ec2InstancesRoute = createRoute({
   component: InstancesPage,
 });
 
+/**
+ * `/kubernetes`, never `/k8s` and never anything with "cluster" in it: the
+ * word belongs to ECS everywhere else here, and `/ecs/clusters` owns it.
+ */
+const kubeIndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/kubernetes",
+  component: KubeIndexPage,
+});
+
+const kubeContextsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/kubernetes/contexts",
+  validateSearch: filterSearch,
+  component: ContextsPage,
+});
+
+const kubeWorkloadsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/kubernetes/workloads",
+  validateSearch: filterSearch,
+  component: WorkloadsPage,
+});
+
+const kubeVirtualMachinesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/kubernetes/virtual-machines",
+  validateSearch: filterSearch,
+  component: VirtualMachinesPage,
+});
+
 const logsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/logs",
@@ -232,6 +267,10 @@ const routeTree = rootRoute.addChildren([
   s3ConnectionsRoute,
   ec2IndexRoute,
   ec2InstancesRoute,
+  kubeIndexRoute,
+  kubeContextsRoute,
+  kubeWorkloadsRoute,
+  kubeVirtualMachinesRoute,
   logsRoute,
   settingsRoute,
 ]);
@@ -267,7 +306,9 @@ function BucketRoute() {
 function RootLayout() {
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
-  const [newSession, setNewSession] = React.useState<"closed" | "instance" | "ssh">("closed");
+  const [newSession, setNewSession] = React.useState<"closed" | "instance" | "ssh" | "kube">(
+    "closed",
+  );
   const { location } = useRouterState();
 
   // Capture server logs for the whole session, not just while /logs is open.
@@ -434,7 +475,7 @@ function RootLayout() {
       <TerminalDock />
       <NewSessionDialog
         open={newSession !== "closed"}
-        initialMode={newSession === "ssh" ? "ssh" : "instance"}
+        initialMode={newSession === "closed" ? "instance" : newSession}
         onClose={() => setNewSession("closed")}
       />
       <StatusBar
@@ -447,6 +488,7 @@ function RootLayout() {
         activeCluster={activeCluster}
         onOpenTerminal={() => setNewSession("instance")}
         onOpenSsh={() => setNewSession("ssh")}
+        onOpenKube={() => setNewSession("kube")}
       />
       <KeyboardHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>

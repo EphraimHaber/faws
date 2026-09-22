@@ -172,6 +172,23 @@ export const s3SettingsSchema = z.object({
     ),
 });
 
+/**
+ * Which cluster the Kubernetes pages are looking at.
+ *
+ * Its own section rather than two more fields on `scope`, because it is a
+ * different axis entirely: a context and a namespace scope only the Kubernetes
+ * pages, and an AWS profile means nothing to them. Keeping them apart is what
+ * lets a profile switch leave a pod list alone.
+ *
+ * Both empty by default, meaning "whatever the kubeconfig's own current-context
+ * and namespace are". Storing a guess at those here would go stale the first
+ * time someone ran `kubectl config use-context` in a terminal.
+ */
+export const kubeSettingsSchema = z.object({
+  context: z.string().catch(""),
+  namespace: z.string().catch(""),
+});
+
 export const silencedSettingsSchema = z.object({
   /** Per-incident, keyed by ARN; comes back when the fingerprint changes. */
   dismissed: silenceMapSchema,
@@ -186,6 +203,7 @@ export const settingsSchema = z.object({
   appearance: section(appearanceSettingsSchema),
   layout: section(layoutSettingsSchema),
   terminal: section(terminalSettingsSchema),
+  kube: section(kubeSettingsSchema),
   s3: section(s3SettingsSchema),
   silenced: section(silencedSettingsSchema),
   recents: section(recentsSettingsSchema),
@@ -196,6 +214,7 @@ export type ScopeSettings = Settings["scope"];
 export type LogSettings = Settings["logs"];
 export type LayoutSettings = Settings["layout"];
 export type TerminalSettings = Settings["terminal"];
+export type KubeSettings = Settings["kube"];
 export type S3Settings = Settings["s3"];
 export type SilencedSettings = Settings["silenced"];
 
@@ -225,6 +244,7 @@ export const settingsPatchSchema = z
     appearance: appearanceSettingsSchema.partial(),
     layout: layoutSettingsSchema.partial(),
     terminal: terminalSettingsSchema.partial(),
+    kube: kubeSettingsSchema.partial(),
   })
   .partial()
   .strict();
@@ -293,6 +313,7 @@ export function applyPatch(current: Settings, patch: SettingsPatch): Settings {
     appearance: mergeSection(current.appearance, patch.appearance),
     layout: mergeSection(current.layout, patch.layout),
     terminal: mergeSection(current.terminal, patch.terminal),
+    kube: mergeSection(current.kube, patch.kube),
   };
 }
 

@@ -57,6 +57,28 @@ describe("deriveCrumbs", () => {
     expect(paths("/s3/connections")).toEqual(["/", "/s3", "/s3/connections"]);
   });
 
+  it("names the Kubernetes sections as the registry writes them", () => {
+    expect(labels("/kubernetes/workloads")).toEqual(["Overview", "Kubernetes", "Workloads"]);
+    expect(labels("/kubernetes/virtual-machines")).toEqual([
+      "Overview",
+      "Kubernetes",
+      "Virtual machines",
+    ]);
+    expect(paths("/kubernetes/contexts")).toEqual(["/", "/kubernetes", "/kubernetes/contexts"]);
+  });
+
+  it("never says cluster on a Kubernetes path, since that word is ECS's", () => {
+    for (const path of ["/kubernetes", "/kubernetes/contexts", "/kubernetes/workloads"]) {
+      for (const label of labels(path)) {
+        expect(label.toLowerCase()).not.toContain("cluster");
+      }
+    }
+  });
+
+  it("stops at the section for a Kubernetes path nobody registered", () => {
+    expect(labels("/kubernetes/nodes")).toEqual(["Overview", "Kubernetes"]);
+  });
+
   it("reaches the EC2 instance list", () => {
     // It used to stop at "EC2", whose own crumb pointed at a route that did
     // not exist - so the trail's last step was both missing and broken.

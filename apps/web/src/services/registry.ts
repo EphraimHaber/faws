@@ -8,10 +8,12 @@ import {
   HardDrive,
   Inbox,
   Layers,
+  Monitor,
   Plug,
   Rocket,
   ScrollText,
   Server,
+  Ship,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -104,6 +106,36 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
     status: "available",
     basePath: "/ec2",
     sections: [{ id: "instances", label: "Instances", icon: Server, to: "/ec2/instances" }],
+  },
+  /**
+   * The one entry here that is not an AWS service.
+   *
+   * It is in this list anyway because the list is what the shell is organised
+   * around - sidebar, breadcrumb, palette and front door all derive from it -
+   * and a section that opted out would need its own copy of all four.
+   *
+   * Never the word "cluster" anywhere in it. `cluster` means an ECS cluster
+   * everywhere else in this app, and `/ecs/clusters` owns it; a Kubernetes page
+   * using the same word for something else is the one piece of vocabulary
+   * guaranteed to be misread. The icon is `Ship` because `Container` is ECS's.
+   */
+  {
+    id: "kubernetes",
+    label: "Kubernetes",
+    description: "Contexts, workloads and virtual machines, through your own kubectl",
+    icon: Ship,
+    status: "available",
+    basePath: "/kubernetes",
+    sections: [
+      { id: "contexts", label: "Contexts", icon: Ship, to: "/kubernetes/contexts" },
+      { id: "workloads", label: "Workloads", icon: Boxes, to: "/kubernetes/workloads" },
+      {
+        id: "virtual-machines",
+        label: "Virtual machines",
+        icon: Monitor,
+        to: "/kubernetes/virtual-machines",
+      },
+    ],
   },
   {
     id: "lambda",

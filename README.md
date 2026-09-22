@@ -5,6 +5,9 @@ A desktop console for AWS. Early work in progress.
 The shell is service-agnostic: each AWS service is a module that registers
 itself, rather than the app being built around any one of them.
 
+Kubernetes and OpenShift are supported too, through your own `kubectl`, `oc`
+and `virtctl` - see below.
+
 ECS was the first one implemented — clusters, services, tasks, deployments,
 logs, metrics and load balancer health. S3 is the second: buckets, a paged
 object browser, viewers for text, JSON, tables, images, media and raw bytes,
@@ -43,6 +46,37 @@ the bucket name to be typed, and says whether the bucket keeps versions, so
 "this can be undone" is never a guess.
 
 The ECS mutations remain stubs that return `NOT_IMPLEMENTED`.
+
+## Kubernetes and OpenShift
+
+Contexts, workloads and KubeVirt virtual machines, with a shell in a pod and a
+console or SSH onto a machine.
+
+**It runs your own CLI.** Every list is `kubectl get ... -o json`, and every
+shell is `kubectl exec`, `oc rsh`, `virtctl ssh` or `virtctl console` spawned as
+a child process with its stdio pumped to the terminal. Nothing here reimplements
+the Kubernetes API or its authentication - which matters, because real
+kubeconfigs authenticate through exec credential plugins (`aws eks get-token`,
+`oc`, `gke-gcloud-auth-plugin`), client certificates and proxies, and a client
+library with a different support list would list pods the shell then could not
+reach. It is the same position this app takes on `~/.ssh/config` and
+`session-manager-plugin`: read it, spawn it, do not rewrite it.
+
+A consequence worth stating: a context that authenticates through an `exec`
+credential plugin runs that program to get a token. It runs inside your
+`kubectl` rather than being invoked by faws, which is why it is allowed at all -
+and the Contexts page names the command, so it is visible rather than implicit.
+
+Your kubeconfig is read from `KUBECONFIG` when it is set, honouring the whole
+`:`-separated list, and from `~/.kube/config` otherwise. It is read by running
+`kubectl config view -o json`, so the merge rules are `kubectl`'s own and no
+YAML is parsed here. Nothing is ever written to it, and no kube credential
+passes through faws.
+
+The binaries are found on `PATH`, at the usual install locations, or wherever
+`FAWS_KUBECTL`, `FAWS_OC` and `FAWS_VIRTCTL` point. Without `kubectl` the pages
+say so and give the install command rather than erroring; without KubeVirt the
+virtual machines section is not there at all.
 
 ## Settings
 
