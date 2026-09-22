@@ -1,4 +1,4 @@
-import { Circle, Dot, X } from "lucide-react";
+import { Dot, X } from "lucide-react";
 
 import * as React from "react";
 
@@ -88,9 +88,6 @@ function Tab({
         <span className="truncate font-medium">{session.title}</span>
         {session.unread && !isActive ? (
           <Dot className="size-3 text-primary" aria-label="new output" />
-        ) : null}
-        {session.recordingPath ? (
-          <Circle className="size-2 fill-danger text-danger" aria-label="recording" />
         ) : null}
       </button>
       <button
