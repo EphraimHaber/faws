@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { ArrowRight, Database } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Database } from "lucide-react";
 
+import { SectionCard } from "~/components/section-card";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { useS3Scope } from "~/contexts/ScopeContext";
@@ -47,47 +46,5 @@ export function S3IndexPage() {
         />
       </div>
     </Panel>
-  );
-}
-
-function SectionCard({
-  to,
-  icon: Icon,
-  label,
-  description,
-  metric,
-  metricLabel,
-}: {
-  to: string;
-  icon: LucideIcon;
-  label: string;
-  description: string;
-  metric: string;
-  metricLabel: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="group flex flex-col gap-3 rounded-md border border-border p-3.5 transition-colors hover:border-primary/45 hover:bg-accent/50"
-    >
-      <span className="flex items-center gap-2">
-        <Icon className="size-4 text-muted-foreground" strokeWidth={1.7} />
-        <span className="text-[13px]">{label}</span>
-        <ArrowRight
-          aria-hidden
-          className="ml-auto size-3.5 text-muted-foreground/40 transition-colors group-hover:text-foreground"
-          strokeWidth={1.8}
-        />
-      </span>
-
-      <span className="flex items-baseline gap-1.5">
-        <span className="font-mono text-[22px] leading-none tabular">{metric}</span>
-        <span className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-          {metricLabel}
-        </span>
-      </span>
-
-      <span className="text-[11.5px] leading-snug text-muted-foreground">{description}</span>
-    </Link>
   );
 }

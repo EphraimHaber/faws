@@ -49,9 +49,17 @@ export function HomePage() {
         }
       />
 
-      {/* ECS is the only service with a dashboard behind it; everything else
-          in the registry shows what it will offer once it has one. */}
-      {active.id === "ecs" ? <EcsOverview /> : <PlannedService service={active} />}
+      {/* ECS is the only service with a dashboard behind it. The others are
+          either built - in which case the overview points into them - or not,
+          in which case it says so. Sending someone who picked S3 to "not built
+          yet" was simply wrong: S3 is one of the two most finished sections. */}
+      {active.id === "ecs" ? (
+        <EcsOverview />
+      ) : active.status === "available" ? (
+        <AvailableService service={active} />
+      ) : (
+        <PlannedService service={active} />
+      )}
     </div>
   );
 }
@@ -114,6 +122,41 @@ function ServiceSwitcher({
             </button>
           );
         })}
+      </div>
+    </Panel>
+  );
+}
+
+/**
+ * A service that is built but has no dashboard of its own yet.
+ *
+ * It offers the way in rather than a summary: the sections are real pages with
+ * real contents, and the overview's job until one of them has numbers worth
+ * putting here is to not be a dead end.
+ */
+function AvailableService({ service }: { service: AwsServiceDefinition }) {
+  return (
+    <Panel className="shrink-0">
+      <PanelHeader>
+        <PanelTitle>{service.label}</PanelTitle>
+        <span className="font-mono text-[11px] text-muted-foreground">{service.description}</span>
+      </PanelHeader>
+      <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3">
+        {service.sections.map((section) => (
+          <Link
+            key={section.id}
+            to={section.to ?? service.basePath}
+            className="group flex items-center gap-2.5 rounded-md border border-border p-3.5 transition-colors hover:border-primary/45 hover:bg-accent/50"
+          >
+            <section.icon className="size-4 text-muted-foreground" strokeWidth={1.7} />
+            <span className="text-[13px]">{section.label}</span>
+            <ArrowRight
+              aria-hidden
+              className="ml-auto size-3.5 text-muted-foreground/40 transition-colors group-hover:text-foreground"
+              strokeWidth={1.8}
+            />
+          </Link>
+        ))}
       </div>
     </Panel>
   );

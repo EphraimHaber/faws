@@ -94,6 +94,12 @@ export function deriveCrumbs(pathname: string): Crumb[] {
     return crumbs;
   }
 
+  // /ec2/instances
+  if (segments[1] === "instances") {
+    crumbs.push({ label: "Instances", to: `${service.basePath}/instances` });
+    return crumbs;
+  }
+
   // /ecs/clusters and /ecs/clusters/$cluster/...
   if (segments[1] === "clusters") {
     crumbs.push({ label: "Clusters", to: `${service.basePath}/clusters` });

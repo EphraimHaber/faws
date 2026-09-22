@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Command, MoonStar, Sun } from "lucide-react";
 
 import { AccountChip } from "~/components/AccountChip";
@@ -6,6 +6,7 @@ import { Breadcrumb } from "~/components/Breadcrumb";
 import { RegionPicker } from "~/components/RegionPicker";
 import { Kbd } from "~/components/ui/kbd";
 import { useTheme } from "~/contexts/ThemeContext";
+import { serviceForPath } from "~/services/registry";
 
 /**
  * Title bar: identity on the left, AWS context on the right.
@@ -16,15 +17,19 @@ import { useTheme } from "~/contexts/ThemeContext";
  */
 export function AppHeader({ onOpenPalette }: { onOpenPalette: () => void }) {
   const { theme, toggle } = useTheme();
+  const { location } = useRouterState();
+  // Which section is open, rather than the name of the first one ever built.
+  // The wordmark read "ecs" on every page, including the S3 ones.
+  const service = serviceForPath(location.pathname);
 
   return (
     <header className="drag-region titlebar-inset z-30 flex h-12 shrink-0 items-center gap-5 border-b border-border bg-chrome px-4">
-      <Link to="/ecs" className="flex items-center gap-2.5">
+      <Link to="/" className="flex items-center gap-2.5">
         <BrandMark />
         <span className="flex items-baseline gap-1.5 leading-none">
           <span className="text-[15px] font-semibold tracking-tight text-foreground">faws</span>
           <span className="font-mono text-[9px] tracking-[0.3em] text-muted-foreground uppercase">
-            ecs
+            {service?.id ?? "aws"}
           </span>
         </span>
       </Link>
