@@ -1,4 +1,4 @@
-import type { ResourceRef } from "@faws/contracts";
+import type { RecentEntry, ResourceRef } from "@faws/contracts";
 import { defaultStringifySearch } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -39,4 +39,17 @@ export function kubeContextRef(context: string, namespace: string): ResourceRef 
     // The router's own encoder, so a name like `123` comes back as a string.
     to: `${WORKLOADS}${defaultStringifySearch({ context, namespace })}`,
   };
+}
+
+/**
+ * An entry with a link that opens its own context.
+ *
+ * Entries recorded before the link carried a scope hold the bare path, which
+ * opens whatever context is selected. The label and detail are the context
+ * and namespace, so the link can be rebuilt from them on read. The same
+ * object comes back when nothing changes, so list memos stay stable.
+ */
+export function withScopedLink<T extends RecentEntry>(entry: T): T {
+  if (entry.kind !== "kube-context" || entry.to !== WORKLOADS) return entry;
+  return { ...entry, to: kubeContextRef(entry.label, entry.detail).to };
 }

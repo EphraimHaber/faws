@@ -8,6 +8,7 @@ import {
 import * as React from "react";
 
 import { useScope } from "~/contexts/ScopeContext";
+import { withScopedLink } from "~/features/kube/scope-link";
 import { applyRecent, useSettings } from "./settings";
 
 /**
@@ -72,7 +73,7 @@ export function useRecentList(limit?: number): RecentEntry[] {
   return React.useMemo(() => {
     const rows = Object.entries(visited)
       .filter(([key, entry]) => !pinned[key] && inScope(entry, scope))
-      .map(([, entry]) => entry)
+      .map(([, entry]) => withScopedLink(entry))
       .toSorted(newestFirst);
     return limit === undefined ? rows : rows.slice(0, limit);
   }, [visited, pinned, scope, limit]);
@@ -86,6 +87,7 @@ export function usePinnedList(limit?: number): RecentEntry[] {
   return React.useMemo(() => {
     const rows = Object.values(pinned)
       .filter((entry) => inScope(entry, scope))
+      .map(withScopedLink)
       .toSorted(newestFirst);
     return limit === undefined ? rows : rows.slice(0, limit);
   }, [pinned, scope, limit]);
@@ -99,10 +101,14 @@ export function useRememberedList(): Array<{ entry: RecentEntry; key: string; pi
 
   return React.useMemo(() => {
     const rows = [
-      ...Object.entries(pinned).map(([key, entry]) => ({ key, entry, pinned: true })),
+      ...Object.entries(pinned).map(([key, entry]) => ({
+        key,
+        entry: withScopedLink(entry),
+        pinned: true,
+      })),
       ...Object.entries(visited)
         .filter(([key]) => !pinned[key])
-        .map(([key, entry]) => ({ key, entry, pinned: false })),
+        .map(([key, entry]) => ({ key, entry: withScopedLink(entry), pinned: false })),
     ];
     return rows
       .filter((row) => inScope(row.entry, scope))
