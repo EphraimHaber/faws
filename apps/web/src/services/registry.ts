@@ -33,6 +33,27 @@ export interface AwsServiceSection {
   readonly icon: LucideIcon;
   /** Route for this section; absent while planned. */
   readonly to?: string;
+  /**
+   * An add-on the cluster must have for this section to hold anything. Without
+   * it the page can only ever be empty, so the section is left out rather than
+   * offered.
+   */
+  readonly requires?: "kubevirt";
+}
+
+/** What the machine and the cluster in view turned out to have. */
+export interface NavCapabilities {
+  readonly kubeVirt: boolean;
+}
+
+/** The sections to offer, once what the cluster has is known. */
+export function visibleSections(
+  service: AwsServiceDefinition,
+  capabilities: NavCapabilities,
+): ReadonlyArray<AwsServiceSection> {
+  return service.sections.filter(
+    (section) => section.requires !== "kubevirt" || capabilities.kubeVirt,
+  );
 }
 
 export interface AwsServiceDefinition {
@@ -134,6 +155,7 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
         label: "Virtual machines",
         icon: Monitor,
         to: "/kubernetes/virtual-machines",
+        requires: "kubevirt",
       },
     ],
   },

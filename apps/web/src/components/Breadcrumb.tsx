@@ -70,56 +70,24 @@ export function deriveCrumbs(pathname: string): Crumb[] {
 
   const crumbs: Crumb[] = [home, { label: service.label, to: service.basePath }];
 
-  // /ecs/deployments
-  if (segments[1] === "deployments") {
-    crumbs.push({ label: "Recently deployed", to: `${service.basePath}/deployments` });
+  // Named from the registry, so a crumb and the sidebar row for the same page
+  // can never disagree about what it is called. A path nobody registered stops
+  // at the service rather than inventing a label from its slug.
+  const path = `${service.basePath}/${segments[1]}`;
+  const section = service.sections.find((entry) => entry.to === path);
+  if (!section?.to) return crumbs;
+  crumbs.push({ label: section.label, to: section.to });
+
+  // /s3/buckets/$bucket
+  if (segments[1] === "buckets" && segments[2]) {
+    crumbs.push({
+      label: decodeURIComponent(segments[2]),
+      to: `${service.basePath}/buckets/${segments[2]}`,
+    });
     return crumbs;
   }
 
-  // /ecs/task-definitions
-  if (segments[1] === "task-definitions") {
-    crumbs.push({ label: "Task definitions", to: `${service.basePath}/task-definitions` });
-    return crumbs;
-  }
-
-  // /s3/buckets and /s3/buckets/$bucket
-  if (segments[1] === "buckets") {
-    crumbs.push({ label: "Buckets", to: `${service.basePath}/buckets` });
-    if (segments[2]) {
-      crumbs.push({
-        label: decodeURIComponent(segments[2]),
-        to: `${service.basePath}/buckets/${segments[2]}`,
-      });
-    }
-    return crumbs;
-  }
-
-  // /s3/connections
-  if (segments[1] === "connections") {
-    crumbs.push({ label: "Endpoints", to: `${service.basePath}/connections` });
-    return crumbs;
-  }
-
-  // /kubernetes/{contexts,workloads,virtual-machines}
-  if (service.id === "kubernetes" && segments[1]) {
-    // From the registry rather than from a table here, so the crumb and the
-    // sidebar row can never disagree about what a section is called - and so
-    // "Virtual machines" is written once rather than title-cased out of a slug.
-    const section = service.sections.find((entry) => entry.id === segments[1]);
-    if (section?.to) crumbs.push({ label: section.label, to: section.to });
-    return crumbs;
-  }
-
-  // /ec2/instances
-  if (segments[1] === "instances") {
-    crumbs.push({ label: "Instances", to: `${service.basePath}/instances` });
-    return crumbs;
-  }
-
-  // /ecs/clusters and /ecs/clusters/$cluster/...
-  if (segments[1] === "clusters") {
-    crumbs.push({ label: "Clusters", to: `${service.basePath}/clusters` });
-  }
+  // /ecs/clusters/$cluster/...
   if (segments[1] === "clusters" && segments[2]) {
     const cluster = decodeURIComponent(segments[2]);
     const clusterPath = `${service.basePath}/clusters/${segments[2]}`;

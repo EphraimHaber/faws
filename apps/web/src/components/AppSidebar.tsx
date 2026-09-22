@@ -10,26 +10,13 @@ import { ResizeHandle } from "~/components/ui/resize-handle";
 import { SectionHeader } from "~/components/ui/section-header";
 import { StatusDot } from "~/components/ui/status-dot";
 import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "@faws/contracts";
-import {
-  AWS_SERVICES,
-  type AwsServiceDefinition,
-  type AwsServiceSection,
-} from "~/services/registry";
+import { AWS_SERVICES, type AwsServiceDefinition, visibleSections } from "~/services/registry";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { trpc } from "~/lib/trpc";
 import { type RecentEntry, usePinnedList, useRecentList } from "~/stores/recents";
 import { updateSettings, useSettings } from "~/stores/settings";
 import { cn } from "~/lib/utils";
-
-/** The rows to draw under a service, once what the machine has is known. */
-function sectionsFor(
-  service: AwsServiceDefinition,
-  kubeVirt: boolean,
-): ReadonlyArray<AwsServiceSection> {
-  if (service.id !== "kubernetes" || kubeVirt) return service.sections;
-  return service.sections.filter((section) => section.id !== "virtual-machines");
-}
 
 /**
  * Navigation plus the live cluster list.
@@ -45,10 +32,6 @@ export function AppSidebar() {
   const [filter, setFilter] = React.useState("");
 
   const clusters = useQuery(trpc.ecs.clusters.queryOptions(scope));
-  // The one section in the registry that is conditional. It is not a matter of
-  // taste: KubeVirt is an add-on, and on a cluster without it the Virtual
-  // machines page can only ever be empty - so the row is absent rather than
-  // leading somewhere that has nothing to say.
   const kubeVirt = useKubeDiagnostics().data?.kubeVirt ?? false;
   // Both lists are scoped to the profile and region in view, so switching
   // account empties them rather than offering somewhere you cannot go.
@@ -104,7 +87,7 @@ export function AppSidebar() {
                   label={service.label}
                   active={location.pathname === service.basePath}
                 />
-                {sectionsFor(service, kubeVirt).map((section) => (
+                {visibleSections(service, { kubeVirt }).map((section) => (
                   <NavLink
                     key={`${service.id}:${section.id}`}
                     to={section.to ?? service.basePath}

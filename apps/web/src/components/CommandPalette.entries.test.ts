@@ -12,8 +12,10 @@ import { AWS_SERVICES } from "~/services/registry";
 
 const icons = { diagnostics: AWS_SERVICES[0].icon, settings: AWS_SERVICES[0].icon };
 
+const EVERYTHING = { kubeVirt: true };
+
 function allEntries(navigate = () => {}): PaletteEntry[] {
-  return [...navEntries(navigate), ...shellEntries(navigate, icons)];
+  return [...navEntries(navigate, EVERYTHING), ...shellEntries(navigate, icons)];
 }
 
 describe("navEntries", () => {
@@ -43,9 +45,17 @@ describe("navEntries", () => {
 
   it("navigates to the section's own route", () => {
     const navigate = vi.fn();
-    const buckets = navEntries(navigate).find((entry) => entry.id === "nav:s3:buckets");
+    const buckets = navEntries(navigate, EVERYTHING).find((entry) => entry.id === "nav:s3:buckets");
     buckets?.run();
     expect(navigate).toHaveBeenCalledWith("/s3/buckets");
+  });
+
+  it("offers Virtual machines only on a cluster that has KubeVirt, as the sidebar does", () => {
+    const id = "nav:kubernetes:virtual-machines";
+    const without = navEntries(() => {}, { kubeVirt: false }).map((entry) => entry.id);
+    expect(without).not.toContain(id);
+    expect(without).toContain("nav:kubernetes:workloads");
+    expect(navEntries(() => {}, { kubeVirt: true }).map((entry) => entry.id)).toContain(id);
   });
 });
 

@@ -15,6 +15,7 @@ import {
 import { Kbd } from "~/components/ui/kbd";
 import { rankBy } from "~/lib/rank";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { trpc } from "~/lib/trpc";
 import { useOverlay } from "~/stores/overlays";
 import { usePinnedList, useRecentList } from "~/stores/recents";
@@ -92,6 +93,7 @@ function PaletteBody({
   // have just been" stops being a short list you recognise and starts being a
   // history you have to read.
   const recent = useRecentList(12);
+  const kubeVirt = useKubeDiagnostics().data?.kubeVirt ?? false;
 
   const clusters = useQuery(trpc.ecs.clusters.queryOptions(scope));
   const services = useQuery({
@@ -132,7 +134,7 @@ function PaletteBody({
       },
       ...refEntries(pinned, "pinned", go),
       ...refEntries(recent, "recent", go),
-      ...navEntries(go),
+      ...navEntries(go, { kubeVirt }),
       ...shellEntries(go, { diagnostics: ScrollText, settings: Settings2 }),
     ];
 
@@ -171,6 +173,7 @@ function PaletteBody({
     services.data,
     pinned,
     recent,
+    kubeVirt,
     navigate,
     onOpenTerminal,
     onOpenSsh,

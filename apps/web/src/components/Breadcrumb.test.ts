@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { deriveCrumbs } from "./Breadcrumb.tsx";
+import { AWS_SERVICES } from "~/services/registry";
 
 /**
  * The trail is derived from the pathname alone, so it is testable without a
@@ -73,6 +74,19 @@ describe("deriveCrumbs", () => {
         expect(label.toLowerCase()).not.toContain("cluster");
       }
     }
+  });
+
+  it("names every registered section as the registry does", () => {
+    for (const service of AWS_SERVICES) {
+      for (const section of service.sections) {
+        if (!section.to) continue;
+        expect(deriveCrumbs(section.to).at(-1)).toEqual({ label: section.label, to: section.to });
+      }
+    }
+  });
+
+  it("stops at the service for an ECS path nobody registered", () => {
+    expect(labels("/ecs/nodes")).toEqual(["Overview", "ECS"]);
   });
 
   it("stops at the section for a Kubernetes path nobody registered", () => {

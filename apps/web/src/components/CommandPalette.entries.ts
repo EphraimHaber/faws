@@ -2,7 +2,7 @@ import type { RecentEntry, ResourceKind } from "@faws/contracts";
 import { Boxes, Folder, HardDrive, Layers, Server, TerminalSquare } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { AWS_SERVICES } from "~/services/registry";
+import { AWS_SERVICES, type NavCapabilities, visibleSections } from "~/services/registry";
 
 /**
  * One row in the palette.
@@ -67,7 +67,10 @@ export function entryText(entry: PaletteEntry): ReadonlyArray<string> {
  * Planned services are left out. The sidebar lists them so the gap is known;
  * offering a jump to a page that does not exist is a different thing.
  */
-export function navEntries(navigate: (to: string) => void): PaletteEntry[] {
+export function navEntries(
+  navigate: (to: string) => void,
+  capabilities: NavCapabilities,
+): PaletteEntry[] {
   const out: PaletteEntry[] = [
     {
       id: "nav:home",
@@ -99,7 +102,7 @@ export function navEntries(navigate: (to: string) => void): PaletteEntry[] {
       run: () => navigate(service.basePath),
     });
 
-    for (const section of service.sections) {
+    for (const section of visibleSections(service, capabilities)) {
       const to = section.to ?? service.basePath;
       out.push({
         id: `nav:${service.id}:${section.id}`,
