@@ -18,6 +18,8 @@ import { serviceTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
 import { HiddenCount, SilenceMenu } from "~/components/SilenceMenu";
 import { AWS_SERVICES, resolveService, type AwsServiceDefinition } from "~/services/registry";
+import { kindIcon } from "~/components/CommandPalette.entries";
+import { usePinnedList, useRecentList } from "~/stores/recents";
 import { partitionSilenced, useSilenced } from "~/stores/silenced";
 import { cn } from "~/lib/utils";
 import { useFilterSearch } from "~/hooks/useSearchState";
@@ -49,6 +51,8 @@ export function HomePage() {
         }
       />
 
+      <JumpBackIn />
+
       {/* ECS is the only service with a dashboard behind it. The others are
           either built - in which case the overview points into them - or not,
           in which case it says so. Sending someone who picked S3 to "not built
@@ -63,6 +67,59 @@ export function HomePage() {
     </div>
   );
 }
+
+/**
+ * What you were last doing, above the service you are about to pick.
+ *
+ * The overview is the screen a cold session starts on, and it used to open on
+ * a choice between five services regardless of whether four of them had been
+ * touched in a month. Pins first, then the last few places, because a pin is
+ * an answer someone gave deliberately and recency is only a guess.
+ *
+ * Absent entirely until there is something in it: a panel headed "Jump back
+ * in" with nothing under it is a worse first run than no panel.
+ */
+function JumpBackIn() {
+  const pinned = usePinnedList(JUMP_BACK_CAP);
+  const recent = useRecentList(JUMP_BACK_CAP - pinned.length);
+  const rows = [...pinned, ...recent];
+
+  if (rows.length === 0) return null;
+
+  return (
+    <Panel className="shrink-0">
+      <PanelHeader>
+        <PanelTitle>Jump back in</PanelTitle>
+      </PanelHeader>
+      <div className="grid gap-1 p-1.5 sm:grid-cols-2 lg:grid-cols-3">
+        {rows.map((row) => {
+          const Icon = kindIcon(row.kind);
+          return (
+            <Link
+              key={row.to}
+              to={row.to}
+              className="flex min-w-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-accent/60"
+            >
+              <Icon className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={1.8} />
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-[12.5px]">{row.label}</span>
+                <span className="truncate font-mono text-[10.5px] text-muted-foreground">
+                  {row.detail || row.kind}
+                </span>
+              </span>
+              <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/70">
+                {relativeTime(row.at)}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+/** Two rows of three on a wide window, which is a glance rather than a list. */
+const JUMP_BACK_CAP = 6;
 
 /** A row of services, one of which the page below belongs to. */
 function ServiceSwitcher({

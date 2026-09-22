@@ -1,3 +1,5 @@
+import type { RecentEntry, ResourceKind } from "@faws/contracts";
+import { Boxes, Folder, HardDrive, Layers, Server, TerminalSquare } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { AWS_SERVICES } from "~/services/registry";
@@ -21,7 +23,7 @@ export interface PaletteEntry {
   run(): void;
 }
 
-export type PaletteGroup = "action" | "nav" | "resource";
+export type PaletteGroup = "action" | "pinned" | "recent" | "nav" | "resource";
 
 /**
  * A nudge applied per group after text scoring.
@@ -32,9 +34,15 @@ export type PaletteGroup = "action" | "nav" | "resource";
  * the places you go above the account's own contents. What it deliberately
  * cannot do is bury a cluster whose name you typed exactly under a page whose
  * name you did not.
+ *
+ * What you kept and where you have just been sit above the pages, because a
+ * palette opened with nothing typed is being used as a jump-back-in list, and
+ * the section fronts are the one thing the sidebar already shows in full.
  */
 const GROUP_BOOST: Record<PaletteGroup, number> = {
   action: 30,
+  pinned: 28,
+  recent: 24,
   nav: 20,
   resource: 0,
 };
@@ -133,4 +141,48 @@ export function shellEntries(
       run: () => navigate("/settings"),
     },
   ];
+}
+
+/** What each kind of remembered thing looks like in a list. */
+const KIND_ICON: Record<ResourceKind, LucideIcon> = {
+  "s3-bucket": HardDrive,
+  "s3-prefix": Folder,
+  "ec2-instance": Server,
+  "ecs-cluster": Layers,
+  "ecs-service": Boxes,
+  "ssh-host": TerminalSquare,
+  "kube-context": Layers,
+};
+
+export function kindIcon(kind: ResourceKind): LucideIcon {
+  return KIND_ICON[kind];
+}
+
+/**
+ * Pinned or recently visited resources, as palette rows.
+ *
+ * They match on their own label and detail rather than on the words that
+ * describe their kind, because what is typed to find one of these is its name -
+ * nobody opens the palette and types "bucket" hoping for the bucket they were
+ * in five minutes ago. The kind rides in the hint, which is where it answers
+ * the question it is actually asked: which of these two same-named things.
+ *
+ * `to` is used as the entry id as well as the destination. A bucket that is
+ * both pinned and in the palette's cluster list would otherwise be two rows
+ * with two ids and no way for React to tell they are the same place.
+ */
+export function refEntries(
+  refs: ReadonlyArray<RecentEntry>,
+  group: "pinned" | "recent",
+  navigate: (to: string) => void,
+): PaletteEntry[] {
+  return refs.map((ref) => ({
+    id: `${group}:${ref.to}`,
+    icon: kindIcon(ref.kind),
+    label: ref.label,
+    hint: ref.detail || ref.kind,
+    keywords: [ref.kind, group],
+    group,
+    run: () => navigate(ref.to),
+  }));
 }

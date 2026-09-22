@@ -19,6 +19,7 @@ import {
   type Settings,
   type SettingsPatch,
   type SettingsPersistence,
+  type RecentOp,
   type SettingsSnapshot,
   type SilenceOp,
 } from "@faws/contracts";
@@ -145,6 +146,23 @@ function sendPending(): void {
  */
 export function applySilence(op: SilenceOp): void {
   void trpcClient.settings.silence
+    .mutate({ op })
+    .then((snapshot) => accept(snapshot, null))
+    .catch(() => undefined);
+}
+
+/**
+ * Records, pins, unpins or forgets a resource.
+ *
+ * Shaped exactly like `applySilence` above, and for the same reasons: discrete
+ * acts with nothing to coalesce, and no `originId`, so `at` is the server's
+ * clock rather than this window's. That matters more here than it does for a
+ * mute - `at` is what the recent list is *sorted by*, so a browser with a
+ * skewed clock would otherwise pin its own rows to the top of the list on
+ * every other machine.
+ */
+export function applyRecent(op: RecentOp): void {
+  void trpcClient.settings.recents
     .mutate({ op })
     .then((snapshot) => accept(snapshot, null))
     .catch(() => undefined);

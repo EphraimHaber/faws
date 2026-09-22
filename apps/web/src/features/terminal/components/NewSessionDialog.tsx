@@ -1,4 +1,4 @@
-import { sshSessionFormSchema, type SshSessionFormValues } from "@faws/contracts";
+import { type ResourceRef, sshSessionFormSchema, type SshSessionFormValues } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { Search, TerminalSquare } from "lucide-react";
 import * as React from "react";
@@ -17,6 +17,7 @@ import { Segmented } from "~/components/segmented";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
 import { useOverlay } from "~/stores/overlays";
+import { recentActions } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
 
 type Mode = "instance" | "ssh";
@@ -229,6 +230,28 @@ function InstancePicker({ onClose }: { onClose: () => void }) {
   );
 }
 
+/**
+ * A host someone typed, so the next time they do not have to.
+ *
+ * Scoped to nothing: an SSH host is reached from this machine, not through an
+ * AWS account, so it stays listed whichever profile and region are in view -
+ * `inScope` treats an empty profile as unscoped for exactly this.
+ *
+ * The destination is the instance list, which is the page the terminal is
+ * opened from. A ref navigates, and reopening a shell is not a navigation, so
+ * this gets someone one step closer rather than all the way back.
+ */
+function sshHostRef(host: string, user: string): ResourceRef {
+  return {
+    kind: "ssh-host",
+    id: user ? `${user}@${host}` : host,
+    label: host,
+    detail: user ? `ssh ${user}@${host}` : `ssh ${host}`,
+    scope: { profile: "", region: "", connectionId: "" },
+    to: "/ec2/instances",
+  };
+}
+
 function SshForm({ onClose }: { onClose: () => void }) {
   const open = useSessions((state) => state.open);
   // Aliases the user already has. A Host entry carries its own user, port and
@@ -248,6 +271,9 @@ function SshForm({ onClose }: { onClose: () => void }) {
       ...(values.user ? { user: values.user } : {}),
       ...(values.port === 22 ? {} : { port: values.port }),
     });
+    // On submit rather than on a dwell: a host that was typed out in full is
+    // about as deliberate as an act in this app gets.
+    recentActions.record(sshHostRef(values.host, values.user));
     onClose();
   }
 

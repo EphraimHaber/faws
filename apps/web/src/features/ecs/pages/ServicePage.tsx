@@ -1,4 +1,4 @@
-import type { EcsTask } from "@faws/contracts";
+import type { EcsTask, ResourceRef } from "@faws/contracts";
 import { relativeTime } from "@faws/shared";
 import { useHotkeys } from "@tanstack/react-hotkeys";
 import { useQuery } from "@tanstack/react-query";
@@ -7,6 +7,7 @@ import { ExternalLink, Pencil, Rocket, ScrollText } from "lucide-react";
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
+import { PinButton } from "~/components/PinButton";
 import { DeploymentHistory } from "~/features/ecs/components/DeploymentHistory";
 import {
   DeploymentProgress,
@@ -33,6 +34,7 @@ import { fullTimestamp } from "~/lib/format";
 import { classifyEvent, type ClassifiedEvent } from "~/lib/deployment";
 import { describe } from "~/lib/hotkeys";
 import { useOverlaysOpen } from "~/stores/overlays";
+import { useRecordVisit } from "~/stores/recents";
 import { useTabSearch } from "~/hooks/useTabSearch";
 import { serviceTone, taskTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
@@ -77,6 +79,23 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
     ...trpc.ecs.metrics.queryOptions({ ...scope, cluster, service, windowMinutes: 180 }),
     enabled: tab === "metrics",
   });
+
+  // Recorded from the route rather than from `detail.data`, so a service whose
+  // summary is still loading - or has just failed to load - still counts as
+  // somewhere you went. The cluster is the detail line because a service name
+  // on its own is ambiguous across clusters and the key is not.
+  const target = React.useMemo<ResourceRef>(
+    () => ({
+      kind: "ecs-service",
+      id: `${cluster}/${service}`,
+      label: service,
+      detail: cluster,
+      scope: { profile: scope.profile, region: scope.region, connectionId: "" },
+      to: `/ecs/clusters/${encodeURIComponent(cluster)}/services/${encodeURIComponent(service)}`,
+    }),
+    [cluster, service, scope.profile, scope.region],
+  );
+  useRecordVisit(target);
 
   const consoleUrl = `https://${region}.console.aws.amazon.com/ecs/v2/clusters/${encodeURIComponent(cluster)}/services/${encodeURIComponent(service)}?region=${region}`;
 
@@ -133,6 +152,7 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
             pending={summary.pendingCount}
           />
           <div className="ml-auto flex items-center gap-1.5">
+            <PinButton target={target} />
             <DisabledHint reason={updateReason}>
               <Button
                 onClick={() => setUpdating(true)}

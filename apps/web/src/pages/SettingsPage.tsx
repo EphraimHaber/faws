@@ -18,6 +18,7 @@ import {
 import { useTheme } from "~/contexts/ThemeContext";
 import { useWriteMode } from "~/hooks/useWriteMode";
 import { trpc } from "~/lib/trpc";
+import { recentActions, useRememberedList } from "~/stores/recents";
 import { type SilenceEntry, useSilenced } from "~/stores/silenced";
 import { resetSettings, useSettings } from "~/stores/settings";
 import { cn } from "~/lib/utils";
@@ -110,6 +111,8 @@ export function SettingsPage() {
       </Panel>
 
       <SilencedPanel />
+
+      <RememberedPanel />
 
       <Panel className="shrink-0">
         <PanelHeader>
@@ -271,6 +274,71 @@ function SilencedPanel() {
                 className="shrink-0 cursor-pointer rounded border border-border px-2 py-0.5 text-[11.5px] transition-colors hover:bg-accent"
               >
                 Restore
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+/**
+ * Everything the app has remembered about where you have been.
+ *
+ * It mirrors the silenced panel, and for the same reason: anything kept about
+ * a person should be visible to them and clearable by them in one place. A
+ * recents list that can only be added to is a history you cannot get out of.
+ *
+ * The list is scoped to the profile and region in view, like every other reader
+ * of these maps. "Forget all" is deliberately not: it empties both maps for
+ * every account, because the one place someone comes to clear their history
+ * should clear their history rather than the part of it currently on screen.
+ */
+function RememberedPanel() {
+  const rows = useRememberedList();
+
+  return (
+    <Panel className="shrink-0">
+      <PanelHeader>
+        <PanelTitle>Recent and pinned</PanelTitle>
+        <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
+        {rows.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => recentActions.forgetAll("both")}
+            className="ml-auto cursor-pointer font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-foreground"
+          >
+            forget all
+          </button>
+        ) : null}
+      </PanelHeader>
+
+      {rows.length === 0 ? (
+        <p className="px-3.5 py-4 text-[12.5px] text-muted-foreground">
+          Nothing remembered in this account yet. Open a cluster, a service or a bucket and it
+          appears here and in the sidebar; pin one to keep it there.
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-border">
+          {rows.map(({ entry, key, pinned }) => (
+            <li key={key} className="flex items-center gap-3 px-3.5 py-2">
+              <Badge tone={pinned ? "primary" : "neutral"}>{pinned ? "pinned" : entry.kind}</Badge>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[12.5px]">{entry.label}</span>
+                <span className="block truncate font-mono text-[10.5px] text-muted-foreground">
+                  {entry.detail || entry.to}
+                </span>
+              </span>
+              <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground tabular">
+                {relativeTime(entry.at)}
+              </span>
+              <button
+                type="button"
+                onClick={() => recentActions.forget(key)}
+                className="shrink-0 cursor-pointer rounded border border-border px-2 py-0.5 text-[11.5px] transition-colors hover:bg-accent"
+              >
+                Forget
               </button>
             </li>
           ))}
