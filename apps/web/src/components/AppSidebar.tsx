@@ -4,12 +4,14 @@ import { Home, ScrollText, Settings2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import * as React from "react";
 
+import { kindIcon } from "~/components/CommandPalette.entries";
 import { ResizeHandle } from "~/components/ui/resize-handle";
 import { StatusDot } from "~/components/ui/status-dot";
 import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "@faws/contracts";
 import { AWS_SERVICES, type AwsServiceDefinition } from "~/services/registry";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
+import { type RecentEntry, usePinnedList, useRecentList } from "~/stores/recents";
 import { updateSettings, useSettings } from "~/stores/settings";
 import { cn } from "~/lib/utils";
 
@@ -27,6 +29,10 @@ export function AppSidebar() {
   const [filter, setFilter] = React.useState("");
 
   const clusters = useQuery(trpc.ecs.clusters.queryOptions(scope));
+  // Both lists are scoped to the profile and region in view, so switching
+  // account empties them rather than offering somewhere you cannot go.
+  const pinned = usePinnedList(SIDEBAR_CAP);
+  const recent = useRecentList(SIDEBAR_CAP);
 
   const visible = React.useMemo(() => {
     const query = filter.trim().toLowerCase();
@@ -109,6 +115,12 @@ export function AppSidebar() {
           />
         </nav>
 
+        {/* Hidden when empty rather than shown as an empty state: a rail that
+            is all headings on a fresh install teaches nothing, and these two
+            fill themselves in the course of using the app. */}
+        <RefSection title="Pinned" rows={pinned} here={location.href} />
+        <RefSection title="Recent" rows={recent} here={location.href} />
+
         <div className="mx-3.5 mt-2 mb-1.5 flex shrink-0 items-center gap-2.5 border-t border-border pt-3.5">
           <span className="font-mono text-[9.5px] tracking-[0.26em] text-muted-foreground uppercase">
             Clusters
@@ -180,6 +192,71 @@ export function AppSidebar() {
         </div>
       </aside>
     </div>
+  );
+}
+
+/**
+ * Rows per remembered list in the rail.
+ *
+ * About what fits above the cluster list on a laptop window, and about as many
+ * rows as anyone scans without starting to read.
+ */
+const SIDEBAR_CAP = 8;
+
+/**
+ * One remembered list, or nothing at all.
+ *
+ * The rows link by their stored `to` rather than rebuilding a route from the
+ * id, which is what lets one component draw a bucket at a prefix, an ECS
+ * service and an SSH host without knowing anything about any of them.
+ */
+function RefSection({
+  title,
+  rows,
+  here,
+}: {
+  title: string;
+  rows: ReadonlyArray<RecentEntry>;
+  /** The current path *with* its search, which is what a stored `to` is. */
+  here: string;
+}) {
+  if (rows.length === 0) return null;
+
+  return (
+    <>
+      <div className="mx-3.5 mt-2 mb-1 flex shrink-0 items-center gap-2.5 border-t border-border pt-3.5">
+        <span className="font-mono text-[9.5px] tracking-[0.26em] text-muted-foreground uppercase">
+          {title}
+        </span>
+        <span aria-hidden className="h-px flex-1 bg-border" />
+      </div>
+      <div className="flex shrink-0 flex-col gap-px px-2 pb-1">
+        {rows.map((row) => {
+          const Icon = kindIcon(row.kind);
+          return (
+            <Link
+              key={row.to}
+              to={row.to}
+              title={row.detail ? `${row.label} - ${row.detail}` : row.label}
+              className={cn(
+                "flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
+                // Compared against the search too, not just the path: two
+                // prefixes in one bucket are two rows, and only one of them is
+                // the one being looked at.
+                here === row.to
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:bg-accent/60",
+              )}
+            >
+              <Icon className="size-3.5 shrink-0" strokeWidth={1.8} />
+              <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
+                {row.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </>
   );
 }
 

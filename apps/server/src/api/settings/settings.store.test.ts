@@ -5,7 +5,9 @@ import * as path from "node:path";
 import {
   DEFAULT_LOG_GUTTER,
   DEFAULT_SETTINGS,
+  MAX_RECENT_ENTRIES,
   MAX_SILENCE_ENTRIES,
+  type ResourceRef,
   type Settings,
 } from "@faws/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -285,5 +287,45 @@ describe("reset", () => {
     s.applySilence({ op: "mute", entry: { arn: "a", label: "", context: "" } });
 
     expect(s.reset().settings).toEqual(DEFAULT_SETTINGS);
+  });
+});
+
+function ref(id: string): ResourceRef {
+  return {
+    kind: "ecs-cluster",
+    id,
+    label: id,
+    detail: "",
+    scope: { profile: "default", region: "us-east-1", connectionId: "" },
+    to: "/ecs/clusters/" + id,
+  };
+}
+
+describe("recents operations", () => {
+  it("stamps a visit with the store's clock", async () => {
+    const at = new Date("2026-03-04T05:06:07.000Z");
+    const s = store({ now: () => at });
+    await s.load();
+    const recents = s.applyRecents({ op: "record", ref: ref("a") }).settings.recents;
+    expect(Object.values(recents.visited)[0]?.at).toBe(at.toISOString());
+  });
+
+  it("prunes the visited map on write", async () => {
+    // The easy miss: the cap lives in `pruneRecents`, and a mutator that
+    // applies the op without calling it grows the file without bound.
+    const s = store();
+    await s.load();
+    for (let i = 0; i < MAX_RECENT_ENTRIES + 10; i++) {
+      s.applyRecents({ op: "record", ref: ref("c-" + i) });
+    }
+    expect(Object.keys(s.get().settings.recents.visited)).toHaveLength(MAX_RECENT_ENTRIES);
+  });
+
+  it("survives a round trip through the file", async () => {
+    const s = store();
+    await s.load();
+    s.applyRecents({ op: "pin", ref: ref("keep") });
+    await s.flush();
+    expect(Object.values(onDisk().recents.pinned)[0]?.label).toBe("keep");
   });
 });

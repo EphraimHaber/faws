@@ -1,7 +1,10 @@
+import type { ResourceRef } from "@faws/contracts";
 import { normalizePrefix } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import * as React from "react";
 
+import { PinButton } from "~/components/PinButton";
 import { Segmented } from "~/components/segmented";
 import { AnalyticsPane } from "~/features/s3/components/AnalyticsPane";
 import { BucketProperties } from "~/features/s3/components/BucketProperties";
@@ -16,6 +19,7 @@ import { ConnectionPicker } from "~/features/s3/components/ConnectionPicker";
 import { useS3Capabilities } from "~/features/s3/useS3Capabilities";
 import { useTabSearch } from "~/hooks/useTabSearch";
 import { trpc } from "~/lib/trpc";
+import { useRecordVisit } from "~/stores/recents";
 
 /** The tabs, in the order they are shown; the first is the default. */
 export const BUCKET_TABS = ["objects", "properties", "versions", "analytics"] as const;
@@ -52,6 +56,32 @@ export function BucketPage({ bucket }: { bucket: string }) {
     staleTime: 5 * 60_000,
   });
 
+  // The bucket root and a prefix inside it are two different destinations, so
+  // they are two different kinds and two different keys - coming back to
+  // `logs/2026/` is the useful thing to remember, not that the bucket exists.
+  // The dwell in `useRecordVisit` is what keeps a walk down the tree from
+  // leaving a row for every folder passed through on the way.
+  const target = React.useMemo<ResourceRef>(
+    () => ({
+      kind: prefix ? "s3-prefix" : "s3-bucket",
+      id: prefix ? `${bucket}/${prefix}` : bucket,
+      label: prefix
+        ? normalizePrefix(prefix).replace(/\/$/, "").split("/").pop() || bucket
+        : bucket,
+      detail: prefix ? `${bucket}/${prefix}` : "bucket",
+      scope: {
+        profile: scope.profile,
+        region: scopeRegion,
+        connectionId: scope.connectionId ?? "",
+      },
+      to: prefix
+        ? `/s3/buckets/${encodeURIComponent(bucket)}?prefix=${encodeURIComponent(prefix)}`
+        : `/s3/buckets/${encodeURIComponent(bucket)}`,
+    }),
+    [bucket, prefix, scope.profile, scope.connectionId, scopeRegion],
+  );
+  useRecordVisit(target);
+
   const goTo = (next: { prefix?: string; object?: string }) =>
     void navigate({
       to: "/s3/buckets/$bucket",
@@ -82,7 +112,8 @@ export function BucketPage({ bucket }: { bucket: string }) {
           value={tab}
           onChange={(next: Tab) => setTab(next)}
         />
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1.5">
+          <PinButton target={target} />
           <ConnectionPicker />
         </div>
         {region.data && region.data !== scopeRegion ? (

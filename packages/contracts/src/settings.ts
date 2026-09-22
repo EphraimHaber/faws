@@ -22,12 +22,18 @@
  */
 import { z } from "zod";
 
+import { recentsSettingsSchema } from "./recents.ts";
 import { s3ConnectionSchema } from "./s3-connections.ts";
 
 /**
  * Bumped whenever a migration is needed to read an older file. Contracts owns
  * it rather than the server because the renderer's first-paint cache is parsed
  * with this same schema and has to agree about what shape it is looking at.
+ *
+ * Adding a section is not such a change: an older file reads back with the new
+ * section's defaults, and a newer file's extra section is ignored by an older
+ * build. What *would* need a bump is a change to how `recents` keys its maps,
+ * because that orphans entries rather than defaulting them - see `resourceKey`.
  */
 export const SETTINGS_VERSION = 1;
 
@@ -182,6 +188,7 @@ export const settingsSchema = z.object({
   terminal: section(terminalSettingsSchema),
   s3: section(s3SettingsSchema),
   silenced: section(silencedSettingsSchema),
+  recents: section(recentsSettingsSchema),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
@@ -203,12 +210,13 @@ export const DEFAULT_SETTINGS: Settings = settingsSchema.parse({});
  * away the type at the boundary, which is the one thing this package exists to
  * avoid.
  *
- * `silenced` and `s3` are deliberately absent: "forget this ARN" and "delete
- * this endpoint" cannot be expressed as a merge, and shipping the whole map or
- * list on every change would reintroduce the clobbering for the fields most
- * likely to be edited from two windows. They get `silenceOpSchema` and
- * `s3ConnectionOpSchema` instead, and `strict()` turns an attempt to slip one
- * through here into a validation error rather than a silent no-op.
+ * `silenced`, `s3` and `recents` are deliberately absent: "forget this ARN",
+ * "delete this endpoint" and "unpin this bucket" cannot be expressed as a
+ * merge, and shipping the whole map or list on every change would reintroduce
+ * the clobbering for the fields most likely to be edited from two windows. They
+ * get `silenceOpSchema`, `s3ConnectionOpSchema` and `recentOpSchema` instead,
+ * and `strict()` turns an attempt to slip one through here into a validation
+ * error rather than a silent no-op.
  */
 export const settingsPatchSchema = z
   .object({

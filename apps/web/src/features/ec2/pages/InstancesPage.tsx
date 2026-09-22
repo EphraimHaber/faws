@@ -1,4 +1,4 @@
-import type { ExecInstanceTarget } from "@faws/contracts";
+import type { ExecInstanceTarget, ResourceRef } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { Server, TerminalSquare } from "lucide-react";
 import * as React from "react";
@@ -15,6 +15,7 @@ import { useAwsScope } from "~/contexts/ScopeContext";
 import { useFilterSearch } from "~/hooks/useSearchState";
 import { trpc } from "~/lib/trpc";
 import type { ExecTarget } from "~/lib/terminal/handshake";
+import { recentActions } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
 
 /**
@@ -210,7 +211,13 @@ function Connect({
           // it does not work. Both are buttons either way.
           variant={index === 0 ? "default" : "outline"}
           title={route.title}
-          onClick={() => onOpen(route.target)}
+          onClick={() => {
+            // Recorded on the shell rather than on a dwell, because this list
+            // has no per-instance page to sit on: what makes an instance worth
+            // remembering is that you got onto it.
+            recentActions.record(instanceRef(row, scope));
+            onOpen(route.target);
+          }}
         >
           {index === 0 ? <TerminalSquare className="size-3" /> : null}
           {route.label}
@@ -218,6 +225,27 @@ function Connect({
       ))}
     </span>
   );
+}
+
+/**
+ * An instance, pointed at the row that opens it.
+ *
+ * There is no page for one instance, so the destination is this list filtered
+ * to its id - which is as close to "here it is" as the app has, and lands on a
+ * row with its own connect buttons rather than on a dead end.
+ */
+function instanceRef(
+  row: ExecInstanceTarget,
+  scope: { profile: string; region: string },
+): ResourceRef {
+  return {
+    kind: "ec2-instance",
+    id: row.instanceId,
+    label: row.name ?? row.instanceId,
+    detail: row.instanceId,
+    scope: { profile: scope.profile, region: scope.region, connectionId: "" },
+    to: `/ec2/instances?q=${encodeURIComponent(row.instanceId)}`,
+  };
 }
 
 function routesFor(

@@ -1,4 +1,4 @@
-import type { EcsContainerInstance, EcsService, EcsTask } from "@faws/contracts";
+import type { EcsContainerInstance, EcsService, EcsTask, ResourceRef } from "@faws/contracts";
 import { relativeTime } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -6,6 +6,7 @@ import { AlertTriangle, Boxes, Cpu, ScrollText, Server, TerminalSquare } from "l
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
+import { PinButton } from "~/components/PinButton";
 import { CountMeter } from "~/components/meter";
 import { Segmented } from "~/components/segmented";
 import { FilterInput } from "~/components/toolbar";
@@ -17,6 +18,7 @@ import { LoadingRows } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
 import { Button } from "~/components/ui/button";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { useRecordVisit } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
 import { cpuLabel, memoryLabel, uptimeLabel } from "~/lib/format";
 import { serviceTone, taskTone } from "~/lib/status";
@@ -37,6 +39,22 @@ export function ClusterPage({ cluster }: { cluster: string }) {
   const scope = useAwsScope();
   const [tab, setTab] = useTabSearch(CLUSTER_TABS, "services");
   const [filter, setFilter] = useFilterSearch();
+
+  // The cluster, not the tab: which of its four lists you last had open is a
+  // view onto the same place, and remembering four of them would fill the rail
+  // with one cluster.
+  const target = React.useMemo<ResourceRef>(
+    () => ({
+      kind: "ecs-cluster",
+      id: cluster,
+      label: cluster,
+      detail: "cluster",
+      scope: { profile: scope.profile, region: scope.region, connectionId: "" },
+      to: `/ecs/clusters/${encodeURIComponent(cluster)}`,
+    }),
+    [cluster, scope.profile, scope.region],
+  );
+  useRecordVisit(target);
 
   const services = useQuery({
     ...trpc.ecs.services.queryOptions({ ...scope, cluster }),
@@ -74,8 +92,9 @@ export function ClusterPage({ cluster }: { cluster: string }) {
             { value: "instances", label: "EC2", count: instances.data?.length },
           ]}
         />
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1.5">
           <FilterInput value={filter} onChange={setFilter} />
+          <PinButton target={target} />
         </div>
       </PanelHeader>
 

@@ -21,10 +21,13 @@
  */
 import {
   applyPatch,
+  applyRecentOp,
   applyS3ConnectionOp,
   DEFAULT_SETTINGS,
+  pruneRecents,
   pruneSilenced,
   SETTINGS_VERSION,
+  type RecentOp,
   type SettingsPatch,
   type Settings,
   type S3ConnectionOp,
@@ -70,6 +73,15 @@ export interface SettingsStore {
    * endpoints clobber each other.
    */
   applyS3Connection(op: S3ConnectionOp, originId?: string | null): SettingsSnapshot;
+  /**
+   * Records a visit, pins, unpins or forgets a resource.
+   *
+   * Its own mutator for the same reason as the two above, plus one specific to
+   * it: `record` fires from page mounts all over the app, so a whole-map write
+   * would have every open window shipping the entire history on every
+   * navigation and overwriting whatever the others had learned.
+   */
+  applyRecents(op: RecentOp, originId?: string | null): SettingsSnapshot;
   /**
    * Adopts preferences a browser had in `localStorage` before this existed.
    * A no-op unless the store is still pristine, so two tabs racing to import
@@ -292,6 +304,11 @@ export function createSettingsStore(options: SettingsStoreOptions): SettingsStor
     applyS3Connection(op, originId = null) {
       const connections = applyS3ConnectionOp(settings.s3.connections, op);
       return commit({ ...settings, s3: { ...settings.s3, connections } }, originId);
+    },
+
+    applyRecents(op, originId = null) {
+      const recents = applyRecentOp(settings.recents, op, now());
+      return commit({ ...settings, recents: pruneRecents(recents) }, originId);
     },
 
     importLegacy(patch, silenced, originId = null) {

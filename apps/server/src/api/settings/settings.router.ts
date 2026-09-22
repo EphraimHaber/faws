@@ -14,7 +14,12 @@
  * and reset every launch, which is the point of them - a destructive-mode
  * switch that survived a restart would be a footgun, not a preference.
  */
-import { settingsPatchSchema, silenceOpSchema, silencedSettingsSchema } from "@faws/contracts";
+import {
+  recentOpSchema,
+  settingsPatchSchema,
+  silenceOpSchema,
+  silencedSettingsSchema,
+} from "@faws/contracts";
 import { z } from "zod";
 
 import { publicProcedure, router } from "../../trpc/index.ts";
@@ -33,6 +38,10 @@ export const settingsRouter = router({
   silence: publicProcedure
     .input(z.object({ op: silenceOpSchema, originId }))
     .mutation(({ input }) => settingsStore().applySilence(input.op, input.originId ?? null)),
+
+  recents: publicProcedure
+    .input(z.object({ op: recentOpSchema, originId }))
+    .mutation(({ input }) => settingsStore().applyRecents(input.op, input.originId ?? null)),
 
   /**
    * Adopts what a browser had in `localStorage` before the server owned any of

@@ -8,6 +8,7 @@ import {
   entryText,
   groupBoost,
   navEntries,
+  refEntries,
   shellEntries,
   type PaletteEntry,
 } from "~/components/CommandPalette.entries";
@@ -16,6 +17,7 @@ import { rankBy } from "~/lib/rank";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
 import { useOverlay } from "~/stores/overlays";
+import { usePinnedList, useRecentList } from "~/stores/recents";
 import { cn } from "~/lib/utils";
 
 /**
@@ -80,6 +82,12 @@ function PaletteBody({
   const [index, setIndex] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
+  const pinned = usePinnedList();
+  // Capped well below the palette's own 40-row limit: past a dozen, "where I
+  // have just been" stops being a short list you recognise and starts being a
+  // history you have to read.
+  const recent = useRecentList(12);
+
   const clusters = useQuery(trpc.ecs.clusters.queryOptions(scope));
   const services = useQuery({
     ...trpc.ecs.services.queryOptions({ ...scope, cluster: activeCluster ?? "" }),
@@ -108,6 +116,8 @@ function PaletteBody({
         group: "action",
         run: onOpenSsh,
       },
+      ...refEntries(pinned, "pinned", go),
+      ...refEntries(recent, "recent", go),
       ...navEntries(go),
       ...shellEntries(go, { diagnostics: ScrollText, settings: Settings2 }),
     ];
@@ -142,7 +152,7 @@ function PaletteBody({
     }
 
     return out;
-  }, [clusters.data, services.data, navigate, onOpenTerminal, onOpenSsh]);
+  }, [clusters.data, services.data, pinned, recent, navigate, onOpenTerminal, onOpenSsh]);
 
   // Ranked rather than filtered. A subsequence test answers "could these
   // letters be found in order", which is a fine filter and no order at all:
