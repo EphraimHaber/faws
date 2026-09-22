@@ -10,7 +10,7 @@
  * answered over the prompt roundtrip once the session is up, where they are
  * never stored, never logged and never sent again.
  */
-import type { ExecHandshakeAuth, SshTransport } from "@faws/contracts";
+import type { ExecHandshakeAuth, KubeTarget, SshTransport } from "@faws/contracts";
 
 export type ExecTarget =
   | {
@@ -23,7 +23,33 @@ export type ExecTarget =
       command?: string;
     }
   | { kind: "ssm"; profile: string; region: string; instanceId: string }
-  | { kind: "ssh"; transport: SshTransport; user?: string; port?: number };
+  | { kind: "ssh"; transport: SshTransport; user?: string; port?: number }
+  | { kind: "kube"; context: string; namespace: string; target: KubeExecTarget };
+
+/**
+ * What to run in the cluster, as a caller has it rather than as the wire wants
+ * it.
+ *
+ * The contract's `KubeTarget` is the parsed shape, so its defaults are already
+ * applied and `command` is a required argv. A page has none of that: it knows a
+ * pod and perhaps a container, and means "whatever shell the pod has" by saying
+ * nothing at all. Filling those in is this module's job, the same split it
+ * already makes for an ECS command.
+ */
+export type KubeExecTarget =
+  | { tool: "kubectl"; pod: string; container?: string; command?: readonly string[] }
+  | {
+      tool: "oc";
+      /** `rsh` is what an OpenShift user reaches for; `exec` is the same call. */
+      mode?: "rsh" | "exec";
+      pod: string;
+      container?: string;
+      command?: readonly string[];
+    }
+  | { tool: "virtctl"; mode: "ssh" | "console"; vm: string; user?: string };
+
+/** Whatever the image actually has; a distroless one has neither. */
+const DEFAULT_SHELL = ["/bin/sh"] as const;
 
 export interface HandshakeOptions {
   readonly sessionId: string;
@@ -74,6 +100,47 @@ export function buildHandshake(target: ExecTarget, options: HandshakeOptions): E
         ...(target.user === undefined ? {} : { user: target.user }),
         ...(target.port === undefined ? {} : { port: target.port }),
       };
+    case "kube":
+      return {
+        ...base,
+        kind: "kube",
+        context: target.context,
+        namespace: target.namespace,
+        target: kubeTarget(target.target),
+      };
+  }
+}
+
+/**
+ * The same spread-rather-than-assign rule the SSH arm follows, and for the same
+ * reason: the server's schema is strict, so an absent container - which means
+ * "the one `kubectl exec` would pick" - is a missing key rather than a present
+ * one holding `undefined`.
+ */
+function kubeTarget(target: KubeExecTarget): KubeTarget {
+  switch (target.tool) {
+    case "kubectl":
+      return {
+        tool: "kubectl",
+        pod: target.pod,
+        ...(target.container ? { container: target.container } : {}),
+        command: [...(target.command ?? DEFAULT_SHELL)],
+      };
+    case "oc":
+      return {
+        tool: "oc",
+        mode: target.mode ?? "rsh",
+        pod: target.pod,
+        ...(target.container ? { container: target.container } : {}),
+        command: [...(target.command ?? DEFAULT_SHELL)],
+      };
+    case "virtctl":
+      return {
+        tool: "virtctl",
+        mode: target.mode,
+        vm: target.vm,
+        ...(target.user ? { user: target.user } : {}),
+      };
   }
 }
 
@@ -103,6 +170,20 @@ export function describeTarget(target: ExecTarget): { title: string; subtitle: s
           return { title: host, subtitle: `instance connect / ${transport.region}` };
         case "ssm-tunnel":
           return { title: host, subtitle: `ssh over ssm / ${transport.region}` };
+      }
+    }
+    case "kube": {
+      // Context and namespace rather than profile and region: a kube session
+      // has no AWS scope at all, and the pair under the tab has to be the pair
+      // that decides which cluster the shell landed in.
+      const scope = `${target.context} / ${target.namespace}`;
+      const inner = target.target;
+      switch (inner.tool) {
+        case "kubectl":
+        case "oc":
+          return { title: inner.container ?? inner.pod, subtitle: scope };
+        case "virtctl":
+          return { title: inner.vm, subtitle: `virtctl ${inner.mode} / ${scope}` };
       }
     }
   }

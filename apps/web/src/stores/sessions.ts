@@ -17,7 +17,7 @@
  * follow the person between the browser and the desktop app.
  */
 import type { ExecPromptResponse } from "@faws/contracts";
-import { z } from "zod";
+
 import { create } from "zustand";
 
 import { readStored, writeStored } from "~/lib/stored";
@@ -35,6 +35,7 @@ import {
   type TerminalSession,
 } from "~/lib/terminal/sessions-model";
 import { buildHandshake, describeTarget, type ExecTarget } from "~/lib/terminal/handshake";
+import { OPEN_TABS_KEY, storedOpenTabs } from "~/lib/terminal/open-tabs";
 import {
   createTerminal,
   disposeTerminal,
@@ -43,17 +44,6 @@ import {
   writeToTerminal,
 } from "~/lib/terminal/xterm";
 
-/**
- * Which tabs were open, so a reload can ask for them back.
- *
- * This one stays in `localStorage` rather than moving to the settings file
- * with the dock's other state, because it is not a preference: it describes
- * what *this* window was doing a moment ago. The server only holds a session
- * for its grace window, so the note is worthless to another window and
- * worthless to a later launch.
- */
-const OPEN_KEY = "faws:terminal:open";
-
 /** Sockets, kept out of state for the same reason terminals are. */
 const sockets = new Map<string, ExecSocket>();
 
@@ -61,33 +51,21 @@ const sockets = new Map<string, ExecSocket>();
 const targets = new Map<string, ExecTarget>();
 
 /**
- * The tabs that were open, so a reload can pick them back up.
+ * Which tabs were open, so a reload can ask for them back.
  *
- * Only the id and what it was connected to - never a socket, never a key,
- * never any of the scrollback. The server holds the session itself for its
- * grace window; this is just the note of which ones to ask for.
+ * This note stays in `localStorage` rather than moving to the settings file
+ * with the dock's other state, because it is not a preference: it describes
+ * what *this* window was doing a moment ago. The server only holds a session
+ * for its grace window, so the note is worthless to another window and
+ * worthless to a later launch. Its shape lives in `lib/terminal/open-tabs`,
+ * where the reason it is parsed so carefully is written down.
  */
-const openTabSchema = z.array(
-  z.object({
-    id: z.string().min(1),
-    target: z.unknown(),
-    title: z.string(),
-    subtitle: z.string(),
-    kind: z.enum(["ecs", "ssm", "ssh"]),
-  }),
-);
-
-const storedOpen = z
-  .string()
-  .transform((raw) => openTabSchema.parse(JSON.parse(raw)))
-  .catch([]);
-
 function rememberOpenTabs(): void {
   const entries = [...targets.entries()].map(([id, target]) => {
     const { title, subtitle } = describeTarget(target);
     return { id, target, kind: target.kind, title, subtitle };
   });
-  writeStored(OPEN_KEY, JSON.stringify(entries));
+  writeStored(OPEN_TABS_KEY, JSON.stringify(entries));
 }
 
 interface SessionsStore extends SessionsState {
@@ -239,7 +217,7 @@ export const useSessions = create<SessionsStore>((set, get) => {
      */
     restore() {
       if (get().sessions.length > 0) return;
-      const remembered = readStored(OPEN_KEY, storedOpen);
+      const remembered = readStored(OPEN_TABS_KEY, storedOpenTabs);
       if (remembered.length === 0) return;
 
       for (const entry of remembered) {
