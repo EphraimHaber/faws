@@ -13,8 +13,8 @@ import {
   arrangeColumns,
   colsParam,
   EMPTY_LAYOUT,
+  dropColumn,
   layoutFromCols,
-  moveColumn,
   parseSort,
   sortParam,
   type SortState,
@@ -159,8 +159,8 @@ export function DataTable<T>({
     setCols(colsParam(arrangeColumns(declared, next).visible));
   };
   const currentOrder = () => arranged.all.map((entry) => entry.column.id);
-  const move = (id: string, beforeId: string | null) =>
-    setLayout({ ...EMPTY_LAYOUT, ...layout, order: moveColumn(currentOrder(), id, beforeId) });
+  const drop = (id: string, targetId: string) =>
+    setLayout({ ...EMPTY_LAYOUT, ...layout, order: dropColumn(currentOrder(), id, targetId) });
 
   const open = React.useCallback(
     (row: T) => {
@@ -299,7 +299,7 @@ export function DataTable<T>({
                     event.preventDefault();
                     setDropTarget(null);
                     const id = event.dataTransfer.getData(COLUMN_DRAG_TYPE);
-                    if (id && id !== column.id) move(id, column.id);
+                    if (id && id !== column.id) drop(id, column.id);
                   }}
                   className={cn(
                     "relative h-8 cursor-pointer select-none px-3 font-mono text-[10px] font-normal tracking-[0.14em] whitespace-nowrap text-muted-foreground uppercase transition-colors hover:text-foreground",
@@ -340,7 +340,7 @@ export function DataTable<T>({
                       onToggle={(id) =>
                         setLayout(toggleColumn(declared, layout ?? EMPTY_LAYOUT, id))
                       }
-                      onMove={move}
+                      onMove={drop}
                       onResetColumns={() => {
                         applyTableLayout({ op: "reset", table: tableId });
                         setCols("");

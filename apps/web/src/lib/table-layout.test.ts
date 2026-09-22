@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   arrangeColumns,
   colsParam,
+  dropColumn,
   layoutFromCols,
   moveColumn,
   parseSort,
@@ -91,6 +92,28 @@ describe("moveColumn", () => {
       "shell",
       "name",
     ]);
+  });
+});
+
+describe("dropColumn", () => {
+  const order = ["a", "b", "c", "d"];
+
+  it("swaps with the neighbour it is dropped on, dragging right", () => {
+    expect(dropColumn(order, "a", "b")).toEqual(["b", "a", "c", "d"]);
+  });
+
+  it("swaps with the neighbour it is dropped on, dragging left", () => {
+    expect(dropColumn(order, "b", "a")).toEqual(["b", "a", "c", "d"]);
+  });
+
+  it("takes the place of the column it is dropped on, however far it travels", () => {
+    expect(dropColumn(order, "a", "d")).toEqual(["b", "c", "d", "a"]);
+    expect(dropColumn(order, "d", "a")).toEqual(["d", "a", "b", "c"]);
+  });
+
+  it("leaves the order alone when dropped on itself or on nothing it knows", () => {
+    expect(dropColumn(order, "b", "b")).toEqual(order);
+    expect(dropColumn(order, "b", "gone")).toEqual(order);
   });
 });
 

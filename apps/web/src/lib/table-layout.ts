@@ -68,6 +68,22 @@ export function moveColumn(
   ];
 }
 
+/**
+ * `id` dropped onto `targetId`, taking its place.
+ *
+ * Which side it lands on depends on the direction it came from: dragged right
+ * it goes after the target, dragged left it goes before. Always inserting
+ * before would make dropping onto the next column to the right a no-op, since
+ * "before the column after me" is where it already was.
+ */
+export function dropColumn(order: readonly string[], id: string, targetId: string): string[] {
+  const from = order.indexOf(id);
+  const to = order.indexOf(targetId);
+  if (from < 0 || to < 0 || from === to) return [...order];
+  if (from > to) return moveColumn(order, id, targetId);
+  return moveColumn(order, id, order[to + 1] ?? null);
+}
+
 /** Shows a hidden column or hides a shown one, never hiding the last one showing. */
 export function toggleColumn(
   columns: ReadonlyArray<LayoutColumn>,

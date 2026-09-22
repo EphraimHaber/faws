@@ -35,8 +35,8 @@ export function TableSettings({
 }: {
   columns: ReadonlyArray<ColumnEntry>;
   onToggle: (id: string) => void;
-  /** Moves `id` to just before `beforeId`, or to the end when that is null. */
-  onMove: (id: string, beforeId: string | null) => void;
+  /** Moves `id` into the place of the column it was dropped on. */
+  onMove: (id: string, targetId: string) => void;
   onResetColumns: () => void;
   onResetView: () => void;
   /** Whether a filter, a sort or a dragged width is in effect. */
