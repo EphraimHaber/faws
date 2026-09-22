@@ -13,11 +13,17 @@ export function CheckboxField<Values extends FieldValues, Name extends FieldPath
   name,
   label,
   hint,
+  disabledReason = null,
   className,
 }: {
   name: Name;
   label: string;
   hint?: string;
+  /**
+   * Why this cannot be ticked right now. It replaces the hint, in the page
+   * rather than in a tooltip, because a disabled input shows no tooltip.
+   */
+  disabledReason?: string | null;
   className?: string;
 }) {
   const { field, fieldState } = useController<Values, Name>({ name });
@@ -25,7 +31,9 @@ export function CheckboxField<Values extends FieldValues, Name extends FieldPath
   // rather than spread onto the input.
   const { value: checked, ...control } = field;
   const id = React.useId();
-  const hintId = hint ? `${id}-hint` : undefined;
+  const disabled = disabledReason !== null;
+  const note = disabledReason ?? hint;
+  const hintId = note ? `${id}-hint` : undefined;
   const errorId = fieldState.error ? `${id}-error` : undefined;
   const message = fieldState.error?.message;
 
@@ -37,12 +45,21 @@ export function CheckboxField<Values extends FieldValues, Name extends FieldPath
           id={id}
           type="checkbox"
           checked={Boolean(checked)}
+          disabled={disabled}
           onChange={(event) => field.onChange(event.target.checked)}
           aria-invalid={Boolean(fieldState.error)}
           aria-describedby={errorId ?? hintId}
-          className="size-3.5 cursor-pointer accent-primary"
+          className="size-3.5 cursor-pointer accent-primary disabled:cursor-not-allowed"
         />
-        <label htmlFor={id} className="cursor-pointer text-[12.5px] text-foreground">
+        <label
+          htmlFor={id}
+          className={cn(
+            "text-[12.5px]",
+            disabled
+              ? "cursor-not-allowed text-muted-foreground"
+              : "cursor-pointer text-foreground",
+          )}
+        >
           {label}
         </label>
       </div>
@@ -51,9 +68,9 @@ export function CheckboxField<Values extends FieldValues, Name extends FieldPath
         <p id={errorId} role="alert" className="text-[11.5px] text-danger">
           {message}
         </p>
-      ) : hint ? (
+      ) : note ? (
         <p id={hintId} className="pl-[22px] text-[11.5px] text-muted-foreground">
-          {hint}
+          {note}
         </p>
       ) : null}
     </div>

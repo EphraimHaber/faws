@@ -1,5 +1,6 @@
 import { s3CopyObjectSchema } from "@faws/contracts";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import * as React from "react";
 
 import {
   CheckboxField,
@@ -12,6 +13,7 @@ import {
 } from "~/components/form";
 import { Dialog } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
+import { useDisabledReason } from "~/components/WriteGuard";
 import { useS3Scope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
 
@@ -55,6 +57,15 @@ export function CopyMoveDialog({
   );
 
   const moving = form.watch("deleteSource");
+  const deleteReason = useDisabledReason("destructive");
+
+  // Deletion can be disarmed from another window while this is open, and a
+  // box that stays ticked but cannot be unticked would still send the delete.
+  React.useEffect(() => {
+    if (deleteReason !== null && form.getValues("deleteSource")) {
+      form.setValue("deleteSource", false);
+    }
+  }, [deleteReason, form]);
 
   return (
     <Dialog id="s3-copy" title={moving ? "Move object" : "Copy object"} onClose={onClose}>
@@ -69,6 +80,7 @@ export function CopyMoveDialog({
           name="deleteSource"
           label="Delete the original once the copy succeeds"
           hint="The copy is confirmed first, so a failure leaves the original where it is."
+          disabledReason={deleteReason}
         />
         <CheckboxField
           name="overwrite"
