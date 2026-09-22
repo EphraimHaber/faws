@@ -162,7 +162,12 @@ function buildMenu(): void {
           accelerator: "CmdOrCtrl+4",
           click: () => void navigate("/s3/buckets"),
         },
-        { label: "Diagnostics", accelerator: "CmdOrCtrl+5", click: () => void navigate("/logs") },
+        {
+          label: "Instances",
+          accelerator: "CmdOrCtrl+5",
+          click: () => void navigate("/ec2/instances"),
+        },
+        { label: "Diagnostics", accelerator: "CmdOrCtrl+6", click: () => void navigate("/logs") },
         { type: "separator" },
         { role: "reload" },
         { role: "toggleDevTools" },
