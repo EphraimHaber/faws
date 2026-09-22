@@ -96,7 +96,7 @@ export async function listNamespaces(
   const { file, prefix } = await args(context, null, options.signal);
   const list = await get<ListOf<RawNamespace>>(
     file,
-    [...prefix, "get", "namespaces", "-o", "json"],
+    [...prefix, "get", "namespaces", "--output=json"],
     options.signal,
   );
   return (list.items ?? [])
@@ -141,7 +141,7 @@ export async function listPods(
   const { file, prefix } = await args(scope.context, scope.namespace, options.signal);
   const list = await get<ListOf<RawPod>>(
     file,
-    [...prefix, "get", "pods", "-o", "json"],
+    [...prefix, "get", "pods", "--output=json"],
     options.signal,
   );
   return (list.items ?? [])
@@ -222,12 +222,12 @@ export async function listVirtualMachines(
 
   const machines = await get<ListOf<RawVirtualMachine>>(
     file,
-    [...prefix, "get", "virtualmachines.kubevirt.io", "-o", "json"],
+    [...prefix, "get", "virtualmachines.kubevirt.io", "--output=json"],
     options.signal,
   );
   const instances = await get<ListOf<RawVirtualMachineInstance>>(
     file,
-    [...prefix, "get", "virtualmachineinstances.kubevirt.io", "-o", "json"],
+    [...prefix, "get", "virtualmachineinstances.kubevirt.io", "--output=json"],
     options.signal,
   );
 
@@ -278,7 +278,7 @@ export async function probeCapabilities(
     const { file, prefix } = await args(context, null, options.signal);
     const names = await runKubeText(
       file,
-      [...prefix, "api-resources", "-o", "name"],
+      [...prefix, "api-resources", "--output=name"],
       options.signal ? { signal: options.signal } : {},
     );
     const lines = names.split("\n").map((line) => line.trim());

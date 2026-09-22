@@ -108,7 +108,7 @@ export async function listKubeContexts(
   }
 
   const pinned = pinnedKubeconfig();
-  const args = [...(pinned ? [`--kubeconfig=${pinned}`] : []), "config", "view", "-o", "json"];
+  const args = [...(pinned ? [`--kubeconfig=${pinned}`] : []), "config", "view", "--output=json"];
 
   let raw: RawConfig;
   try {

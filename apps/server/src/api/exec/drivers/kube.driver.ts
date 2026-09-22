@@ -171,7 +171,7 @@ async function preflightTarget(
     status(`Looking for ${auth.target.vm}...`);
     const vmi = await get<{ status?: { phase?: string } }>(
       reader,
-      [...scopeFlags, "get", "virtualmachineinstance", auth.target.vm, "-o", "json"],
+      [...scopeFlags, "get", "virtualmachineinstance", auth.target.vm, "--output=json"],
       signal,
     );
     if (!vmi) return;
@@ -188,7 +188,7 @@ async function preflightTarget(
   status(`Looking for ${auth.target.pod}...`);
   const pod = await get<PodStatus>(
     reader,
-    [...scopeFlags, "get", "pod", auth.target.pod, "-o", "json"],
+    [...scopeFlags, "get", "pod", auth.target.pod, "--output=json"],
     signal,
   );
   if (!pod) return;
