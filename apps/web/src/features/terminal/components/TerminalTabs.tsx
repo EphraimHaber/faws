@@ -1,34 +1,15 @@
 import { Circle, Dot, X } from "lucide-react";
 
-import { StatusDot } from "~/components/ui/status-dot";
-import { cn } from "~/lib/utils";
-import type { ExecKind } from "@faws/contracts";
 import * as React from "react";
 
-import { groupSessions, type TerminalSession } from "~/lib/terminal/sessions-model";
-
-/** What a group of tabs is called in the strip. */
-const KIND_LABELS: Record<ExecKind, string> = {
-  ecs: "ECS",
-  ssm: "SSM",
-  ssh: "SSH",
-  kube: "Kube",
-};
-
-function toneFor(session: TerminalSession): "success" | "warning" | "danger" | "neutral" {
-  switch (session.status) {
-    case "ready":
-      return "success";
-    case "connecting":
-      return "warning";
-    case "awaiting-prompt":
-      return "warning";
-    case "errored":
-      return "danger";
-    case "exited":
-      return "neutral";
-  }
-}
+import { StatusDot } from "~/components/ui/status-dot";
+import {
+  groupSessions,
+  KIND_LABELS,
+  statusTone,
+  type TerminalSession,
+} from "~/lib/terminal/sessions-model";
+import { cn } from "~/lib/utils";
 
 /**
  * The tab strip, one group per kind of session.
@@ -103,7 +84,7 @@ function Tab({
         className="flex min-w-0 items-center gap-1.5 py-1.5"
         title={`${session.title} - ${session.subtitle}`}
       >
-        <StatusDot tone={toneFor(session)} />
+        <StatusDot tone={statusTone(session)} />
         <span className="truncate font-medium">{session.title}</span>
         {session.unread && !isActive ? (
           <Dot className="size-3 text-primary" aria-label="new output" />

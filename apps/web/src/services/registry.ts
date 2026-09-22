@@ -14,6 +14,7 @@ import {
   ScrollText,
   Server,
   Ship,
+  TerminalSquare,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -158,6 +159,22 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
         requires: "kubevirt",
       },
     ],
+  },
+  /**
+   * Every terminal the app has open, whatever it is connected to.
+   *
+   * Here rather than beside Diagnostics and Settings because it is somewhere
+   * you go to do something, and because sessions to connect to and recordings
+   * of past ones belong under it as sections.
+   */
+  {
+    id: "sessions",
+    label: "Sessions",
+    description: "Every open shell - ECS, SSM, SSH and Kubernetes - in one list",
+    icon: TerminalSquare,
+    status: "available",
+    basePath: "/sessions",
+    sections: [],
   },
   {
     id: "lambda",

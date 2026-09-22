@@ -50,6 +50,11 @@ describe("navEntries", () => {
     expect(navigate).toHaveBeenCalledWith("/s3/buckets");
   });
 
+  it("offers the Sessions page, which lists every open terminal", () => {
+    const sessions = navEntries(() => {}, EVERYTHING).find((entry) => entry.id === "nav:sessions");
+    expect(sessions?.label).toBe("Sessions");
+  });
+
   it("offers Virtual machines only on a cluster that has KubeVirt, as the sidebar does", () => {
     const id = "nav:kubernetes:virtual-machines";
     const without = navEntries(() => {}, { kubeVirt: false }).map((entry) => entry.id);

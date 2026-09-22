@@ -213,3 +213,44 @@ export function groupSessions(sessions: ReadonlyArray<TerminalSession>): Session
 export function displayOrder(sessions: ReadonlyArray<TerminalSession>): TerminalSession[] {
   return groupSessions(sessions).flatMap((group) => group.sessions);
 }
+
+/** What a group of sessions is called, in the dock and on the Sessions page. */
+export const KIND_LABELS: Record<ExecKind, string> = {
+  ecs: "ECS",
+  ssm: "SSM",
+  ssh: "SSH",
+  kube: "Kube",
+};
+
+/** The colour of a session's status dot, wherever one is drawn. */
+export function statusTone(session: TerminalSession): "success" | "warning" | "danger" | "neutral" {
+  switch (session.status) {
+    case "ready":
+      return "success";
+    case "connecting":
+    case "awaiting-prompt":
+      return "warning";
+    case "errored":
+      return "danger";
+    case "exited":
+      return "neutral";
+  }
+}
+
+/** What a session is doing, in the words a list of them shows. */
+export function describeStatus(session: TerminalSession): string {
+  switch (session.status) {
+    case "connecting":
+      return "connecting";
+    case "awaiting-prompt":
+      return "waiting for you";
+    case "ready":
+      return "open";
+    case "exited":
+      return session.exit?.code === null || session.exit?.code === undefined
+        ? "exited"
+        : `exited (${session.exit.code})`;
+    case "errored":
+      return session.error ? `failed: ${session.error.userMessage}` : "failed";
+  }
+}

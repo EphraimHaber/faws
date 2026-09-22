@@ -33,6 +33,7 @@ import { WorkloadsPage } from "~/features/kube/pages/WorkloadsPage";
 import { kubeScopeSearch } from "~/features/kube/scope-link";
 import { HomePage } from "~/pages/HomePage";
 import { NewSessionDialog } from "~/features/terminal/components/NewSessionDialog";
+import { SessionsPage } from "~/features/terminal/pages/SessionsPage";
 import { TerminalDock } from "~/features/terminal/components/TerminalDock";
 import { blurTerminal } from "~/lib/terminal/xterm";
 import { useSessions } from "~/stores/sessions";
@@ -240,6 +241,12 @@ const kubeVirtualMachinesRoute = createRoute({
   component: VirtualMachinesPage,
 });
 
+const sessionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/sessions",
+  component: SessionsPage,
+});
+
 const logsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/logs",
@@ -272,6 +279,7 @@ const routeTree = rootRoute.addChildren([
   kubeContextsRoute,
   kubeWorkloadsRoute,
   kubeVirtualMachinesRoute,
+  sessionsRoute,
   logsRoute,
   settingsRoute,
 ]);

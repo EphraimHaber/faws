@@ -4,6 +4,7 @@ import {
   addSession,
   applyStatus,
   closeSession,
+  describeStatus,
   displayOrder,
   EMPTY_SESSIONS,
   groupSessions,
@@ -226,5 +227,31 @@ describe("grouping", () => {
     // Opened after ssm-1, but on screen the tab to the right of ecs-api is ssm-1.
     const state = closeSession(setActive(mixed, "ecs-api"), "ecs-api");
     expect(state.activeId).toBe("ssm-1");
+  });
+});
+
+describe("describeStatus", () => {
+  const base = withTabs("a").sessions[0]!;
+
+  it("says what a session is doing in words", () => {
+    expect(describeStatus(base)).toBe("connecting");
+    expect(describeStatus({ ...base, status: "ready" })).toBe("open");
+    expect(describeStatus({ ...base, status: "awaiting-prompt" })).toBe("waiting for you");
+  });
+
+  it("gives the exit code of a finished session, when there is one", () => {
+    expect(describeStatus({ ...base, status: "exited", exit: { code: 0, reason: null } })).toBe(
+      "exited (0)",
+    );
+    expect(describeStatus({ ...base, status: "exited", exit: null })).toBe("exited");
+  });
+
+  it("gives the reason a session failed", () => {
+    const failed = {
+      ...base,
+      status: "errored" as const,
+      error: { code: "AccessDenied", userMessage: "Not allowed to start a session." },
+    };
+    expect(describeStatus(failed)).toBe("failed: Not allowed to start a session.");
   });
 });

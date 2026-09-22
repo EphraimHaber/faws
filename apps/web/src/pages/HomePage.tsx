@@ -200,7 +200,11 @@ function AvailableService({ service }: { service: AwsServiceDefinition }) {
         <span className="font-mono text-[11px] text-muted-foreground">{service.description}</span>
       </PanelHeader>
       <div className="grid gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3">
-        {service.sections.map((section) => (
+        {/* A service whose page is its only destination still gets a way in. */}
+        {(service.sections.length > 0
+          ? service.sections
+          : [{ id: service.id, label: service.label, icon: service.icon, to: service.basePath }]
+        ).map((section) => (
           <Link
             key={section.id}
             to={section.to ?? service.basePath}
