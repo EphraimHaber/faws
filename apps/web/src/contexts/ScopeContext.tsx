@@ -132,3 +132,55 @@ export function useS3Scope(): S3Scope {
     [profile, region, connectionId],
   );
 }
+
+export interface KubeScopeValue {
+  readonly context: string;
+  readonly namespace: string;
+  /** False until the kubeconfig has answered and there is a context to use. */
+  readonly ready: boolean;
+  setContext(next: string): void;
+  setNamespace(next: string): void;
+}
+
+/**
+ * Which cluster the Kubernetes pages are looking at.
+ *
+ * Deliberately not part of `ScopeValue`: a context and a namespace scope only
+ * those pages, and putting them beside profile and region would suggest the
+ * whole app moves with them. Every kube procedure takes this pair and none of
+ * them takes an AWS one, so a profile switch leaves a pod list exactly where it
+ * was.
+ *
+ * The fallbacks matter more than the storage. Nothing is stored until someone
+ * picks something, so an empty setting means "whatever `kubectl` would do":
+ * the kubeconfig's `current-context`, then that context's own namespace, then
+ * `default`. Copying those into the settings file on first load would have
+ * frozen them, and `kubectl config use-context` in the window next door would
+ * then quietly stop moving this app.
+ */
+export function useKubeScope(): KubeScopeValue {
+  const stored = useSettings((state) => state.settings.kube);
+  const contexts = useQuery({
+    ...trpc.kube.contexts.queryOptions(),
+    staleTime: 30_000,
+    retry: false,
+  });
+
+  return React.useMemo(() => {
+    const known = contexts.data ?? [];
+    const current = known.find((entry) => entry.current)?.name ?? known[0]?.name ?? "";
+    const context = stored.context || current;
+    const namespace =
+      stored.namespace || known.find((entry) => entry.name === context)?.namespace || "default";
+    return {
+      context,
+      namespace,
+      ready: context.length > 0,
+      // Switching context clears the namespace, because a namespace belongs to
+      // the cluster it was chosen in: carrying `payments` across to a context
+      // that has no such namespace would leave every list empty and correct.
+      setContext: (next) => updateSettings({ kube: { context: next, namespace: "" } }),
+      setNamespace: (next) => updateSettings({ kube: { namespace: next } }),
+    };
+  }, [stored, contexts.data]);
+}

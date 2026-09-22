@@ -40,6 +40,27 @@ export function runKubeJson<T>(
   args: readonly string[],
   options: KubeCliOptions = {},
 ): Promise<T> {
+  return runKubeText(file, args, options).then((stdout) => {
+    try {
+      return JSON.parse(stdout) as T;
+    } catch {
+      throw new KubeCliError(`${file} did not return JSON.`, { exitCode: 0, stderr: "" });
+    }
+  });
+}
+
+/**
+ * The same call, for the commands that have no JSON form.
+ *
+ * `api-resources -o name` is the one that matters: it is how this app finds out
+ * whether a cluster is OpenShift or has KubeVirt, and `-o name` is the only
+ * output it offers that is stable enough to match on.
+ */
+export function runKubeText(
+  file: string,
+  args: readonly string[],
+  options: KubeCliOptions = {},
+): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
       file,
@@ -68,11 +89,7 @@ export function runKubeJson<T>(
           reject(failure);
           return;
         }
-        try {
-          resolve(JSON.parse(stdout) as T);
-        } catch {
-          reject(new KubeCliError(`${file} did not return JSON.`, { exitCode: 0, stderr: "" }));
-        }
+        resolve(stdout);
       },
     );
   });

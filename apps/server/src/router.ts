@@ -3,6 +3,7 @@ import { desktopRouter } from "./api/desktop/desktop.router.ts";
 import { ecsActionsRouter } from "./api/ecs/actions.router.ts";
 import { ecsRouter } from "./api/ecs/ecs.router.ts";
 import { execRouter } from "./api/exec/exec.router.ts";
+import { kubeRouter } from "./api/kube/kube.router.ts";
 import { s3ActionsRouter } from "./api/s3/actions.router.ts";
 import { s3ConnectionsRouter } from "./api/s3/connections.router.ts";
 import { s3Router } from "./api/s3/s3.router.ts";
@@ -22,6 +23,7 @@ export const appRouter = router({
   ecs: ecsRouter,
   ecsActions: ecsActionsRouter,
   exec: execRouter,
+  kube: kubeRouter,
   s3: s3Router,
   s3Actions: s3ActionsRouter,
   s3Connections: s3ConnectionsRouter,

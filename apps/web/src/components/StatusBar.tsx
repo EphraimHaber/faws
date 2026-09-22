@@ -1,8 +1,9 @@
 import { useHotkeys } from "@tanstack/react-hotkeys";
+import { useRouterState } from "@tanstack/react-router";
 import { Pause, RotateCw, TerminalSquare, Timer } from "lucide-react";
 
 import { Kbd } from "~/components/ui/kbd";
-import { REFRESH_CHOICES, useScope } from "~/contexts/ScopeContext";
+import { REFRESH_CHOICES, useKubeScope, useScope } from "~/contexts/ScopeContext";
 import { useAutoRefresh } from "~/hooks/useAutoRefresh";
 import { describe } from "~/lib/hotkeys";
 import { useSessions } from "~/stores/sessions";
@@ -48,6 +49,8 @@ export function StatusBar({
         /
       </span>
       <span className="text-foreground tabular">{region}</span>
+
+      <KubeChip />
 
       <span aria-hidden className="h-3 w-px bg-border" />
 
@@ -118,5 +121,36 @@ export function StatusBar({
         </button>
       </div>
     </footer>
+  );
+}
+
+/**
+ * Which cluster the Kubernetes pages are on, while you are on one.
+ *
+ * Read-only and only here: the place to change it is the picker in those pages'
+ * own header, for the reason that picker gives. This is the same job the
+ * profile and region pair beside it does - saying what you are looking at
+ * without being the thing that moves it - and it is set apart from them
+ * deliberately, because the two scopes have nothing to do with each other and a
+ * `prod / eu-west-1 / prod-eks` read as a single triple would be a lie.
+ */
+function KubeChip() {
+  const { location } = useRouterState();
+  const { context, namespace, ready } = useKubeScope();
+  if (!location.pathname.startsWith("/kubernetes") || !ready) return null;
+
+  return (
+    <>
+      <span aria-hidden className="h-3 w-px bg-border" />
+      <span
+        className="flex items-center gap-1.5"
+        title="The context and namespace these pages read"
+      >
+        <span className="text-muted-foreground/70">k8s</span>
+        <span className="max-w-48 truncate text-foreground">
+          {context}/{namespace}
+        </span>
+      </span>
+    </>
   );
 }

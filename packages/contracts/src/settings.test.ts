@@ -46,6 +46,23 @@ describe("settingsSchema", () => {
     expect(applyPatch(DEFAULT_SETTINGS, patch).layout.sidebarWidth).toBe(300);
   });
 
+  it("carries a kube patch through applyPatch", () => {
+    // The easy miss, and the reason this test exists: `settingsPatchSchema` is
+    // strict, so a section added there and forgotten in `applyPatch` validates
+    // cleanly and is then dropped by the merge - which looks from the outside
+    // exactly like a preference that will not stick.
+    const patch = settingsPatchSchema.parse({ kube: { context: "prod", namespace: "payments" } });
+    expect(applyPatch(DEFAULT_SETTINGS, patch).kube).toEqual({
+      context: "prod",
+      namespace: "payments",
+    });
+  });
+
+  it("starts with no kube scope, meaning the kubeconfig's own", () => {
+    expect(DEFAULT_SETTINGS.kube).toEqual({ context: "", namespace: "" });
+    expect(settingsSchema.parse({ kube: { context: 7 } }).kube.context).toBe("");
+  });
+
   it("costs one bad leaf only itself", () => {
     const parsed = settingsSchema.parse({ version: 1, logs: { gutter: "nope", taskGutter: 200 } });
     expect(parsed.logs.gutter).toBe(DEFAULT_LOG_GUTTER);
