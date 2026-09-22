@@ -12,7 +12,11 @@ import {
   type ExecInstanceTarget,
   type ExecKind,
   type KubePodInfo,
+  resourceKey,
+  type ResourceRef,
 } from "@faws/contracts";
+
+import { kubeContextRef } from "~/features/kube/scope-link";
 
 import type { ExecTarget } from "./handshake.ts";
 import { rankBy } from "../rank.ts";
@@ -35,6 +39,16 @@ export interface Connectable {
   readonly actions: ReadonlyArray<ConnectAction>;
   /** Why there is no way in, when there is none. */
   readonly unavailable: string | null;
+  /** What opening it is remembered as, in the recent and pinned lists. */
+  readonly ref: ResourceRef;
+  /** Whether pinning the row pins the thing on it, rather than something wider. */
+  readonly pinnable: boolean;
+}
+
+/** Which rows are pinned, and when each was last opened, keyed by `resourceKey`. */
+export interface ConnectMemory {
+  readonly pinned: ReadonlySet<string>;
+  readonly visited: ReadonlyMap<string, string>;
 }
 
 export interface ConnectableGroup {
@@ -64,7 +78,7 @@ export function instanceActions(row: ExecInstanceTarget, scope: AwsScope): Conne
   if (row.reachableBy.includes("ssh-public")) {
     actions.push({
       label: "SSH",
-      title: "SSH with a one-time key pushed by EC2 Instance Connect",
+      title: `SSH as ${row.osUser} with a one-time key from EC2 Instance Connect`,
       target: {
         kind: "ssh",
         transport: { via: "ec2-instance-connect", profile, region, instanceId, osUser: row.osUser },
@@ -73,7 +87,7 @@ export function instanceActions(row: ExecInstanceTarget, scope: AwsScope): Conne
   } else if (row.reachableBy.includes("ssh-ssm-tunnel")) {
     actions.push({
       label: "SSH via SSM",
-      title: "SSH carried over an SSM tunnel - works without a public address",
+      title: `SSH as ${row.osUser} over an SSM tunnel`,
       target: {
         kind: "ssh",
         transport: { via: "ssm-tunnel", profile, region, instanceId },
@@ -94,6 +108,43 @@ export function instanceConnectable(row: ExecInstanceTarget, scope: AwsScope): C
     text: [row.name ?? "", row.instanceId, row.privateIp ?? "", row.publicIp ?? ""],
     actions,
     unavailable: actions.length > 0 ? null : "No SSM agent, and no public address",
+    ref: instanceRef(row, scope),
+    pinnable: true,
+  };
+}
+
+/**
+ * An instance, pointed at the row that opens it.
+ *
+ * There is no page for one instance, so the destination is the instance list
+ * filtered to its id - which lands on a row with its own connect buttons
+ * rather than on a dead end.
+ */
+export function instanceRef(row: ExecInstanceTarget, scope: AwsScope): ResourceRef {
+  return {
+    kind: "ec2-instance",
+    id: row.instanceId,
+    label: row.name ?? row.instanceId,
+    detail: row.instanceId,
+    scope: { profile: scope.profile, region: scope.region, connectionId: "" },
+    to: `/ec2/instances?q=${encodeURIComponent(row.instanceId)}`,
+  };
+}
+
+/**
+ * An SSH host, scoped to nothing: it is reached from this machine rather than
+ * through an AWS account, so it stays listed whichever profile is in view.
+ *
+ * It points at the Sessions page, which is where a host is connected to from.
+ */
+export function sshHostRef(host: string, user = ""): ResourceRef {
+  return {
+    kind: "ssh-host",
+    id: user ? `${user}@${host}` : host,
+    label: host,
+    detail: user ? `ssh ${user}@${host}` : `ssh ${host}`,
+    scope: { profile: "", region: "", connectionId: "" },
+    to: `/sessions?q=${encodeURIComponent(host)}`,
   };
 }
 
@@ -142,6 +193,8 @@ export function podConnectable(
       actions.length > 0
         ? null
         : `${row.phase}, with ${row.readyContainers} of ${row.totalContainers} containers ready`,
+    ref: kubeContextRef(context, namespace),
+    pinnable: false,
   };
 }
 
@@ -164,6 +217,8 @@ export function sshHostConnectable(entry: { host: string; hostName: string }): C
       },
     ],
     unavailable: null,
+    ref: sshHostRef(entry.host),
+    pinnable: true,
   };
 }
 
@@ -171,15 +226,36 @@ export function sshHostConnectable(entry: { host: string; hostName: string }): C
  * The rows matching a query, best first, in one group per kind.
  *
  * Ranked across every kind at once and then grouped, so a group's order is
- * still best first; the groups themselves keep the dock's order.
+ * still best first; the groups themselves keep the dock's order. With no query
+ * there is nothing to rank by, so what was pinned comes first and then what
+ * was opened most recently - the rows someone is most likely looking for.
  */
 export function searchConnectables(
   rows: ReadonlyArray<Connectable>,
   query: string,
+  memory?: ConnectMemory,
 ): ConnectableGroup[] {
-  const ranked = query.trim() ? rankBy(rows, query.trim(), (row) => row.text) : rows;
+  const ranked = query.trim()
+    ? rankBy(rows, query.trim(), (row) => row.text)
+    : memory
+      ? byMemory(rows, memory)
+      : rows;
   return EXEC_KINDS.map((kind) => ({
     kind,
     rows: ranked.filter((row) => row.kind === kind),
   })).filter((group) => group.rows.length > 0);
+}
+
+function byMemory(rows: ReadonlyArray<Connectable>, memory: ConnectMemory): Connectable[] {
+  const rank = (row: Connectable) => {
+    const key = resourceKey(row.ref);
+    return { pinned: row.pinnable && memory.pinned.has(key), at: memory.visited.get(key) ?? "" };
+  };
+  return rows
+    .map((row, index) => ({ row, index, ...rank(row) }))
+    .toSorted(
+      (a, b) =>
+        Number(b.pinned) - Number(a.pinned) || b.at.localeCompare(a.at) || a.index - b.index,
+    )
+    .map((entry) => entry.row);
 }

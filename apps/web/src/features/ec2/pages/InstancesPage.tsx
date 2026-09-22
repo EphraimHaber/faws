@@ -1,4 +1,4 @@
-import type { ExecInstanceTarget, ResourceRef } from "@faws/contracts";
+import type { ExecInstanceTarget } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { Server, TerminalSquare } from "lucide-react";
 import * as React from "react";
@@ -13,6 +13,7 @@ import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { useFilterSearch } from "~/hooks/useSearchState";
+import { instanceActions, instanceRef } from "~/lib/terminal/connectable";
 import { trpc } from "~/lib/trpc";
 import type { ExecTarget } from "~/lib/terminal/handshake";
 import { recentActions } from "~/stores/recents";
@@ -161,11 +162,6 @@ export function InstancesPage() {
 }
 
 /** One way onto an instance: what to call it, why, and what to open. */
-interface ConnectRoute {
-  readonly label: string;
-  readonly title: string;
-  readonly target: ExecTarget;
-}
 
 /**
  * The ways onto this instance, best first.
@@ -187,7 +183,7 @@ function Connect({
   scope: { profile: string; region: string };
   onOpen: (target: ExecTarget) => string;
 }) {
-  const routes = routesFor(row, scope);
+  const routes = instanceActions(row, scope);
 
   if (routes.length === 0) {
     return (
@@ -224,79 +220,4 @@ function Connect({
       ))}
     </span>
   );
-}
-
-/**
- * An instance, pointed at the row that opens it.
- *
- * There is no page for one instance, so the destination is this list filtered
- * to its id - which is as close to "here it is" as the app has, and lands on a
- * row with its own connect buttons rather than on a dead end.
- */
-function instanceRef(
-  row: ExecInstanceTarget,
-  scope: { profile: string; region: string },
-): ResourceRef {
-  return {
-    kind: "ec2-instance",
-    id: row.instanceId,
-    label: row.name ?? row.instanceId,
-    detail: row.instanceId,
-    scope: { profile: scope.profile, region: scope.region, connectionId: "" },
-    to: `/ec2/instances?q=${encodeURIComponent(row.instanceId)}`,
-  };
-}
-
-function routesFor(
-  row: ExecInstanceTarget,
-  scope: { profile: string; region: string },
-): ConnectRoute[] {
-  const routes: ConnectRoute[] = [];
-
-  if (row.reachableBy.includes("ssm")) {
-    routes.push({
-      label: "Shell",
-      title: "Session Manager shell - no key and no inbound rule needed",
-      target: {
-        kind: "ssm",
-        profile: scope.profile,
-        region: scope.region,
-        instanceId: row.instanceId,
-      },
-    });
-  }
-
-  if (row.reachableBy.includes("ssh-public")) {
-    routes.push({
-      label: "SSH",
-      title: `SSH as ${row.osUser} with a one-time key from EC2 Instance Connect`,
-      target: {
-        kind: "ssh",
-        transport: {
-          via: "ec2-instance-connect",
-          profile: scope.profile,
-          region: scope.region,
-          instanceId: row.instanceId,
-          osUser: row.osUser,
-        },
-      },
-    });
-  } else if (row.reachableBy.includes("ssh-ssm-tunnel")) {
-    routes.push({
-      label: "SSH via SSM",
-      title: `SSH as ${row.osUser} over an SSM tunnel`,
-      target: {
-        kind: "ssh",
-        transport: {
-          via: "ssm-tunnel",
-          profile: scope.profile,
-          region: scope.region,
-          instanceId: row.instanceId,
-        },
-        user: row.osUser,
-      },
-    });
-  }
-
-  return routes;
 }

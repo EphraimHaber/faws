@@ -1,8 +1,10 @@
 import type { ExecKind } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
+import * as React from "react";
 import { Link } from "@tanstack/react-router";
 
 import { EntityRow } from "~/components/entity-row";
+import { PinButton } from "~/components/PinButton";
 import { FilterInput } from "~/components/toolbar";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
@@ -14,13 +16,16 @@ import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { useFilterSearch } from "~/hooks/useSearchState";
 import {
   type Connectable,
+  type ConnectMemory,
   instanceConnectable,
   podConnectable,
   searchConnectables,
   sshHostConnectable,
 } from "~/lib/terminal/connectable";
 import { trpc } from "~/lib/trpc";
+import { recentActions } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
+import { useSettings } from "~/stores/settings";
 
 /**
  * Everything a session can be opened to from here, in one searchable list.
@@ -31,9 +36,21 @@ import { useSessions } from "~/stores/sessions";
  * source that cannot answer says why in its own group rather than leaving a
  * gap, and ECS points at the clusters instead of listing tasks, because a
  * task list for every cluster is one AWS call per cluster to draw a page.
+ *
+ * Opening something records it, and pinned and recently opened rows sort to
+ * the top of their group while the filter is empty.
  */
 export function ConnectPanel() {
   const open = useSessions((state) => state.open);
+  const visited = useSettings((state) => state.settings.recents.visited);
+  const pinned = useSettings((state) => state.settings.recents.pinned);
+  const memory = React.useMemo<ConnectMemory>(
+    () => ({
+      pinned: new Set(Object.keys(pinned)),
+      visited: new Map(Object.entries(visited).map(([key, entry]) => [key, entry.at])),
+    }),
+    [visited, pinned],
+  );
   const [filter, setFilter] = useFilterSearch();
   const aws = useAwsScope();
   const kube = useKubeScope();
@@ -54,7 +71,7 @@ export function ConnectPanel() {
     ...(hosts.data ?? []).map(sshHostConnectable),
     ...(pods.data ?? []).map((row) => podConnectable(row, kube.context, kube.namespace, openShift)),
   ];
-  const groups = searchConnectables(rows, filter);
+  const groups = searchConnectables(rows, filter, memory);
   const shown = groups.reduce((sum, group) => sum + group.rows.length, 0);
 
   // Why a source has nothing to list, when it has nothing to list.
@@ -123,23 +140,29 @@ export function ConnectPanel() {
                       label={row.label}
                       detail={row.detail}
                       actions={
-                        row.unavailable ? (
-                          <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground/70">
-                            {row.unavailable}
-                          </span>
-                        ) : (
-                          row.actions.map((action, index) => (
-                            <Button
-                              key={action.label}
-                              size="sm"
-                              variant={index === 0 ? "outline" : "ghost"}
-                              title={action.title}
-                              onClick={() => open(action.target)}
-                            >
-                              {action.label}
-                            </Button>
-                          ))
-                        )
+                        <>
+                          {row.unavailable ? (
+                            <span className="shrink-0 font-mono text-[10.5px] text-muted-foreground/70">
+                              {row.unavailable}
+                            </span>
+                          ) : (
+                            row.actions.map((action, index) => (
+                              <Button
+                                key={action.label}
+                                size="sm"
+                                variant={index === 0 ? "outline" : "ghost"}
+                                title={action.title}
+                                onClick={() => {
+                                  open(action.target);
+                                  recentActions.record(row.ref);
+                                }}
+                              >
+                                {action.label}
+                              </Button>
+                            ))
+                          )}
+                          {row.pinnable ? <PinButton target={row.ref} /> : null}
+                        </>
                       }
                     />
                   </li>

@@ -2,7 +2,6 @@ import {
   type ExecInstanceTarget,
   kubeExecFormSchema,
   type KubeExecFormValues,
-  type ResourceRef,
   sshSessionFormSchema,
   type SshSessionFormValues,
 } from "@faws/contracts";
@@ -26,7 +25,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Segmented } from "~/components/segmented";
 import { useAwsScope } from "~/contexts/ScopeContext";
-import { instanceActions } from "~/lib/terminal/connectable";
+import { instanceActions, instanceRef, sshHostRef } from "~/lib/terminal/connectable";
 import { trpc } from "~/lib/trpc";
 import { recentActions } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
@@ -144,6 +143,7 @@ function InstancePicker({ onClose }: { onClose: () => void }) {
                     title={action.title}
                     onClick={() => {
                       open(action.target);
+                      recentActions.record(instanceRef(row, scope));
                       onClose();
                     }}
                   >
@@ -168,28 +168,6 @@ function InstancePicker({ onClose }: { onClose: () => void }) {
  */
 function instanceText(row: ExecInstanceTarget): ReadonlyArray<string> {
   return [row.name ?? "", row.instanceId, row.privateIp ?? "", row.publicIp ?? ""];
-}
-
-/**
- * A host someone typed, so the next time they do not have to.
- *
- * Scoped to nothing: an SSH host is reached from this machine, not through an
- * AWS account, so it stays listed whichever profile and region are in view -
- * `inScope` treats an empty profile as unscoped for exactly this.
- *
- * The destination is the instance list, which is the page the terminal is
- * opened from. A ref navigates, and reopening a shell is not a navigation, so
- * this gets someone one step closer rather than all the way back.
- */
-function sshHostRef(host: string, user: string): ResourceRef {
-  return {
-    kind: "ssh-host",
-    id: user ? `${user}@${host}` : host,
-    label: host,
-    detail: user ? `ssh ${user}@${host}` : `ssh ${host}`,
-    scope: { profile: "", region: "", connectionId: "" },
-    to: "/ec2/instances",
-  };
 }
 
 function SshForm({ onClose }: { onClose: () => void }) {
@@ -231,6 +209,7 @@ function SshForm({ onClose }: { onClose: () => void }) {
                 type="button"
                 onClick={() => {
                   open({ kind: "ssh", transport: { via: "direct", host: entry.host } });
+                  recentActions.record(sshHostRef(entry.host));
                   onClose();
                 }}
                 title={`ssh ${entry.host} (${entry.hostName})`}

@@ -1,4 +1,4 @@
-import type { ExecInstanceTarget, KubePodInfo } from "@faws/contracts";
+import { type ExecInstanceTarget, type KubePodInfo, resourceKey } from "@faws/contracts";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -154,5 +154,55 @@ describe("searchConnectables", () => {
     expect(searchConnectables(rows, "10.1.2").flatMap((g) => g.rows.map((r) => r.key))).toEqual([
       "ssh:bastion",
     ]);
+  });
+});
+
+describe("what a row is remembered as", () => {
+  it("remembers an instance in the account and region it was listed in", () => {
+    const { ref, pinnable } = instanceConnectable(instance(), scope);
+    expect(ref).toMatchObject({
+      kind: "ec2-instance",
+      id: "i-0abc",
+      label: "api-1",
+      scope: { profile: "prod", region: "eu-west-1", connectionId: "" },
+    });
+    expect(pinnable).toBe(true);
+  });
+
+  it("remembers an SSH host from this machine, whatever account is in view", () => {
+    const { ref, pinnable } = sshHostConnectable({ host: "bastion", hostName: "10.1.2.3" });
+    expect(ref).toMatchObject({ kind: "ssh-host", id: "bastion", scope: { profile: "" } });
+    expect(pinnable).toBe(true);
+  });
+
+  it("remembers a pod as its context, and does not offer to pin one pod", () => {
+    // A pod's name changes on every rollout; the context is what is come back to.
+    const { ref, pinnable } = podConnectable(pod(), "prod", "web", false);
+    expect(ref).toMatchObject({ kind: "kube-context", label: "prod", detail: "web" });
+    expect(pinnable).toBe(false);
+  });
+});
+
+describe("searchConnectables with memory", () => {
+  const api = instanceConnectable(instance({ instanceId: "i-0abc", name: "api-1" }), scope);
+  const worker = instanceConnectable(instance({ instanceId: "i-0def", name: "worker-1" }), scope);
+  const cache = instanceConnectable(instance({ instanceId: "i-0fed", name: "cache-1" }), scope);
+  const rows = [api, worker, cache];
+  const memory = {
+    pinned: new Set([resourceKey(cache.ref)]),
+    visited: new Map([
+      [resourceKey(api.ref), "2026-01-01T10:00:00.000Z"],
+      [resourceKey(worker.ref), "2026-01-01T12:00:00.000Z"],
+    ]),
+  };
+
+  it("puts pinned rows first, then the most recently used, with no query", () => {
+    const keys = searchConnectables(rows, "", memory)[0]?.rows.map((row) => row.key);
+    expect(keys).toEqual(["ssm:i-0fed", "ssm:i-0def", "ssm:i-0abc"]);
+  });
+
+  it("lets the query decide the order once there is one", () => {
+    const keys = searchConnectables(rows, "api", memory)[0]?.rows.map((row) => row.key);
+    expect(keys).toEqual(["ssm:i-0abc"]);
   });
 });
