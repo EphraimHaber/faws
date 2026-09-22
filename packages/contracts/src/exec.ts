@@ -71,6 +71,85 @@ export const sshTransportSchema = z.discriminatedUnion("via", [
 
 export type SshTransport = z.infer<typeof sshTransportSchema>;
 
+/**
+ * Kubernetes names, fenced to what the API server would have accepted anyway.
+ *
+ * These regexes are not validation for its own sake: every one of these values
+ * becomes part of an argument vector, and the fence is what stops a value being
+ * read as a flag. `--kubeconfig=/etc/shadow` is a legal string and not a legal
+ * pod name, and this is where the difference is enforced.
+ */
+const dnsLabel = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+const dnsSubdomain = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
+
+const kubeNameSchema = z.string().min(1).max(253).regex(dnsSubdomain, "Not a Kubernetes name.");
+const kubeLabelSchema = z.string().min(1).max(63).regex(dnsLabel, "Not a Kubernetes name.");
+
+/**
+ * A context NAME, never a kubeconfig path.
+ *
+ * The distinction is the whole point. A path crossing the wire would turn a
+ * socket handshake into a server-side arbitrary-file read; a name is checked
+ * against the contexts the server itself found in the kubeconfig it resolved,
+ * so the value that reaches the command line is one we produced.
+ *
+ * Context names are user-chosen and routinely ugly - an EKS context is a whole
+ * ARN - so this cannot be a DNS name. What it can insist on is no whitespace
+ * and no leading `-`, which is the fence that matters here too.
+ */
+const kubeContextSchema = z
+  .string()
+  .min(1)
+  .max(253)
+  .regex(/^[^-\s][^\s]*$/, "A context name cannot start with - or contain spaces.");
+
+/**
+ * What to run, and with which tool.
+ *
+ * Nested inside `kind: "kube"` rather than spread across three sibling kinds,
+ * because all three are the same driver - resolve a binary, build argv, spawn,
+ * pump stdio - and three kinds would mean three arms in every switch for one
+ * seam. The fields genuinely differ per tool, so the union keeps "which fields
+ * go together" in the type, exactly as `sshTransportSchema` does for SSH.
+ */
+export const kubeTargetSchema = z.discriminatedUnion("tool", [
+  z.object({
+    tool: z.literal("kubectl"),
+    pod: kubeNameSchema,
+    /** Absent means the pod's default container, as `kubectl exec` picks it. */
+    container: kubeLabelSchema.optional(),
+    /**
+     * An argv, not a command line. There is no shell between here and the
+     * container, so a single string would need a quoting parser, and a quoting
+     * parser is a thing nobody wants to own.
+     */
+    command: z.array(z.string().min(1)).min(1).max(64).default(["/bin/sh"]),
+  }),
+  z.object({
+    tool: z.literal("oc"),
+    /** `rsh` is what an OpenShift user reaches for; `exec` is the same call. */
+    mode: z.enum(["rsh", "exec"]).default("rsh"),
+    pod: kubeNameSchema,
+    container: kubeLabelSchema.optional(),
+    command: z.array(z.string().min(1)).min(1).max(64).default(["/bin/sh"]),
+  }),
+  z.object({
+    tool: z.literal("virtctl"),
+    mode: z.enum(["ssh", "console"]),
+    vm: kubeNameSchema,
+    /** The guest login for `ssh`; `console` attaches to the serial port instead. */
+    user: z
+      .string()
+      .min(1)
+      .max(32)
+      .regex(/^[a-z_][a-z0-9_-]*$/, "Not a login name.")
+      .optional(),
+  }),
+]);
+
+export type KubeTarget = z.infer<typeof kubeTargetSchema>;
+export type KubeTool = KubeTarget["tool"];
+
 export const execHandshakeSchema = z.discriminatedUnion("kind", [
   sessionBaseSchema.extend({
     kind: z.literal("ecs"),
@@ -100,10 +179,27 @@ export const execHandshakeSchema = z.discriminatedUnion("kind", [
     /** A one-shot command instead of an interactive login shell. */
     command: z.string().min(1).optional(),
   }),
+  sessionBaseSchema.extend({
+    kind: z.literal("kube"),
+    context: kubeContextSchema,
+    namespace: kubeLabelSchema,
+    target: kubeTargetSchema,
+  }),
 ]);
 
 export type ExecHandshakeAuth = z.infer<typeof execHandshakeSchema>;
 export type ExecKind = ExecHandshakeAuth["kind"];
+
+/**
+ * The kinds, once.
+ *
+ * The enum was being written out again wherever one was needed - most
+ * dangerously in the remembered-tabs schema, where a kind it had not been told
+ * about drops every remembered tab rather than the one it did not recognise.
+ * `satisfies` is what keeps this list and the handshake union from drifting.
+ */
+export const EXEC_KINDS = ["ecs", "ssm", "ssh", "kube"] as const satisfies readonly ExecKind[];
+export const execKindSchema = z.enum(EXEC_KINDS);
 
 /**
  * Something the server needs from the person before it can continue.
@@ -189,6 +285,16 @@ export type ExecErrorCode =
   | "AuthFailed"
   | "ConnectTimeout"
   | "InstanceConnectFailed"
+  | "KubeBinaryMissing"
+  | "KubeconfigMissing"
+  | "KubeContextUnknown"
+  | "KubeApiUnreachable"
+  | "KubeAuthFailed"
+  | "KubeForbidden"
+  | "KubePodNotFound"
+  | "KubeContainerNotFound"
+  | "KubeVmNotRunning"
+  | "KubeVirtUnavailable"
   | "Internal";
 
 /** A live session, as the sessions list and the dock's tab strip see it. */
@@ -265,3 +371,33 @@ export const sshSessionFormSchema = z.object({
 
 export type SshSessionFormInput = z.input<typeof sshSessionFormSchema>;
 export type SshSessionFormValues = z.output<typeof sshSessionFormSchema>;
+
+/**
+ * The kube half of the same form.
+ *
+ * Separate from the handshake for the reason above, and here the gap is wider
+ * than anywhere else: the handshake takes an argv, while a person types one
+ * line and expects `/bin/sh` if they type nothing. Splitting that line is the
+ * client's job, and it happens before the handshake rather than inside it.
+ */
+export const kubeExecFormSchema = z.object({
+  tool: z.enum(["kubectl", "oc"]).default("kubectl"),
+  context: z.string().trim().min(1, "Pick a context."),
+  namespace: z.string().trim().min(1, "Pick a namespace."),
+  pod: z.string().trim().min(1, "Enter a pod name."),
+  /** Empty means the pod's default container. */
+  container: z.string().trim().default(""),
+  command: z.string().trim().default("/bin/sh"),
+});
+
+export const kubeSshFormSchema = z.object({
+  context: z.string().trim().min(1, "Pick a context."),
+  namespace: z.string().trim().min(1, "Pick a namespace."),
+  vm: z.string().trim().min(1, "Enter a virtual machine name."),
+  user: z.string().trim().min(1, "Enter the guest login to use."),
+});
+
+export type KubeExecFormInput = z.input<typeof kubeExecFormSchema>;
+export type KubeExecFormValues = z.output<typeof kubeExecFormSchema>;
+export type KubeSshFormInput = z.input<typeof kubeSshFormSchema>;
+export type KubeSshFormValues = z.output<typeof kubeSshFormSchema>;
