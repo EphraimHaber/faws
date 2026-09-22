@@ -14,13 +14,14 @@ import { StatusDot } from "~/components/ui/status-dot";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
 import type { EcsCluster } from "@faws/contracts";
+import { useFilterSearch } from "~/hooks/useSearchState";
 
 /** Entry point of the drill-down: every cluster in the region, with the four
  *  counts that decide where you go next. */
 export function ClustersPage() {
   const scope = useAwsScope();
   const navigate = useNavigate();
-  const [filter, setFilter] = React.useState("");
+  const [filter, setFilter] = useFilterSearch();
 
   const clusters = useQuery(trpc.ecs.clusters.queryOptions(scope));
   const rows = clusters.data ?? [];

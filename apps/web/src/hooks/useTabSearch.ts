@@ -1,5 +1,6 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
+
+import { useSearchState } from "~/hooks/useSearchState";
 
 /**
  * The open tab, kept in the URL rather than in component state.
@@ -11,29 +12,19 @@ import * as React from "react";
  *
  * An unknown or no-longer-available tab falls back rather than showing
  * nothing: links outlive the tab lists they were written against.
+ *
+ * Both of those rules now belong to `useSearchState`, which every other piece
+ * of URL-held page state follows too; this hook is the tab-shaped reading of
+ * them.
  */
 export function useTabSearch<T extends string>(
   tabs: readonly T[],
   fallback: T,
 ): readonly [T, (next: T) => void] {
-  const navigate = useNavigate();
-  const search: { tab?: string } = useSearch({ strict: false });
-  const raw = search.tab;
-  const tab = tabs.find((candidate) => candidate === raw) ?? fallback;
-
-  const setTab = React.useCallback(
-    (next: T) => {
-      void navigate({
-        to: ".",
-        search: ((prev: { tab?: string }) => {
-          const { tab: _current, ...rest } = prev;
-          return next === fallback ? rest : { ...rest, tab: next };
-        }) as never,
-        replace: true,
-      });
-    },
-    [navigate, fallback],
+  const parse = React.useCallback(
+    (raw: unknown): T => tabs.find((candidate) => candidate === raw) ?? fallback,
+    [tabs, fallback],
   );
 
-  return [tab, setTab] as const;
+  return useSearchState<T>({ key: "tab", fallback, parse });
 }

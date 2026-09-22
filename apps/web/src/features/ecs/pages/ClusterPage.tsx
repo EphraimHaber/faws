@@ -25,6 +25,7 @@ import { TaskLogsDrawer } from "~/features/ecs/components/TaskLogsDrawer";
 import { partitionSilenced, useSilenced, useServiceSilence } from "~/stores/silenced";
 import { trpc } from "~/lib/trpc";
 import { useTabSearch } from "~/hooks/useTabSearch";
+import { useFilterSearch } from "~/hooks/useSearchState";
 
 /** The tabs, in the order they are shown; the first is the default. */
 export const CLUSTER_TABS = ["services", "tasks", "stopped", "instances"] as const;
@@ -35,7 +36,7 @@ type Tab = (typeof CLUSTER_TABS)[number];
 export function ClusterPage({ cluster }: { cluster: string }) {
   const scope = useAwsScope();
   const [tab, setTab] = useTabSearch(CLUSTER_TABS, "services");
-  const [filter, setFilter] = React.useState("");
+  const [filter, setFilter] = useFilterSearch();
 
   const services = useQuery({
     ...trpc.ecs.services.queryOptions({ ...scope, cluster }),

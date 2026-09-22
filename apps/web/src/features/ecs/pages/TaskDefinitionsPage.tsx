@@ -14,6 +14,7 @@ import { useAwsScope } from "~/contexts/ScopeContext";
 import { cpuLabel, memoryLabel } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
+import { useFilterSearch } from "~/hooks/useSearchState";
 
 /**
  * Families on the left, the selected revision's JSON on the right.
@@ -24,7 +25,7 @@ import { cn } from "~/lib/utils";
  */
 export function TaskDefinitionsPage() {
   const scope = useAwsScope();
-  const [filter, setFilter] = React.useState("");
+  const [filter, setFilter] = useFilterSearch();
   const [family, setFamily] = React.useState<string | null>(null);
   // null means "whichever revision is newest"; picking one pins it until the
   // family changes.

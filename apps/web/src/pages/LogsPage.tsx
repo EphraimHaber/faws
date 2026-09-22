@@ -7,6 +7,7 @@ import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { clockTime } from "~/lib/format";
 import { useLogStore } from "~/lib/log-store";
 import { cn } from "~/lib/utils";
+import { useFilterSearch } from "~/hooks/useSearchState";
 
 const LEVEL_CLASS: Record<string, string> = {
   trace: "text-muted-foreground/60",
@@ -26,7 +27,7 @@ const LEVEL_CLASS: Record<string, string> = {
 export function LogsPage() {
   const lines = useLogStore((state) => state.lines);
   const clear = useLogStore((state) => state.clear);
-  const [filter, setFilter] = React.useState("");
+  const [filter, setFilter] = useFilterSearch();
   const [follow, setFollow] = React.useState(true);
   const bottomRef = React.useRef<HTMLDivElement>(null);
 

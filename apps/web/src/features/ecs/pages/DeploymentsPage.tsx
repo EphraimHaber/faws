@@ -17,6 +17,7 @@ import { StatusDot } from "~/components/ui/status-dot";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { serviceTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
+import { useFilterSearch } from "~/hooks/useSearchState";
 
 /**
  * Every service in the region that has ever rolled out, newest first.
@@ -28,7 +29,7 @@ import { trpc } from "~/lib/trpc";
 export function DeploymentsPage() {
   const scope = useAwsScope();
   const navigate = useNavigate();
-  const [filter, setFilter] = React.useState("");
+  const [filter, setFilter] = useFilterSearch();
 
   const clusters = useQuery(trpc.ecs.clusters.queryOptions(scope));
   const clusterList = React.useMemo(() => clusters.data ?? [], [clusters.data]);

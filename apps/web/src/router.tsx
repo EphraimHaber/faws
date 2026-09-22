@@ -51,11 +51,16 @@ const indexRoute = createRoute({
   // reload and can be pasted to someone else. An id no longer in the registry
   // is dropped here and the page falls back to its default, so a stale link
   // still opens on something.
+  // Two filter boxes are on screen at once here, so they cannot share `q`.
   validateSearch: z
-    .object({ service: z.string().optional().catch(undefined) })
-    .transform(({ service }): { service?: string } => {
+    .object({
+      service: z.string().optional().catch(undefined),
+      clusters: z.string().max(200).optional().catch(undefined),
+      recent: z.string().max(200).optional().catch(undefined),
+    })
+    .transform(({ service, ...rest }) => {
       const match = service ? findService(service) : undefined;
-      return match ? { service: match.id } : {};
+      return { ...rest, ...(match ? { service: match.id } : {}) };
     }),
   component: HomePage,
 });
@@ -82,18 +87,32 @@ const logSearch = z.object({ stream: z.literal("hidden").optional().catch(undefi
  * error: a URL someone edited by hand still opens the page.
  */
 function tabSearch<const T extends readonly [string, ...string[]]>(tabs: T) {
-  return logSearch.extend({ tab: z.enum(tabs).optional().catch(undefined) });
+  return logSearch
+    .extend(filterSearch.shape)
+    .extend({ tab: z.enum(tabs).optional().catch(undefined) });
 }
+
+/**
+ * The text in a page's filter box.
+ *
+ * Every list in the app has one, and until now it lived in component state and
+ * died on reload. In the URL it survives a refresh, it can be pasted to
+ * someone, and the back button reaches it - `useFilterSearch` writes it and
+ * every route that renders a filter declares it here so the router keeps it.
+ */
+const filterSearch = z.object({ q: z.string().max(200).optional().catch(undefined) });
 
 const clustersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ecs/clusters",
+  validateSearch: filterSearch,
   component: ClustersPage,
 });
 
 const deploymentsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ecs/deployments",
+  validateSearch: filterSearch,
   component: DeploymentsPage,
 });
 
@@ -121,6 +140,7 @@ const taskRoute = createRoute({
 const taskDefinitionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ecs/task-definitions",
+  validateSearch: filterSearch,
   component: TaskDefinitionsPage,
 });
 
@@ -133,6 +153,7 @@ const s3IndexRoute = createRoute({
 const bucketsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/s3/buckets",
+  validateSearch: filterSearch,
   component: BucketsPage,
 });
 
@@ -147,7 +168,7 @@ const bucketsRoute = createRoute({
 const bucketRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/s3/buckets/$bucket",
-  validateSearch: z.object({
+  validateSearch: filterSearch.extend({
     prefix: z.string().max(1024).optional().catch(undefined),
     /** The key open in the viewer, so a link can carry one object. */
     object: z.string().max(1024).optional().catch(undefined),
@@ -159,12 +180,14 @@ const bucketRoute = createRoute({
 const ec2InstancesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ec2/instances",
+  validateSearch: filterSearch,
   component: InstancesPage,
 });
 
 const logsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/logs",
+  validateSearch: filterSearch,
   component: LogsPage,
 });
 

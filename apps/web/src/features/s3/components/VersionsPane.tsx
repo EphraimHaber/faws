@@ -16,6 +16,7 @@ import { useS3Scope } from "~/contexts/ScopeContext";
 import { scopeKey } from "~/features/s3/scopeKey";
 import { fullTimestamp } from "~/lib/format";
 import { trpcClient } from "~/lib/trpc";
+import { useFilterSearch } from "~/hooks/useSearchState";
 
 /**
  * A row's identity: a key can appear many times, once per version.
@@ -45,7 +46,7 @@ export function VersionsPane({
   onOpenVersion: (key: string, versionId: string) => void;
 }) {
   const scope = useS3Scope();
-  const [filter, setFilter] = React.useState("");
+  const [filter, setFilter] = useFilterSearch();
   const [selected, setSelected] = React.useState<ReadonlySet<string>>(() => new Set());
   const [comparing, setComparing] = React.useState<{ left: DiffSide; right: DiffSide } | null>(
     null,

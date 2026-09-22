@@ -24,6 +24,7 @@ import { describe } from "~/lib/hotkeys";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
 import { useOverlaysOpen } from "~/stores/overlays";
+import { useFilterSearch } from "~/hooks/useSearchState";
 
 /** Keys per request. Smaller than the API's 1000 cap: a shorter first page is
  *  a faster first row, and the rest arrives as you scroll. */
@@ -56,7 +57,7 @@ export function ObjectBrowser({
 }) {
   const scope = useS3Scope();
   const overlayOpen = useOverlaysOpen();
-  const [filter, setFilter] = React.useState("");
+  const [filter, setFilter] = useFilterSearch();
   // A selection belongs to the listing it was made in. Walking into another
   // prefix shows different rows, so the ticks are dropped on read rather than
   // corrected afterwards by an effect.

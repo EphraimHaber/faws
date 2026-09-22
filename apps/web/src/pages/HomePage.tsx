@@ -20,6 +20,7 @@ import { HiddenCount, SilenceMenu } from "~/components/SilenceMenu";
 import { AWS_SERVICES, resolveService, type AwsServiceDefinition } from "~/services/registry";
 import { partitionSilenced, useSilenced } from "~/stores/silenced";
 import { cn } from "~/lib/utils";
+import { useFilterSearch } from "~/hooks/useSearchState";
 
 /**
  * The landing screen: pick an AWS service, then see what it looks like right
@@ -169,8 +170,9 @@ function EcsOverview() {
   const dismissed = useSilenced((state) => state.dismissed);
   const muted = useSilenced((state) => state.muted);
   const [showSilenced, setShowSilenced] = React.useState(false);
-  const [clusterSearch, setClusterSearch] = React.useState("");
-  const [recentSearch, setRecentSearch] = React.useState("");
+  // Both boxes are on screen together, so each needs a name of its own.
+  const [clusterSearch, setClusterSearch] = useFilterSearch("clusters");
+  const [recentSearch, setRecentSearch] = useFilterSearch("recent");
 
   const attention = React.useMemo(() => {
     const failing = services

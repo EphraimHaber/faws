@@ -15,6 +15,7 @@ import { useS3Scope } from "~/contexts/ScopeContext";
 import { ConnectionPicker } from "~/features/s3/components/ConnectionPicker";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
+import { useFilterSearch } from "~/hooks/useSearchState";
 
 /**
  * Every bucket in the account.
@@ -27,7 +28,7 @@ import { trpc } from "~/lib/trpc";
 export function BucketsPage() {
   const scope = useS3Scope();
   const navigate = useNavigate();
-  const [filter, setFilter] = React.useState("");
+  const [filter, setFilter] = useFilterSearch();
 
   const buckets = useQuery(trpc.s3.buckets.queryOptions(scope));
   const rows = buckets.data ?? [];

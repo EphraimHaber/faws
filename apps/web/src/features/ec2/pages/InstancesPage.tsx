@@ -11,6 +11,7 @@ import { LoadingRows } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
 import { useSessions } from "~/stores/sessions";
+import { useFilterSearch } from "~/hooks/useSearchState";
 
 /**
  * EC2 instances, listed for one reason: getting a shell on one.
@@ -23,7 +24,7 @@ import { useSessions } from "~/stores/sessions";
 export function InstancesPage() {
   const scope = useAwsScope();
   const open = useSessions((state) => state.open);
-  const [filter, setFilter] = React.useState("");
+  const [filter, setFilter] = useFilterSearch();
   const targets = useQuery(trpc.exec.targets.queryOptions(scope));
 
   const rows = React.useMemo(() => {
