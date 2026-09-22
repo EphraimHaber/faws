@@ -24,7 +24,7 @@ import {
 } from "~/components/form";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Dialog } from "~/features/s3/components/Dialog";
+import { Dialog } from "~/components/Dialog";
 import { trpc } from "~/lib/trpc";
 
 /**

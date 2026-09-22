@@ -1,4 +1,5 @@
 import {
+  type ExecInstanceTarget,
   kubeExecFormSchema,
   type KubeExecFormValues,
   type ResourceRef,
@@ -6,7 +7,7 @@ import {
   type SshSessionFormValues,
 } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
-import { Search, TerminalSquare } from "lucide-react";
+import { TerminalSquare } from "lucide-react";
 import * as React from "react";
 
 import {
@@ -18,12 +19,14 @@ import {
   TextField,
   useZodForm,
 } from "~/components/form";
+import { DialogFrame } from "~/components/Dialog";
+import { EntityRow } from "~/components/entity-row";
+import { ResourcePicker } from "~/components/ResourcePicker";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Segmented } from "~/components/segmented";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
-import { useOverlay } from "~/stores/overlays";
 import { recentActions } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
 
@@ -58,116 +61,77 @@ export function NewSessionDialog({
 
 function DialogBody({ onClose, initialMode }: { onClose: () => void; initialMode: Mode }) {
   const [mode, setMode] = React.useState<Mode>(initialMode);
-  // Open for as long as this body is mounted, which is the whole point of
-  // mounting it conditionally.
-  const { isTop } = useOverlay("terminal-new-session", true);
-
-  React.useEffect(() => {
-    if (!isTop) return;
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [isTop, onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-24">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Open a terminal"
-        className="w-[min(46rem,92vw)] overflow-hidden rounded-md border border-border bg-card shadow-2xl"
-      >
-        <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-          <TerminalSquare className="size-3.5 text-muted-foreground" />
-          <span className="text-[12.5px] font-medium">Open a terminal</span>
-          <div className="ml-auto">
-            <Segmented
-              value={mode}
-              onChange={(next) => setMode(next as Mode)}
-              options={[
-                { value: "instance", label: "Instance" },
-                { value: "ssh", label: "SSH" },
-                { value: "kube", label: "Pod" },
-              ]}
-            />
-          </div>
+    // Its own header rather than the shared `Dialog`'s: the mode switch belongs
+    // in the title bar, beside the question it answers, and a picker opened at
+    // a glance sits higher on the screen than a form read top to bottom.
+    <DialogFrame
+      id="terminal-new-session"
+      label="Open a terminal"
+      onClose={onClose}
+      backdropClassName="items-start bg-black/40 pt-24"
+      className="w-[min(46rem,92vw)] overflow-hidden rounded-md border border-border bg-card shadow-2xl"
+    >
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+        <TerminalSquare className="size-3.5 text-muted-foreground" />
+        <span className="text-[12.5px] font-medium">Open a terminal</span>
+        <div className="ml-auto">
+          <Segmented
+            value={mode}
+            onChange={(next) => setMode(next as Mode)}
+            options={[
+              { value: "instance", label: "Instance" },
+              { value: "ssh", label: "SSH" },
+              { value: "kube", label: "Pod" },
+            ]}
+          />
         </div>
-        {mode === "instance" ? (
-          <InstancePicker onClose={onClose} />
-        ) : mode === "ssh" ? (
-          <SshForm onClose={onClose} />
-        ) : (
-          <KubeForm onClose={onClose} />
-        )}
       </div>
-    </div>
+      {mode === "instance" ? (
+        <InstancePicker onClose={onClose} />
+      ) : mode === "ssh" ? (
+        <SshForm onClose={onClose} />
+      ) : (
+        <KubeForm onClose={onClose} />
+      )}
+    </DialogFrame>
   );
 }
 
 function InstancePicker({ onClose }: { onClose: () => void }) {
   const scope = useAwsScope();
   const open = useSessions((state) => state.open);
-  const [filter, setFilter] = React.useState("");
   const targets = useQuery(trpc.exec.targets.queryOptions(scope));
 
-  const rows = React.useMemo(() => {
-    const needle = filter.trim().toLowerCase();
-    const all = targets.data ?? [];
-    if (!needle) return all;
-    return all.filter((row) =>
-      `${row.name ?? ""} ${row.instanceId} ${row.privateIp ?? ""} ${row.publicIp ?? ""}`
-        .toLowerCase()
-        .includes(needle),
-    );
-  }, [targets.data, filter]);
-
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
-        <Search className="size-3 text-muted-foreground" />
-        <input
-          autoFocus
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          placeholder="Filter by name, id or address"
-          className="w-full bg-transparent text-[12.5px] outline-none placeholder:text-muted-foreground"
-        />
-      </div>
+    <ResourcePicker
+      items={targets.data ?? []}
+      pending={targets.isPending}
+      keyOf={(row) => row.instanceId}
+      text={instanceText}
+      placeholder="Filter by name, id or address"
+      pendingLabel="Looking for instances..."
+      emptyLabel="No instances match."
+      className="max-h-[22rem]"
+    >
+      {(row) => {
+        const canSsm = row.reachableBy.includes("ssm");
+        const canSsh = row.reachableBy.includes("ssh-public");
+        const canTunnel = row.reachableBy.includes("ssh-ssm-tunnel");
 
-      <div className="max-h-[22rem] overflow-auto">
-        {targets.isPending ? (
-          <p className="px-3 py-6 text-center text-[12px] text-muted-foreground">
-            Looking for instances...
-          </p>
-        ) : rows.length === 0 ? (
-          <p className="px-3 py-6 text-center text-[12px] text-muted-foreground">
-            No instances match.
-          </p>
-        ) : (
-          rows.map((row) => {
-            const canSsm = row.reachableBy.includes("ssm");
-            const canSsh = row.reachableBy.includes("ssh-public");
-            const canTunnel = row.reachableBy.includes("ssh-ssm-tunnel");
-            const unreachable = row.reachableBy.length === 0;
-
-            return (
-              <div
-                key={row.instanceId}
-                className="flex items-center gap-2.5 border-b border-border/50 px-3 py-2 last:border-b-0"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12.5px]">{row.name ?? row.instanceId}</p>
-                  <p className="truncate font-mono text-[10.5px] text-muted-foreground">
-                    {row.instanceId}
-                    {row.privateIp ? ` - ${row.privateIp}` : ""}
-                    {row.instanceType ? ` - ${row.instanceType}` : ""}
-                  </p>
-                </div>
+        return (
+          <EntityRow
+            className="gap-2.5 border-b border-border/50 px-3 last:border-b-0"
+            label={row.name ?? row.instanceId}
+            detail={`${row.instanceId}${row.privateIp ? ` - ${row.privateIp}` : ""}${
+              row.instanceType ? ` - ${row.instanceType}` : ""
+            }`}
+            actions={
+              <>
                 <Badge tone={row.state === "running" ? "success" : "neutral"}>{row.state}</Badge>
 
-                {unreachable ? (
+                {row.reachableBy.length === 0 ? (
                   <span
                     className="text-[10.5px] text-muted-foreground"
                     title="No SSM agent, and no public address"
@@ -236,13 +200,24 @@ function InstancePicker({ onClose }: { onClose: () => void }) {
                     SSH via SSM
                   </Button>
                 ) : null}
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
+              </>
+            }
+          />
+        );
+      }}
+    </ResourcePicker>
   );
+}
+
+/**
+ * The four things someone might have in hand when looking for an instance.
+ *
+ * Declared out here so it is one value rather than one per render, which is
+ * what keeps the ranking from being recomputed on every keystroke's re-render
+ * of the dialog around it.
+ */
+function instanceText(row: ExecInstanceTarget): ReadonlyArray<string> {
+  return [row.name ?? "", row.instanceId, row.privateIp ?? "", row.publicIp ?? ""];
 }
 
 /**

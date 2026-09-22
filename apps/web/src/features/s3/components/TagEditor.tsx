@@ -12,7 +12,7 @@ import {
   SubmitButton,
   useZodForm,
 } from "~/components/form";
-import { Dialog } from "~/features/s3/components/Dialog";
+import { Dialog } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
 import { useS3Scope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";

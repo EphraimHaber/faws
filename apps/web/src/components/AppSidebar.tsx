@@ -5,7 +5,9 @@ import type { LucideIcon } from "lucide-react";
 import * as React from "react";
 
 import { kindIcon } from "~/components/CommandPalette.entries";
+import { EntityRow } from "~/components/entity-row";
 import { ResizeHandle } from "~/components/ui/resize-handle";
+import { SectionHeader } from "~/components/ui/section-header";
 import { StatusDot } from "~/components/ui/status-dot";
 import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "@faws/contracts";
 import {
@@ -140,15 +142,11 @@ export function AppSidebar() {
         <RefSection title="Pinned" rows={pinned} here={location.href} />
         <RefSection title="Recent" rows={recent} here={location.href} />
 
-        <div className="mx-3.5 mt-2 mb-1.5 flex shrink-0 items-center gap-2.5 border-t border-border pt-3.5">
-          <span className="font-mono text-[9.5px] tracking-[0.26em] text-muted-foreground uppercase">
-            Clusters
-          </span>
-          <span aria-hidden className="h-px flex-1 bg-border" />
-          <span className="font-mono text-[10px] text-muted-foreground/70 tabular">
-            {clusters.data ? visible.length : "—"}
-          </span>
-        </div>
+        <SectionHeader
+          title="Clusters"
+          count={clusters.data ? visible.length : "—"}
+          className="mx-3.5 mt-2 mb-1.5"
+        />
 
         <div className="shrink-0 px-2.5 pb-2">
           <input
@@ -175,31 +173,27 @@ export function AppSidebar() {
           ) : null}
 
           {visible.map((cluster) => {
-            const active = location.pathname.startsWith(
-              `/ecs/clusters/${encodeURIComponent(cluster.name)}`,
-            );
+            const to = `/ecs/clusters/${encodeURIComponent(cluster.name)}`;
             const busy = cluster.pendingTasks > 0;
             return (
-              <Link
+              <EntityRow
                 key={cluster.arn}
-                to="/ecs/clusters/$cluster"
-                params={{ cluster: cluster.name }}
-                className={cn(
-                  "group flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
-                  active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/60",
-                )}
-              >
-                <StatusDot
-                  tone={cluster.status === "ACTIVE" ? (busy ? "warning" : "success") : "neutral"}
-                  pulse={busy}
-                />
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
-                  {cluster.name}
-                </span>
-                <span className="font-mono text-[10px] text-muted-foreground tabular">
-                  {cluster.activeServices}·{cluster.runningTasks}
-                </span>
-              </Link>
+                dense
+                to={to}
+                active={location.pathname.startsWith(to)}
+                icon={
+                  <StatusDot
+                    tone={cluster.status === "ACTIVE" ? (busy ? "warning" : "success") : "neutral"}
+                    pulse={busy}
+                  />
+                }
+                label={cluster.name}
+                actions={
+                  <span className="font-mono text-[10px] text-muted-foreground tabular">
+                    {cluster.activeServices}·{cluster.runningTasks}
+                  </span>
+                }
+              />
             );
           })}
 
@@ -243,35 +237,26 @@ function RefSection({
 
   return (
     <>
-      <div className="mx-3.5 mt-2 mb-1 flex shrink-0 items-center gap-2.5 border-t border-border pt-3.5">
-        <span className="font-mono text-[9.5px] tracking-[0.26em] text-muted-foreground uppercase">
-          {title}
-        </span>
-        <span aria-hidden className="h-px flex-1 bg-border" />
-      </div>
+      <SectionHeader title={title} className="mx-3.5 mt-2 mb-1" />
       <div className="flex shrink-0 flex-col gap-px px-2 pb-1">
         {rows.map((row) => {
           const Icon = kindIcon(row.kind);
           return (
-            <Link
+            <EntityRow
               key={row.to}
+              dense
               to={row.to}
+              // Compared against the search too, not just the path: two
+              // prefixes in one bucket are two rows, and only one of them is
+              // the one being looked at.
+              active={here === row.to}
+              icon={<Icon className="size-3.5 shrink-0" strokeWidth={1.8} />}
+              label={row.label}
+              // The second line goes in the tooltip rather than under the
+              // name: the rail is eight rows deep at most and a bucket's
+              // prefix is longer than the rail is wide.
               title={row.detail ? `${row.label} - ${row.detail}` : row.label}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors",
-                // Compared against the search too, not just the path: two
-                // prefixes in one bucket are two rows, and only one of them is
-                // the one being looked at.
-                here === row.to
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:bg-accent/60",
-              )}
-            >
-              <Icon className="size-3.5 shrink-0" strokeWidth={1.8} />
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-foreground">
-                {row.label}
-              </span>
-            </Link>
+            />
           );
         })}
       </div>

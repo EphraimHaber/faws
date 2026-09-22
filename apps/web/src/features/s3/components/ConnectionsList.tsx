@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, ShieldAlert } from "lucide-react";
 import * as React from "react";
 
+import { EntityRow } from "~/components/entity-row";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
@@ -61,45 +62,50 @@ export function ConnectionsList() {
       ) : (
         <ul className="flex flex-col divide-y divide-border">
           {rows.map((connection) => (
-            <li key={connection.id} className="flex items-center gap-3 px-3.5 py-2">
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2">
-                  <span className="truncate text-[12.5px]">{connection.name}</span>
-                  {connection.id === connectionId ? <Badge tone="primary">in use</Badge> : null}
-                  {connection.tls.verify ? null : (
-                    <Badge tone="warning">
-                      <ShieldAlert className="size-3" strokeWidth={2} /> unverified
-                    </Badge>
-                  )}
-                  {connection.tls.pinnedSha256 ? <Badge tone="info">pinned</Badge> : null}
-                </span>
-                <span className="block truncate font-mono text-[10.5px] text-muted-foreground">
-                  {connection.endpoint} · {describeCredentials(connection, keys)}
-                </span>
-              </span>
-
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setConnectionId(connection.id === connectionId ? "" : connection.id)}
-              >
-                {connection.id === connectionId ? "Leave" : "Use"}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setEditing(connection)}>
-                Edit
-              </Button>
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => {
-                  // The stored keys go with it, so the id in scope has to stop
-                  // pointing at it in the same act.
-                  if (connection.id === connectionId) setConnectionId("");
-                  remove.mutate({ id: connection.id });
-                }}
-              >
-                Remove
-              </Button>
+            <li key={connection.id}>
+              <EntityRow
+                label={connection.name}
+                detail={`${connection.endpoint} · ${describeCredentials(connection, keys)}`}
+                badges={
+                  <>
+                    {connection.id === connectionId ? <Badge tone="primary">in use</Badge> : null}
+                    {connection.tls.verify ? null : (
+                      <Badge tone="warning">
+                        <ShieldAlert className="size-3" strokeWidth={2} /> unverified
+                      </Badge>
+                    )}
+                    {connection.tls.pinnedSha256 ? <Badge tone="info">pinned</Badge> : null}
+                  </>
+                }
+                actions={
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setConnectionId(connection.id === connectionId ? "" : connection.id)
+                      }
+                    >
+                      {connection.id === connectionId ? "Leave" : "Use"}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditing(connection)}>
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => {
+                        // The stored keys go with it, so the id in scope has to
+                        // stop pointing at it in the same act.
+                        if (connection.id === connectionId) setConnectionId("");
+                        remove.mutate({ id: connection.id });
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </>
+                }
+              />
             </li>
           ))}
         </ul>
