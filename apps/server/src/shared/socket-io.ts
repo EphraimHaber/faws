@@ -12,7 +12,7 @@ import type {
   ServerToClientEvents,
   SocketData,
 } from "@faws/socket-io-events";
-import type { SettingsChangedPayload } from "@faws/contracts";
+import type { SettingsChangedPayload, WriteMode } from "@faws/contracts";
 import type { FastifyInstance } from "fastify";
 import { Namespace, Server } from "socket.io";
 
@@ -104,4 +104,16 @@ export function emitNav(target: string): void {
 /** Fan-out helper for preference changes; see `api/settings/settings.events.ts`. */
 export function emitSettingsChanged(payload: SettingsChangedPayload): void {
   ioInstance?.emit("settings:changed", payload);
+}
+
+/**
+ * Fan-out helper for the read-only and deletion switches.
+ *
+ * These live in the server process, so every window is already looking at the
+ * same pair - but only the window that flipped them knew it had happened. The
+ * others kept their buttons in whatever state they last queried, which is the
+ * one thing a safety switch must not do.
+ */
+export function emitWriteModeChanged(payload: WriteMode): void {
+  ioInstance?.emit("write-mode:changed", payload);
 }

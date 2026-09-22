@@ -8,7 +8,7 @@
  * real SDK call goes.
  */
 import { stopTaskSchema, updateServiceSchema } from "@faws/contracts";
-import { assertMutable } from "@faws/core";
+import { assertDestructive, assertMutable } from "@faws/core";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -21,9 +21,18 @@ function notImplemented(operation: string): never {
   });
 }
 
-function begin(operation: string): void {
+/**
+ * The guard in front of a handler, translated for the wire.
+ *
+ * `need` is the difference between writing something new and destroying
+ * something that was already there. Stopping a task is the second kind: the
+ * container is gone and the work it was doing is gone with it, so it answers
+ * to the deletion switch as well as to read-only.
+ */
+function begin(operation: string, need: "write" | "destructive" = "write"): void {
   try {
-    assertMutable(operation);
+    if (need === "destructive") assertDestructive(operation);
+    else assertMutable(operation);
   } catch (err) {
     throw toTrpcError(err);
   }
@@ -36,7 +45,7 @@ export const ecsActionsRouter = router({
   }),
 
   stopTask: publicProcedure.input(scopeInput.and(stopTaskSchema)).mutation(() => {
-    begin("ecs:StopTask");
+    begin("ecs:StopTask", "destructive");
     notImplemented("Stop task");
   }),
 

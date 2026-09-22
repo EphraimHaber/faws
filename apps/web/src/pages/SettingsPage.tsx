@@ -1,5 +1,5 @@
 import { relativeTime } from "@faws/shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import { KeyValue, KeyValueGrid } from "~/components/kv";
@@ -16,6 +16,7 @@ import {
   useScope,
 } from "~/contexts/ScopeContext";
 import { useTheme } from "~/contexts/ThemeContext";
+import { useWriteMode } from "~/hooks/useWriteMode";
 import { trpc } from "~/lib/trpc";
 import { type SilenceEntry, useSilenced } from "~/stores/silenced";
 import { resetSettings, useSettings } from "~/stores/settings";
@@ -30,30 +31,21 @@ import { cn } from "~/lib/utils";
  * one when it ends.
  */
 function WriteMode() {
-  const queryClient = useQueryClient();
-  const mode = useQuery(trpc.aws.writeMode.queryOptions());
-  const setMode = useMutation(
-    trpc.aws.setWriteMode.mutationOptions({
-      onSuccess: () => void queryClient.invalidateQueries(),
-    }),
-  );
-
-  const readOnly = mode.data?.readOnly ?? true;
-  const destructive = mode.data?.destructive ?? false;
+  const { readOnly, destructive, setReadOnly, setDestructive } = useWriteMode();
 
   return (
     <span className="flex flex-wrap items-center gap-2">
       <Badge tone={readOnly ? "success" : destructive ? "danger" : "warning"}>
         {readOnly ? "read-only" : destructive ? "deletion armed" : "read-write"}
       </Badge>
-      <Button size="sm" onClick={() => setMode.mutate({ readOnly: !readOnly })}>
+      <Button size="sm" onClick={() => setReadOnly(!readOnly)}>
         {readOnly ? "Allow writes" : "Return to read-only"}
       </Button>
       {readOnly ? null : (
         <Button
           size="sm"
           variant={destructive ? "danger" : "outline"}
-          onClick={() => setMode.mutate({ destructive: !destructive })}
+          onClick={() => setDestructive(!destructive)}
         >
           {destructive ? "Disarm deletion" : "Arm deletion"}
         </Button>

@@ -29,6 +29,11 @@ export function setReadOnly(next: boolean): void {
   if (next) destructive = false;
 }
 
+/** Both switches at once, for the callers that report rather than check. */
+export function writeMode(): { readOnly: boolean; destructive: boolean } {
+  return { readOnly, destructive: isDestructiveAllowed() };
+}
+
 export function isDestructiveAllowed(): boolean {
   return !readOnly && destructive;
 }

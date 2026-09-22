@@ -4,6 +4,7 @@ import { Command, MoonStar, Sun } from "lucide-react";
 import { AccountChip } from "~/components/AccountChip";
 import { Breadcrumb } from "~/components/Breadcrumb";
 import { RegionPicker } from "~/components/RegionPicker";
+import { WriteModePill } from "~/components/WriteModePill";
 import { Kbd } from "~/components/ui/kbd";
 import { useTheme } from "~/contexts/ThemeContext";
 import { serviceForPath } from "~/services/registry";
@@ -52,6 +53,8 @@ export function AppHeader({ onOpenPalette }: { onOpenPalette: () => void }) {
         <AccountChip />
         <span aria-hidden className="h-3.5 w-px bg-border" />
         <RegionPicker />
+        <span aria-hidden className="h-3.5 w-px bg-border" />
+        <WriteModePill />
         <button
           type="button"
           onClick={toggle}

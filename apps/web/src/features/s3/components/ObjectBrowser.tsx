@@ -1,12 +1,13 @@
 import type { S3CommonPrefix, S3ObjectSummary } from "@faws/contracts";
 import { byteSize, parentPrefix, relativeTime } from "@faws/shared";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useHotkeys } from "@tanstack/react-hotkeys";
 import { CornerLeftUp, FileText, Folder, FolderOpen, FolderPlus, Trash2 } from "lucide-react";
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
 import { FilterInput } from "~/components/toolbar";
+import { DisabledHint, useDisabledReason } from "~/components/WriteGuard";
 import { CreatePrefixDialog } from "~/features/s3/components/CreatePrefixDialog";
 import { DeleteDialog, type DeleteTarget } from "~/features/s3/components/DeleteDialog";
 import { IDLE_SCAN, ObjectSearch, type ScanState } from "~/features/s3/components/ObjectSearch";
@@ -84,9 +85,11 @@ export function ObjectBrowser({
     [listingId],
   );
 
-  const writeMode = useQuery(trpc.aws.writeMode.queryOptions());
-  const canWrite = writeMode.data ? !writeMode.data.readOnly : false;
-  const canDestroy = writeMode.data?.destructive ?? false;
+  // Refusals are rendered, not hidden. A delete button that is absent and a
+  // delete button this build does not have look the same, so hiding them made
+  // read-only mode invisible at exactly the moment it mattered.
+  const writeReason = useDisabledReason("write");
+  const destroyReason = useDisabledReason("destructive");
   const [dialog, setDialog] = React.useState<
     { kind: "delete"; targets: ReadonlyArray<DeleteTarget> } | { kind: "prefix" } | null
   >(null);
@@ -238,15 +241,16 @@ export function ObjectBrowser({
                 {selectedKeys.length} selected
               </span>
               <CopyButton size="sm" label="Copy keys" value={() => selectedKeys.join("\n")} />
-              {canDestroy ? (
+              <DisabledHint reason={destroyReason}>
                 <Button
                   size="sm"
                   variant="danger"
+                  disabled={destroyReason !== null}
                   onClick={() => setDialog({ kind: "delete", targets: selectedTargets })}
                 >
                   <Trash2 className="size-3" /> Delete
                 </Button>
-              ) : null}
+              </DisabledHint>
             </>
           ) : null}
           <FilterInput value={filter} onChange={setFilter} total={loaded} />
@@ -267,15 +271,21 @@ export function ObjectBrowser({
               <span className="truncate font-mono text-[11px] text-muted-foreground">
                 {prefix || "/"}
               </span>
-              {canWrite ? (
-                <span className="ml-auto flex items-center gap-2">
-                  {transport}
-                  <Button size="sm" onClick={() => setDialog({ kind: "prefix" })}>
+              <span className="ml-auto flex items-center gap-2">
+                {transport}
+                <DisabledHint reason={writeReason}>
+                  <Button
+                    size="sm"
+                    disabled={writeReason !== null}
+                    onClick={() => setDialog({ kind: "prefix" })}
+                  >
                     <FolderPlus className="size-3" /> New folder
                   </Button>
-                  <UploadButton onPick={pickFiles} />
-                </span>
-              ) : null}
+                </DisabledHint>
+                <DisabledHint reason={writeReason}>
+                  <UploadButton onPick={pickFiles} disabled={writeReason !== null} />
+                </DisabledHint>
+              </span>
             </div>
 
             {listing.isPending ? (

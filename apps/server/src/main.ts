@@ -9,7 +9,8 @@
  *   FAWS_PORT      - bind port (default 0 = OS-assigned)
  *   FAWS_WEB_DIST  - when set, serve the web SPA from this directory at /
  *   FAWS_DATA_DIR  - where logs, recordings and settings are written
- *   FAWS_READ_ONLY - "1" starts the app with mutations blocked
+ *   FAWS_ALLOW_MUTATIONS - "1" starts the app with mutations allowed;
+ *                          anything else leaves it read-only
  */
 import * as fs from "node:fs";
 import * as path from "node:path";

@@ -202,9 +202,15 @@ export function UploadDropzone({
 }
 
 /** The toolbar half of the dropzone. */
-export function UploadButton({ onPick }: { onPick: () => void }) {
+export function UploadButton({
+  onPick,
+  disabled = false,
+}: {
+  onPick: () => void;
+  disabled?: boolean;
+}) {
   return (
-    <Button size="sm" onClick={onPick}>
+    <Button size="sm" onClick={onPick} disabled={disabled}>
       <Upload className="size-3" /> Upload
     </Button>
   );

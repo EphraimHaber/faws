@@ -15,6 +15,7 @@ import type {
   S3PrefixRollup,
   S3ScanProgress,
   SettingsChangedPayload,
+  WriteMode,
 } from "@faws/contracts";
 
 export interface ServerToClientEvents {
@@ -33,6 +34,14 @@ export interface ServerToClientEvents {
    * window that caused it, so that window can ignore its own echo.
    */
   "settings:changed": (payload: SettingsChangedPayload) => void;
+  /**
+   * Write mode changed, in this window or another one.
+   *
+   * Broadcast for the same reason settings are, but the stakes are higher:
+   * two windows disagreeing about whether deletion is armed is precisely the
+   * state the second switch exists to prevent.
+   */
+  "write-mode:changed": (payload: WriteMode) => void;
 }
 
 export interface ClientToServerEvents {
