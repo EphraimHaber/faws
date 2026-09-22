@@ -108,6 +108,7 @@ export const useSessions = create<SessionsStore>((set, get) => {
         cols: runtime.term.cols,
         rows: runtime.term.rows,
         record: settingsSnapshot().terminal.recordByDefault,
+        ssmBash: settingsSnapshot().terminal.ssmBash,
         attach,
       }),
     );

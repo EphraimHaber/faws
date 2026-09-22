@@ -58,6 +58,8 @@ export interface HandshakeOptions {
   readonly record: boolean;
   /** True when resuming a tab whose socket dropped. */
   readonly attach?: boolean;
+  /** The `terminal.ssmBash` setting, which only an SSM session reads. */
+  readonly ssmBash?: boolean;
 }
 
 export function buildHandshake(target: ExecTarget, options: HandshakeOptions): ExecHandshakeAuth {
@@ -88,6 +90,7 @@ export function buildHandshake(target: ExecTarget, options: HandshakeOptions): E
         profile: target.profile,
         region: target.region,
         instanceId: target.instanceId,
+        ...(options.ssmBash ? { preferBash: true } : {}),
       };
     case "ssh":
       return {

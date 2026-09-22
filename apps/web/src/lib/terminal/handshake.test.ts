@@ -169,6 +169,25 @@ describe("buildHandshake", () => {
   });
 });
 
+describe("asking SSM for bash", () => {
+  const ssm: ExecTarget = { kind: "ssm", profile: "p", region: "r", instanceId: "i-0abc" };
+
+  it("asks only when the setting is on", () => {
+    expect(buildHandshake(ssm, { ...options, ssmBash: true })).toMatchObject({ preferBash: true });
+    expect(buildHandshake(ssm, options)).not.toHaveProperty("preferBash");
+  });
+
+  it("never asks on behalf of a session that is not SSM", () => {
+    const pod: ExecTarget = {
+      kind: "kube",
+      context: "prod",
+      namespace: "web",
+      target: { tool: "kubectl", pod: "api-7d9f" },
+    };
+    expect(buildHandshake(pod, { ...options, ssmBash: true })).not.toHaveProperty("preferBash");
+  });
+});
+
 describe("describeTarget", () => {
   it("labels an ECS container by name, with its cluster underneath", () => {
     expect(

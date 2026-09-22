@@ -22,7 +22,7 @@ import { useWriteMode } from "~/hooks/useWriteMode";
 import { trpc } from "~/lib/trpc";
 import { recentActions, useRememberedList } from "~/stores/recents";
 import { type SilenceEntry, useSilenced } from "~/stores/silenced";
-import { resetSettings, useSettings } from "~/stores/settings";
+import { resetSettings, updateSettings, useSettings } from "~/stores/settings";
 import { cn } from "~/lib/utils";
 
 /**
@@ -71,6 +71,7 @@ export function SettingsPage() {
   } = useScope();
   const { theme, toggle } = useTheme();
   const persistence = useSettings((state) => state.persistence);
+  const ssmBash = useSettings((state) => state.settings.terminal.ssmBash);
 
   const whoami = useQuery({ ...trpc.aws.whoami.queryOptions(scope), retry: false });
 
@@ -202,6 +203,23 @@ export function SettingsPage() {
             >
               {theme === "dark" ? "Dark" : "Light"}
             </button>
+          </Setting>
+
+          <Setting
+            title="SSM shell"
+            hint="Session Manager starts sh, which on Ubuntu has no tab completion or history. Bash is tried on Linux and macOS instances, with sh where it is missing or not allowed."
+          >
+            <label className="flex cursor-pointer items-center gap-1.5 text-[12px]">
+              <input
+                type="checkbox"
+                checked={ssmBash}
+                onChange={(event) =>
+                  updateSettings({ terminal: { ssmBash: event.target.checked } })
+                }
+                className="size-3.5 cursor-pointer accent-primary"
+              />
+              Start in bash
+            </label>
           </Setting>
         </div>
       </Panel>

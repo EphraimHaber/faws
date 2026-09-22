@@ -169,6 +169,8 @@ export const execHandshakeSchema = z.discriminatedUnion("kind", [
     /** Defaults to SSM-SessionManagerRunShell on the AWS side when absent. */
     documentName: z.string().min(1).optional(),
     parameters: z.record(z.string(), z.array(z.string())).optional(),
+    /** Try bash first, falling back to the default shell where it cannot run. */
+    preferBash: z.boolean().optional(),
   }),
   sessionBaseSchema.extend({
     kind: z.literal("ssh"),

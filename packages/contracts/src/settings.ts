@@ -146,6 +146,11 @@ export const appearanceSettingsSchema = z.object({
 export const terminalSettingsSchema = z.object({
   dockHeight: z.number().int().min(MIN_DOCK_HEIGHT).catch(DEFAULT_DOCK_HEIGHT),
   recordByDefault: z.boolean().catch(true),
+  /**
+   * Start SSM shells in bash rather than Session Manager's default `sh`.
+   * Off by default, because the default is what `aws ssm start-session` gives.
+   */
+  ssmBash: z.boolean().catch(false),
 });
 
 /**

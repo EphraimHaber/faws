@@ -11,13 +11,18 @@
  * The six positional arguments are the plugin's real interface. They are
  * undocumented, and the order is load-bearing.
  */
-import { StartSessionCommand, TerminateSessionCommand } from "@aws-sdk/client-ssm";
+import {
+  DescribeInstanceInformationCommand,
+  StartSessionCommand,
+  TerminateSessionCommand,
+} from "@aws-sdk/client-ssm";
 import { ssmClient } from "@faws/core";
 
 import { ExecSessionError } from "../errors.ts";
 import type { ExecDriver, ExecDriverFactory } from "../exec.service.ts";
 import { resolveSessionPlugin } from "../sessionPlugin.ts";
 import { spawnInteractive, type InteractiveChild } from "../pty.ts";
+import { startPreferringBash, type StartRequest } from "../ssm/shell.ts";
 
 /** How long to wait for a killed child before insisting. */
 const SIGKILL_AFTER_MS = 2000;
@@ -77,17 +82,47 @@ export const ssmDriverFactory: ExecDriverFactory = async (auth, sink, ctx) => {
 
   sink.status(`Starting a Session Manager session on ${auth.instanceId}...`);
 
-  const request = {
-    Target: auth.instanceId,
-    ...(auth.documentName ? { DocumentName: auth.documentName } : {}),
-    ...(auth.parameters ? { Parameters: auth.parameters } : {}),
-  };
+  const start = (request: StartRequest) =>
+    client.send(new StartSessionCommand(request), { abortSignal: ctx.signal });
 
   let started;
+  let request: StartRequest;
   try {
-    started = await client.send(new StartSessionCommand(request), { abortSignal: ctx.signal });
+    if (auth.preferBash && !auth.documentName) {
+      ({ started, request } = await startPreferringBash(
+        start,
+        auth.instanceId,
+        await platformOf(auth.instanceId),
+        (why) => sink.status(why),
+      ));
+    } else {
+      request = {
+        Target: auth.instanceId,
+        ...(auth.documentName ? { DocumentName: auth.documentName } : {}),
+        ...(auth.parameters ? { Parameters: auth.parameters } : {}),
+      };
+      started = await start(request);
+    }
   } catch (err) {
     throw translate(err);
+  }
+
+  /**
+   * Linux, MacOS or Windows, as the agent reports it, or undefined when it
+   * cannot be read - which leaves the session on the default shell.
+   */
+  async function platformOf(instanceId: string): Promise<string | undefined> {
+    try {
+      const answer = await client.send(
+        new DescribeInstanceInformationCommand({
+          Filters: [{ Key: "InstanceIds", Values: [instanceId] }],
+        }),
+        { abortSignal: ctx.signal },
+      );
+      return answer.InstanceInformationList?.[0]?.PlatformType;
+    } catch {
+      return undefined;
+    }
   }
 
   if (!started.SessionId || !started.StreamUrl || !started.TokenValue) {

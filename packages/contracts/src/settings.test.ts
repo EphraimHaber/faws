@@ -63,6 +63,14 @@ describe("settingsSchema", () => {
     expect(settingsSchema.parse({ kube: { context: 7 } }).kube.context).toBe("");
   });
 
+  it("leaves SSM shells on the default shell unless asked, and carries the choice", () => {
+    expect(DEFAULT_SETTINGS.terminal.ssmBash).toBe(false);
+    expect(settingsSchema.parse({ terminal: { ssmBash: "yes" } }).terminal.ssmBash).toBe(false);
+    expect(applyPatch(DEFAULT_SETTINGS, { terminal: { ssmBash: true } }).terminal.ssmBash).toBe(
+      true,
+    );
+  });
+
   it("costs one bad leaf only itself", () => {
     const parsed = settingsSchema.parse({ version: 1, logs: { gutter: "nope", taskGutter: 200 } });
     expect(parsed.logs.gutter).toBe(DEFAULT_LOG_GUTTER);
