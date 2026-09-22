@@ -9,6 +9,7 @@
 import { createLogger } from "../../shared/logger.ts";
 import { echoDriverFactory } from "./drivers/echo.driver.ts";
 import { ecsDriverFactory } from "./drivers/ecs.driver.ts";
+import { kubeDriverFactory } from "./drivers/kube.driver.ts";
 import { sshDriverFactory } from "./drivers/ssh.driver.ts";
 import { ssmDriverFactory } from "./drivers/ssm.driver.ts";
 import { registerExecDriver } from "./exec.service.ts";
@@ -27,6 +28,7 @@ export function registerExecDrivers(): void {
     registerExecDriver("ecs", echoDriverFactory);
     registerExecDriver("ssm", echoDriverFactory);
     registerExecDriver("ssh", echoDriverFactory);
+    registerExecDriver("kube", echoDriverFactory);
     log.warn("FAWS_EXEC_DEV_ECHO=1 - every exec session is a local echo, nothing will connect");
     return;
   }
@@ -34,4 +36,5 @@ export function registerExecDrivers(): void {
   registerExecDriver("ssm", ssmDriverFactory);
   registerExecDriver("ecs", ecsDriverFactory);
   registerExecDriver("ssh", sshDriverFactory);
+  registerExecDriver("kube", kubeDriverFactory);
 }
