@@ -34,6 +34,43 @@ export const updateServiceSchema = z
 
 export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
 
+/**
+ * What the update-service form collects.
+ *
+ * Separate from `updateServiceSchema` for the reason `exec.ts` keeps its
+ * session forms separate from the handshake: this is what a person types,
+ * while that is what the server is handed. The wire shape carries the cluster
+ * and the service, which the form does not edit, and its "something must
+ * change" rule is checked against a payload where the untouched fields have
+ * already been dropped - ECS reads an omitted field as "leave it alone".
+ *
+ * A factory rather than a constant, because "something must change" can only
+ * be judged against the values the service currently has, and those are not
+ * known until one is being edited.
+ */
+export function updateServiceFormSchema(current: {
+  readonly desiredCount: number;
+  readonly taskDefinition: string;
+}) {
+  return z
+    .object({
+      desiredCount: z.coerce.number().int().min(0).max(5000),
+      taskDefinition: z.string().min(1),
+      forceNewDeployment: z.boolean().default(false),
+    })
+    .refine(
+      (values) =>
+        values.desiredCount !== current.desiredCount ||
+        values.taskDefinition !== current.taskDefinition ||
+        values.forceNewDeployment,
+      { message: "Change the desired count, the task definition, or force a new deployment." },
+    );
+}
+
+export type UpdateServiceFormSchema = ReturnType<typeof updateServiceFormSchema>;
+export type UpdateServiceFormInput = z.input<UpdateServiceFormSchema>;
+export type UpdateServiceFormValues = z.output<UpdateServiceFormSchema>;
+
 export const stopTaskSchema = z.object({
   cluster: z.string().min(1),
   taskId: z.string().min(1),

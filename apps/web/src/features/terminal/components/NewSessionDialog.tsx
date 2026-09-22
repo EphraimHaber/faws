@@ -1,18 +1,18 @@
-import {
-  sshSessionFormSchema,
-  type SshSessionFormInput,
-  type SshSessionFormValues,
-} from "@faws/contracts";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { sshSessionFormSchema, type SshSessionFormValues } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { Search, TerminalSquare } from "lucide-react";
 import * as React from "react";
-import { useForm } from "react-hook-form";
 
+import {
+  Form,
+  FormActions,
+  NumberField,
+  SubmitButton,
+  TextField,
+  useZodForm,
+} from "~/components/form";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Field, FormError } from "~/components/ui/form";
-import { Input } from "~/components/ui/input";
 import { Segmented } from "~/components/segmented";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { trpc } from "~/lib/trpc";
@@ -237,16 +237,11 @@ function SshForm({ onClose }: { onClose: () => void }) {
   const hosts = useQuery(trpc.exec.sshHosts.queryOptions());
   // The same schema the handshake is ultimately built from, so a rule about
   // what a port may be is written once rather than once per side.
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<SshSessionFormInput, unknown, SshSessionFormValues>({
-    resolver: zodResolver(sshSessionFormSchema),
+  const form = useZodForm(sshSessionFormSchema, {
     defaultValues: { host: "", user: "", port: 22 },
   });
 
-  const submit = handleSubmit((values) => {
+  function submit(values: SshSessionFormValues) {
     open({
       kind: "ssh",
       transport: { via: "direct", host: values.host },
@@ -254,14 +249,12 @@ function SshForm({ onClose }: { onClose: () => void }) {
       ...(values.port === 22 ? {} : { port: values.port }),
     });
     onClose();
-  });
+  }
 
   const saved = hosts.data ?? [];
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3 p-3">
-      <FormError message={errors.root?.message} />
-
+    <Form form={form} onSubmit={submit} className="p-3">
       {saved.length > 0 ? (
         <div className="flex flex-col gap-1.5">
           <p className="text-[11px] text-muted-foreground">From your ~/.ssh/config</p>
@@ -284,44 +277,31 @@ function SshForm({ onClose }: { onClose: () => void }) {
         </div>
       ) : null}
 
-      <Field
+      <TextField
+        name="host"
         label="Host"
-        htmlFor="ssh-host"
         hint="A hostname, or a Host entry from your ~/.ssh/config"
-        error={errors.host?.message}
-      >
-        <Input
-          id="ssh-host"
-          autoFocus
-          className="w-64"
-          placeholder="bastion.example.com"
-          {...register("host")}
-        />
-      </Field>
+        placeholder="bastion.example.com"
+        autoFocus
+        className="w-64"
+      />
 
-      <Field label="User" htmlFor="ssh-user" hint="Blank lets ~/.ssh/config decide">
-        <Input id="ssh-user" className="w-64" placeholder="ubuntu" {...register("user")} />
-      </Field>
+      <TextField
+        name="user"
+        label="User"
+        hint="Blank lets ~/.ssh/config decide"
+        placeholder="ubuntu"
+        className="w-64"
+      />
 
-      <Field label="Port" htmlFor="ssh-port" error={errors.port?.message}>
-        <Input
-          id="ssh-port"
-          type="number"
-          className="w-24"
-          {...register("port", {
-            valueAsNumber: true,
-            min: { value: 1, message: "1 to 65535." },
-            max: { value: 65535, message: "1 to 65535." },
-          })}
-        />
-      </Field>
+      <NumberField name="port" label="Port" min={1} max={65535} className="w-24" />
 
-      <div className="flex justify-end gap-2 border-t border-border pt-3">
+      <FormActions className="border-t border-border pt-3">
         <Button type="button" variant="ghost" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit">Connect</Button>
-      </div>
-    </form>
+        <SubmitButton>Connect</SubmitButton>
+      </FormActions>
+    </Form>
   );
 }

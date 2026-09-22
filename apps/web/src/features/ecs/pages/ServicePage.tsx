@@ -19,6 +19,7 @@ import { CountMeter } from "~/components/meter";
 import { MetricChart } from "~/components/metric-chart";
 import { Segmented } from "~/components/segmented";
 import { TargetHealthPane } from "~/features/ecs/components/TargetHealthPane";
+import { DisabledHint, useDisabledReason } from "~/components/WriteGuard";
 import { UpdateServiceDialog } from "~/features/ecs/components/UpdateServiceDialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -62,6 +63,9 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
   const { region } = useScope();
   const [tab, setTab] = useTabSearch(SERVICE_TABS, "tasks");
   const [updating, setUpdating] = React.useState(false);
+  // Refused up front rather than at call time: the dialog would otherwise
+  // open, take a change, and only then report that writes are off.
+  const updateReason = useDisabledReason("write");
   const overlayOpen = useOverlaysOpen();
 
   const detail = useQuery(trpc.ecs.service.queryOptions({ ...scope, cluster, service }));
@@ -129,9 +133,15 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
             pending={summary.pendingCount}
           />
           <div className="ml-auto flex items-center gap-1.5">
-            <Button onClick={() => setUpdating(true)} title="Update this service">
-              <Pencil className="size-3" /> Update
-            </Button>
+            <DisabledHint reason={updateReason}>
+              <Button
+                onClick={() => setUpdating(true)}
+                disabled={updateReason !== null}
+                title="Update this service"
+              >
+                <Pencil className="size-3" /> Update
+              </Button>
+            </DisabledHint>
             <Button
               onClick={() => window.open(consoleUrl, "_blank", "noopener")}
               title="Open in the AWS console (b)"
