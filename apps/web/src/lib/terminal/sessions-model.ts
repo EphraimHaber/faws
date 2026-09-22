@@ -9,7 +9,7 @@
  * module-level map in the store, which is what keeps them out of devtools, out
  * of anything serialisable, and out of this file's way.
  */
-import type { ExecErrorCode, ExecKind, ExecPrompt } from "@faws/contracts";
+import { EXEC_KINDS, type ExecErrorCode, type ExecKind, type ExecPrompt } from "@faws/contracts";
 
 export type SessionStatus =
   | "connecting"
@@ -26,6 +26,11 @@ export interface TerminalSession {
   readonly title: string;
   /** The scope or address, shown under the title so two tabs can be told apart. */
   readonly subtitle: string;
+  /**
+   * The environment alone - a cluster, an account and region, a host, a
+   * context and namespace - which is what tabs of one kind are ordered by.
+   */
+  readonly scope: string;
   readonly status: SessionStatus;
   readonly error: { code: ExecErrorCode | string; userMessage: string } | null;
   readonly exit: { code: number | null; reason: string | null } | null;
@@ -171,7 +176,40 @@ export function nextActiveAfterClose(
 export function closeSession(state: SessionsState, id: string): SessionsState {
   if (!state.sessions.some((session) => session.id === id)) return state;
   return {
-    activeId: nextActiveAfterClose(state.sessions, id, state.activeId),
+    activeId: nextActiveAfterClose(displayOrder(state.sessions), id, state.activeId),
     sessions: state.sessions.filter((session) => session.id !== id),
   };
+}
+
+export interface SessionGroup {
+  readonly kind: ExecKind;
+  readonly sessions: ReadonlyArray<TerminalSession>;
+}
+
+/**
+ * The tabs as the dock draws them: one group per kind, in a fixed order.
+ *
+ * Kind rather than scope as the outer level, because there are at most four
+ * kinds and a group per SSH host would be a row of one-tab groups. Scope is
+ * the order inside a group, so two shells on the same cluster sit side by
+ * side; ties keep the order they were opened in.
+ */
+export function groupSessions(sessions: ReadonlyArray<TerminalSession>): SessionGroup[] {
+  return EXEC_KINDS.map((kind) => ({
+    kind,
+    sessions: sessions
+      .filter((session) => session.kind === kind)
+      .toSorted((a, b) => a.scope.localeCompare(b.scope) || a.createdAt - b.createdAt),
+  })).filter((group) => group.sessions.length > 0);
+}
+
+/**
+ * Every tab in the order it appears on screen.
+ *
+ * Closing a tab and cycling through them walk this rather than the order the
+ * tabs were opened in; otherwise the tab that becomes active is not the one
+ * beside the one that closed.
+ */
+export function displayOrder(sessions: ReadonlyArray<TerminalSession>): TerminalSession[] {
+  return groupSessions(sessions).flatMap((group) => group.sessions);
 }

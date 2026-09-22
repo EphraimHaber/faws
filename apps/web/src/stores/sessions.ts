@@ -27,6 +27,7 @@ import {
   addSession,
   applyStatus,
   closeSession as closeInModel,
+  displayOrder,
   EMPTY_SESSIONS,
   markUnread,
   setActive as setActiveInModel,
@@ -34,7 +35,7 @@ import {
   type SessionsState,
   type TerminalSession,
 } from "~/lib/terminal/sessions-model";
-import { buildHandshake, describeTarget, type ExecTarget } from "~/lib/terminal/handshake";
+import { buildHandshake, describeTarget, type ExecTarget, scopeOf } from "~/lib/terminal/handshake";
 import { OPEN_TABS_KEY, storedOpenTabs } from "~/lib/terminal/open-tabs";
 import {
   createTerminal,
@@ -197,6 +198,7 @@ export const useSessions = create<SessionsStore>((set, get) => {
           kind: target.kind,
           title,
           subtitle,
+          scope: scopeOf(target),
           recordingPath: null,
           statusMessage: null,
         }),
@@ -229,6 +231,7 @@ export const useSessions = create<SessionsStore>((set, get) => {
             kind: entry.kind,
             title: entry.title,
             subtitle: entry.subtitle,
+            scope: scopeOf(target),
             recordingPath: null,
             statusMessage: "Picking this session back up...",
           }),
@@ -257,7 +260,8 @@ export const useSessions = create<SessionsStore>((set, get) => {
     },
 
     activateRelative(delta) {
-      const { sessions, activeId } = get();
+      const { activeId } = get();
+      const sessions = displayOrder(get().sessions);
       if (sessions.length === 0) return;
       const index = sessions.findIndex((session) => session.id === activeId);
       const next = sessions[(index + delta + sessions.length) % sessions.length];

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildHandshake, describeTarget, type ExecTarget } from "./handshake.ts";
+import { buildHandshake, describeTarget, type ExecTarget, scopeOf } from "./handshake.ts";
 
 const options = {
   sessionId: "11111111-2222-3333-4444-555555555555",
@@ -236,5 +236,53 @@ describe("describeTarget", () => {
         transport: { via: "ssm-tunnel", profile: "p", region: "eu-west-1", instanceId: "i-0abc" },
       }),
     ).toEqual({ title: "i-0abc", subtitle: "ssh over ssm / eu-west-1" });
+  });
+});
+
+describe("scopeOf", () => {
+  it("scopes ECS by account and region as well as cluster, since cluster names repeat", () => {
+    expect(
+      scopeOf({
+        kind: "ecs",
+        profile: "prod",
+        region: "eu-west-1",
+        cluster: "api",
+        taskId: "abcdef0123456789",
+        containerName: "app",
+      }),
+    ).toBe("prod / eu-west-1 / api");
+  });
+
+  it("scopes SSM by account and region", () => {
+    expect(
+      scopeOf({ kind: "ssm", profile: "default", region: "eu-west-1", instanceId: "i-0abc" }),
+    ).toBe("default / eu-west-1");
+  });
+
+  it("scopes SSH by the host it lands on, whatever carries it there", () => {
+    expect(
+      scopeOf({
+        kind: "ssh",
+        user: "ec2-user",
+        transport: { via: "jump", host: "db.internal", jump: ["bastion"] },
+      } as ExecTarget),
+    ).toBe("db.internal");
+  });
+
+  it("scopes Kubernetes by context and namespace, for kubectl and virtctl alike", () => {
+    const pod: ExecTarget = {
+      kind: "kube",
+      context: "prod",
+      namespace: "web",
+      target: { tool: "kubectl", pod: "api-7d9f", command: ["/bin/sh"] },
+    };
+    const vm: ExecTarget = {
+      kind: "kube",
+      context: "prod",
+      namespace: "web",
+      target: { tool: "virtctl", mode: "console", vm: "vm-1" },
+    };
+    expect(scopeOf(pod)).toBe("prod / web");
+    expect(scopeOf(vm)).toBe("prod / web");
   });
 });

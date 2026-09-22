@@ -4,12 +4,15 @@ import {
   addSession,
   applyStatus,
   closeSession,
+  displayOrder,
   EMPTY_SESSIONS,
+  groupSessions,
   isFinished,
   markUnread,
   nextActiveAfterClose,
   setActive,
   type SessionsState,
+  type TerminalSession,
 } from "./sessions-model.ts";
 
 function withTabs(...ids: string[]): SessionsState {
@@ -20,6 +23,7 @@ function withTabs(...ids: string[]): SessionsState {
         kind: "ssm",
         title: id,
         subtitle: "default / il-central-1",
+        scope: "default / il-central-1",
         recordingPath: null,
         statusMessage: null,
       }),
@@ -164,5 +168,63 @@ describe("closing", () => {
     expect(nextActiveAfterClose(sessions, "b", "b")).toBe("c");
     expect(nextActiveAfterClose(sessions, "c", "c")).toBe("b");
     expect(nextActiveAfterClose(sessions, "a", "c")).toBe("c");
+  });
+});
+
+function tab(id: string, kind: TerminalSession["kind"], scope: string, createdAt: number) {
+  return (state: SessionsState) =>
+    addSession(state, {
+      id,
+      kind,
+      title: id,
+      subtitle: scope,
+      scope,
+      recordingPath: null,
+      statusMessage: null,
+      createdAt,
+    });
+}
+
+/** Opened in an order that matches neither the grouping nor the scope order. */
+const mixed = [
+  tab("kube-web", "kube", "prod / web", 1),
+  tab("ssm-1", "ssm", "default / il-central-1", 2),
+  tab("ecs-api", "ecs", "payments", 3),
+  tab("kube-api", "kube", "dev / api", 4),
+  tab("ecs-worker", "ecs", "billing", 5),
+  tab("kube-web-2", "kube", "prod / web", 6),
+].reduce((state, add) => add(state), EMPTY_SESSIONS);
+
+describe("grouping", () => {
+  it("groups by kind in a fixed order, leaving out kinds with no tabs", () => {
+    expect(
+      groupSessions(mixed.sessions).map((group) => [group.kind, group.sessions.length]),
+    ).toEqual([
+      ["ecs", 2],
+      ["ssm", 1],
+      ["kube", 3],
+    ]);
+  });
+
+  it("orders a group by scope, so shells on one environment sit together", () => {
+    const kube = groupSessions(mixed.sessions).find((group) => group.kind === "kube");
+    expect(kube?.sessions.map((s) => s.id)).toEqual(["kube-api", "kube-web", "kube-web-2"]);
+  });
+
+  it("lays the groups out end to end for everything that walks the tabs", () => {
+    expect(displayOrder(mixed.sessions).map((s) => s.id)).toEqual([
+      "ecs-worker",
+      "ecs-api",
+      "ssm-1",
+      "kube-api",
+      "kube-web",
+      "kube-web-2",
+    ]);
+  });
+
+  it("activates the neighbour on screen, not the one opened next", () => {
+    // Opened after ssm-1, but on screen the tab to the right of ecs-api is ssm-1.
+    const state = closeSession(setActive(mixed, "ecs-api"), "ecs-api");
+    expect(state.activeId).toBe("ssm-1");
   });
 });

@@ -145,6 +145,28 @@ function kubeTarget(target: KubeExecTarget): KubeTarget {
 }
 
 /** A short tab label and the line under it, per kind. */
+/**
+ * Which environment a session is in, for ordering tabs of one kind together.
+ *
+ * Not the subtitle: that is written to be read and varies with the transport,
+ * so a kubectl shell and a virtctl console on the same namespace would sort
+ * apart.
+ */
+export function scopeOf(target: ExecTarget): string {
+  switch (target.kind) {
+    case "ecs":
+      return `${target.profile} / ${target.region} / ${target.cluster}`;
+    case "ssm":
+      return `${target.profile} / ${target.region}`;
+    case "ssh":
+      return target.transport.via === "direct" || target.transport.via === "jump"
+        ? target.transport.host
+        : target.transport.instanceId;
+    case "kube":
+      return `${target.context} / ${target.namespace}`;
+  }
+}
+
 export function describeTarget(target: ExecTarget): { title: string; subtitle: string } {
   switch (target.kind) {
     case "ecs":
