@@ -145,7 +145,7 @@ export function SearchField({
             onBlur={() => setFocused(false)}
             placeholder={placeholder}
             className={cn(
-              "h-7 w-72 rounded-md border border-border bg-background/60 pl-7 pr-16 text-[12.5px] placeholder:text-muted-foreground/55 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/15",
+              "h-7 w-72 max-w-full rounded-md border border-border bg-background/60 pl-7 pr-16 text-[12.5px] placeholder:text-muted-foreground/55 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/15",
               typed && "border-primary/45",
               inputClassName,
             )}
