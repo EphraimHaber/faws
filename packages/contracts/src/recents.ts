@@ -42,6 +42,9 @@ export const RESOURCE_KINDS = [
   "ec2-instance",
   "ecs-cluster",
   "ecs-service",
+  "ecs-task",
+  "ecs-task-definition",
+  "ecs-container-instance",
   "ssh-host",
   "kube-context",
 ] as const;

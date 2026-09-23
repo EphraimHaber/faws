@@ -156,7 +156,9 @@ const taskRoute = createRoute({
 const taskDefinitionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ecs/task-definitions",
-  validateSearch: filterSearch,
+  validateSearch: filterSearch.extend({
+    family: z.string().max(255).optional().catch(undefined),
+  }),
   component: TaskDefinitionsPage,
 });
 

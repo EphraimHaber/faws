@@ -4,6 +4,7 @@ import { Layers } from "lucide-react";
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
+import { pinColumn } from "~/components/PinButton";
 import { FilterInput } from "~/components/toolbar";
 import { Badge } from "~/components/ui/badge";
 import { EmptyState } from "~/components/ui/empty";
@@ -12,6 +13,7 @@ import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { clusterRef } from "~/features/ecs/refs";
 import { trpc } from "~/lib/trpc";
 import type { EcsCluster } from "@faws/contracts";
 import { useFilterSearch } from "~/hooks/useSearchState";
@@ -105,8 +107,9 @@ export function ClustersPage() {
         value: (row) => (row.containerInsights ? "on" : "off"),
         cell: (row) => (row.containerInsights ? <Badge tone="info">on</Badge> : <Badge>off</Badge>),
       },
+      pinColumn((row) => clusterRef(row.name, scope)),
     ],
-    [],
+    [scope],
   );
 
   return (

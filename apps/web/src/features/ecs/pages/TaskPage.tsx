@@ -5,7 +5,10 @@ import { Box, Terminal } from "lucide-react";
 import * as React from "react";
 
 import { KeyValue, KeyValueGrid } from "~/components/kv";
+import { PinButton } from "~/components/PinButton";
 import { LogsPane } from "~/features/ecs/components/LogsPane";
+import { taskRef } from "~/features/ecs/refs";
+import { useRecordVisit } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -25,6 +28,15 @@ export function TaskPage({ cluster, taskId }: { cluster: string; taskId: string 
   const scope = useAwsScope();
   const openSession = useSessions((state) => state.open);
   const task = useQuery(trpc.ecs.task.queryOptions({ ...scope, cluster, taskId }));
+
+  // only once it loads: a task that has aged out of the API is nowhere to go back to
+  const serviceName = task.data?.serviceName;
+  const found = Boolean(task.data);
+  const target = React.useMemo(
+    () => (found ? taskRef(cluster, taskId, serviceName, scope) : null),
+    [found, cluster, taskId, serviceName, scope],
+  );
+  useRecordVisit(target);
 
   if (task.isPending)
     return (
@@ -74,6 +86,11 @@ export function TaskPage({ cluster, taskId }: { cluster: string; taskId: string 
             >
               {data.serviceName}
             </Link>
+          ) : null}
+          {target ? (
+            <div className="ml-auto">
+              <PinButton target={target} />
+            </div>
           ) : null}
         </PanelHeader>
         <KeyValueGrid className="px-3.5 py-2.5">

@@ -184,6 +184,15 @@ describe("recentsSettingsSchema", () => {
     expect(Object.keys(parsed.pinned)).toEqual(["good"]);
   });
 
+  it("reads back every ECS kind", () => {
+    const kinds = ["ecs-task", "ecs-task-definition", "ecs-container-instance"] as const;
+    const pinned = Object.fromEntries(
+      kinds.map((kind) => [kind, { ...ref({ kind, id: kind }), at: AT.toISOString() }]),
+    );
+    const parsed = recentsSettingsSchema.parse({ visited: {}, pinned });
+    expect(Object.keys(parsed.pinned)).toEqual([...kinds]);
+  });
+
   it("fills a missing scope rather than dropping the entry", () => {
     const parsed = recentsSettingsSchema.parse({
       visited: { good: { ...ref(), scope: undefined, at: AT.toISOString() } },

@@ -7,6 +7,7 @@ import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
 import { CountMeter } from "~/components/meter";
+import { pinColumn } from "~/components/PinButton";
 import { FilterInput } from "~/components/toolbar";
 import { Badge } from "~/components/ui/badge";
 import { EmptyState } from "~/components/ui/empty";
@@ -15,6 +16,7 @@ import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { serviceRef } from "~/features/ecs/refs";
 import { serviceTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
 import { useFilterSearch } from "~/hooks/useSearchState";
@@ -140,8 +142,9 @@ export function DeploymentsPage() {
           </span>
         ),
       },
+      pinColumn((row) => serviceRef(row.clusterName, row.name, scope)),
     ],
-    [],
+    [scope],
   );
 
   if (clusters.isError) {

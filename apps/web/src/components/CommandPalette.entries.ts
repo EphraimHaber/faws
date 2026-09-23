@@ -1,5 +1,14 @@
 import type { RecentEntry, ResourceKind } from "@faws/contracts";
-import { Boxes, Folder, HardDrive, Layers, Server, TerminalSquare } from "lucide-react";
+import {
+  Box,
+  Boxes,
+  FileJson,
+  Folder,
+  HardDrive,
+  Layers,
+  Server,
+  TerminalSquare,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { AWS_SERVICES, type NavCapabilities, visibleSections } from "~/services/registry";
@@ -151,6 +160,9 @@ const KIND_ICON: Record<ResourceKind, LucideIcon> = {
   "ec2-instance": Server,
   "ecs-cluster": Layers,
   "ecs-service": Boxes,
+  "ecs-task": Box,
+  "ecs-task-definition": FileJson,
+  "ecs-container-instance": Server,
   "ssh-host": TerminalSquare,
   "kube-context": Layers,
 };

@@ -1,4 +1,4 @@
-import type { EcsContainerInstance, EcsService, EcsTask, ResourceRef } from "@faws/contracts";
+import type { EcsContainerInstance, EcsService, EcsTask } from "@faws/contracts";
 import { relativeTime } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -6,7 +6,7 @@ import { AlertTriangle, Boxes, Cpu, ScrollText, Server, TerminalSquare } from "l
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
-import { PinButton } from "~/components/PinButton";
+import { PinButton, pinColumn } from "~/components/PinButton";
 import { CountMeter } from "~/components/meter";
 import { Segmented } from "~/components/segmented";
 import { FilterInput } from "~/components/toolbar";
@@ -25,6 +25,7 @@ import { cpuLabel, memoryLabel, uptimeLabel } from "~/lib/format";
 import { serviceTone, taskTone } from "~/lib/status";
 import { HiddenCount, SilenceMenu } from "~/components/SilenceMenu";
 import { TaskLogsDrawer } from "~/features/ecs/components/TaskLogsDrawer";
+import { clusterRef, containerInstanceRef, serviceRef, taskRef } from "~/features/ecs/refs";
 import { partitionSilenced, useSilenced, useServiceSilence } from "~/stores/silenced";
 import { trpc } from "~/lib/trpc";
 import { useTabSearch } from "~/hooks/useTabSearch";
@@ -44,17 +45,7 @@ export function ClusterPage({ cluster }: { cluster: string }) {
   // The cluster, not the tab: which of its four lists you last had open is a
   // view onto the same place, and remembering four of them would fill the rail
   // with one cluster.
-  const target = React.useMemo<ResourceRef>(
-    () => ({
-      kind: "ecs-cluster",
-      id: cluster,
-      label: cluster,
-      detail: "cluster",
-      scope: { profile: scope.profile, region: scope.region, connectionId: "" },
-      to: `/ecs/clusters/${encodeURIComponent(cluster)}`,
-    }),
-    [cluster, scope.profile, scope.region],
-  );
+  const target = React.useMemo(() => clusterRef(cluster, scope), [cluster, scope]);
   useRecordVisit(target);
 
   const services = useQuery({
@@ -113,7 +104,9 @@ export function ClusterPage({ cluster }: { cluster: string }) {
           emptyLabel="No stopped tasks in the retention window"
         />
       ) : null}
-      {tab === "instances" ? <InstancesTable query={instances} filter={filter} /> : null}
+      {tab === "instances" ? (
+        <InstancesTable cluster={cluster} query={instances} filter={filter} />
+      ) : null}
     </Panel>
   );
 }
@@ -136,6 +129,7 @@ function ServicesTable({
   filter: string;
 }) {
   const [, setFilter] = useFilterSearch();
+  const scope = useAwsScope();
   const navigate = useNavigate();
   const dismissed = useSilenced((state) => state.dismissed);
   const muted = useSilenced((state) => state.muted);
@@ -234,8 +228,9 @@ function ServicesTable({
         value: (row) => row.failedTasks,
         cell: (row) => <FailureCell service={row} />,
       },
+      pinColumn((row) => serviceRef(cluster, row.name, scope)),
     ],
-    [],
+    [cluster, scope],
   );
 
   if (query.isPending) return <LoadingRows />;
@@ -365,6 +360,7 @@ function TasksTable({
   emptyLabel: string;
 }) {
   const [, setFilter] = useFilterSearch();
+  const scope = useAwsScope();
   const navigate = useNavigate();
   const [logsFor, setLogsFor] = React.useState<EcsTask | null>(null);
 
@@ -468,8 +464,9 @@ function TasksTable({
           </button>
         ),
       },
+      pinColumn((row) => taskRef(cluster, row.id, row.serviceName, scope)),
     ],
-    [],
+    [cluster, scope],
   );
 
   if (query.isPending) return <LoadingRows />;
@@ -498,9 +495,11 @@ function TasksTable({
 }
 
 function InstancesTable({
+  cluster,
   query,
   filter,
 }: {
+  cluster: string;
   query: QueryLike<EcsContainerInstance>;
   filter: string;
 }) {
@@ -614,8 +613,9 @@ function InstancesTable({
             </Button>
           ) : null,
       },
+      pinColumn((row) => containerInstanceRef(cluster, row, scope)),
     ],
-    [openSession, scope.profile, scope.region],
+    [cluster, openSession, scope],
   );
 
   if (query.isPending) return <LoadingRows />;

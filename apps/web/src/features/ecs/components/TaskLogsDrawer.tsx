@@ -2,7 +2,10 @@ import type { EcsTask } from "@faws/contracts";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, X } from "lucide-react";
 
+import { PinButton } from "~/components/PinButton";
+import { useAwsScope } from "~/contexts/ScopeContext";
 import { LogsPane } from "~/features/ecs/components/LogsPane";
+import { taskRef } from "~/features/ecs/refs";
 import { StatusDot } from "~/components/ui/status-dot";
 import { taskTone } from "~/lib/status";
 
@@ -15,6 +18,7 @@ import { taskTone } from "~/lib/status";
  * loses the rollout panel you were watching.
  */
 export function TaskLogsDrawer({ task, onClose }: { task: EcsTask; onClose: () => void }) {
+  const scope = useAwsScope();
   const tone = taskTone(task);
 
   return (
@@ -28,6 +32,10 @@ export function TaskLogsDrawer({ task, onClose }: { task: EcsTask; onClose: () =
         ) : null}
 
         <div className="ml-auto flex items-center gap-1.5">
+          <PinButton
+            className="size-5"
+            target={taskRef(task.clusterName, task.id, task.serviceName, scope)}
+          />
           <Link
             to="/ecs/clusters/$cluster/tasks/$taskId"
             params={{ cluster: task.clusterName, taskId: task.id }}

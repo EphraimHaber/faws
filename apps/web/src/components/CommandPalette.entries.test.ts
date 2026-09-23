@@ -1,8 +1,10 @@
+import { RESOURCE_KINDS } from "@faws/contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   entryText,
   groupBoost,
+  kindIcon,
   navEntries,
   shellEntries,
   type PaletteEntry,
@@ -116,5 +118,11 @@ describe("group ordering", () => {
       groupBoost,
     );
     expect(ranked[0]?.label).toBe("prod");
+  });
+});
+
+describe("kindIcon", () => {
+  it("has an icon for every kind a pin can be", () => {
+    for (const kind of RESOURCE_KINDS) expect(kindIcon(kind)).toBeDefined();
   });
 });

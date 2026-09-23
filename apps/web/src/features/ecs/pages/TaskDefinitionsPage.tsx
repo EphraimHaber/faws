@@ -3,6 +3,7 @@ import { FileJson } from "lucide-react";
 import * as React from "react";
 
 import { JsonViewer } from "~/components/JsonViewer";
+import { PinButton } from "~/components/PinButton";
 import { FilterInput } from "~/components/toolbar";
 import { Badge } from "~/components/ui/badge";
 import { CopyButton } from "~/components/ui/copy-button";
@@ -11,10 +12,12 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { taskDefinitionRef } from "~/features/ecs/refs";
 import { cpuLabel, memoryLabel } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
-import { useFilterSearch } from "~/hooks/useSearchState";
+import { parseText, useFilterSearch, useSearchState } from "~/hooks/useSearchState";
+import { useRecordVisit } from "~/stores/recents";
 
 /**
  * Families on the left, the selected revision's JSON on the right.
@@ -26,17 +29,30 @@ import { useFilterSearch } from "~/hooks/useSearchState";
 export function TaskDefinitionsPage() {
   const scope = useAwsScope();
   const [filter, setFilter] = useFilterSearch();
-  const [family, setFamily] = React.useState<string | null>(null);
-  // null means "whichever revision is newest"; picking one pins it until the
-  // family changes.
-  const [pinnedRevision, setPinnedRevision] = React.useState<string | null>(null);
+  // in the url so a link or a pin reopens the same family
+  const [familyParam, setFamilyParam] = useSearchState<string>({
+    key: "family",
+    fallback: "",
+    parse: parseText,
+  });
+  const family = familyParam || null;
+  // no choice means "whichever revision is newest". tagged with its family so a
+  // family change from the url (back button, a pin) drops it too.
+  const [chosen, setChosen] = React.useState<{ family: string; arn: string } | null>(null);
+  const chosenRevision = chosen && chosen.family === family ? chosen.arn : null;
+
+  const target = React.useMemo(
+    () => (family ? taskDefinitionRef(family, scope) : null),
+    [family, scope],
+  );
+  useRecordVisit(target);
 
   const families = useQuery(trpc.ecs.taskDefinitionFamilies.queryOptions(scope));
   const revisions = useQuery({
     ...trpc.ecs.taskDefinitionRevisions.queryOptions({ ...scope, family: family ?? "" }),
     enabled: Boolean(family),
   });
-  const revision = pinnedRevision ?? revisions.data?.[0] ?? null;
+  const revision = chosenRevision ?? revisions.data?.[0] ?? null;
 
   const definition = useQuery({
     ...trpc.ecs.taskDefinition.queryOptions({ ...scope, taskDefinition: revision ?? "" }),
@@ -67,24 +83,24 @@ export function TaskDefinitionsPage() {
             <ErrorState error={families.error} onRetry={() => void families.refetch()} />
           ) : null}
           {visible.map((name) => (
-            <button
+            <div
               key={name}
-              type="button"
-              onClick={() => {
-                // Clearing the pin here is what stops the JSON pane showing a
-                // revision belonging to the family you just left.
-                setFamily(name);
-                setPinnedRevision(null);
-              }}
               className={cn(
-                "w-full cursor-pointer truncate rounded px-2 py-1.5 text-left font-mono text-[12px] transition-colors",
+                "group flex items-center rounded pr-0.5 transition-colors",
                 name === family
                   ? "bg-accent text-foreground"
                   : "text-muted-foreground hover:bg-accent/60",
               )}
             >
-              {name}
-            </button>
+              <button
+                type="button"
+                onClick={() => setFamilyParam(name)}
+                className="min-w-0 flex-1 cursor-pointer truncate px-2 py-1.5 text-left font-mono text-[12px]"
+              >
+                {name}
+              </button>
+              <PinButton quiet target={taskDefinitionRef(name, scope)} />
+            </div>
           ))}
         </div>
       </Panel>
@@ -99,7 +115,7 @@ export function TaskDefinitionsPage() {
                 <button
                   key={arn}
                   type="button"
-                  onClick={() => setPinnedRevision(arn)}
+                  onClick={() => family && setChosen({ family, arn })}
                   className={cn(
                     "cursor-pointer rounded px-1.5 py-0.5 font-mono text-[11px] transition-colors",
                     arn === revision
@@ -122,6 +138,7 @@ export function TaskDefinitionsPage() {
           </div>
           {definition.data ? (
             <div className="ml-auto flex items-center gap-1.5">
+              {target ? <PinButton target={target} /> : null}
               <CopyButton
                 variant="ghost"
                 size="icon"

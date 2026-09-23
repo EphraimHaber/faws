@@ -6,6 +6,7 @@ import { AlertTriangle, ArrowRight, Check, Layers, Rocket } from "lucide-react";
 import * as React from "react";
 
 import { CountMeter } from "~/components/meter";
+import { PinButton } from "~/components/PinButton";
 import { Badge } from "~/components/ui/badge";
 import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
@@ -15,6 +16,7 @@ import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
 import { TextAction } from "~/components/ui/text-action";
 import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { clusterRef, serviceRef } from "~/features/ecs/refs";
 import { serviceTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
 import { HiddenCount, SilenceMenu } from "~/components/SilenceMenu";
@@ -96,22 +98,27 @@ function JumpBackIn() {
         {rows.map((row) => {
           const Icon = kindIcon(row.kind);
           return (
-            <Link
+            <div
               key={row.to}
-              to={row.to}
-              className="flex min-w-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-accent/60"
+              className="group flex min-w-0 items-center rounded-md pr-1 transition-colors hover:bg-accent/60"
             >
-              <Icon className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={1.8} />
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-[12.5px]">{row.label}</span>
-                <span className="truncate font-mono text-[10.5px] text-muted-foreground">
-                  {row.detail || row.kind}
+              <Link
+                to={row.to}
+                className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-2.5 text-left"
+              >
+                <Icon className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={1.8} />
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate text-[12.5px]">{row.label}</span>
+                  <span className="truncate font-mono text-[10.5px] text-muted-foreground">
+                    {row.detail || row.kind}
+                  </span>
                 </span>
-              </span>
-              <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/70">
-                {relativeTime(row.at)}
-              </span>
-            </Link>
+                <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/70">
+                  {relativeTime(row.at)}
+                </span>
+              </Link>
+              <PinButton quiet target={row} />
+            </div>
           );
         })}
       </div>
@@ -519,11 +526,12 @@ function ServiceRow({
   silenced?: boolean;
 }) {
   const navigate = useNavigate();
+  const scope = useAwsScope();
   const restore = useSilenced((state) => state.restore);
   const tone = serviceTone(service.deploymentState);
 
   return (
-    <li className="flex items-center">
+    <li className="group/row flex items-center">
       <button
         type="button"
         onClick={() =>
@@ -560,13 +568,14 @@ function ServiceRow({
         >
           {relativeTime(service.lastDeploymentAt)}
         </span>
-        <ArrowRight
-          className={cn(
-            "size-3 shrink-0 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground",
-            !silenceable && !silenced && "mr-2",
-          )}
-        />
+        <ArrowRight className="size-3 shrink-0 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground" />
       </button>
+
+      <PinButton
+        quiet
+        target={serviceRef(service.clusterName, service.name, scope)}
+        className={cn("group-hover/row:opacity-100", !silenceable && !silenced && "mr-2")}
+      />
 
       {silenceable ? (
         <span className="shrink-0 pr-2.5 pl-1">
@@ -586,12 +595,13 @@ function ServiceRow({
 }
 
 function ClusterRow({ cluster }: { cluster: EcsCluster }) {
+  const scope = useAwsScope();
   return (
-    <li>
+    <li className="group/row flex items-center pr-2 transition-colors hover:bg-accent">
       <Link
         to="/ecs/clusters/$cluster"
         params={{ cluster: cluster.name }}
-        className="group flex items-center gap-3 px-4 py-2 transition-colors hover:bg-accent"
+        className="group flex min-w-0 flex-1 items-center gap-3 py-2 pl-4"
       >
         <StatusDot
           tone={cluster.status === "ACTIVE" ? "success" : "neutral"}
@@ -603,6 +613,11 @@ function ClusterRow({ cluster }: { cluster: EcsCluster }) {
         </span>
         <ArrowRight className="size-3 shrink-0 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground" />
       </Link>
+      <PinButton
+        quiet
+        target={clusterRef(cluster.name, scope)}
+        className="group-hover/row:opacity-100"
+      />
     </li>
   );
 }

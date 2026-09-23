@@ -6,12 +6,14 @@ import * as React from "react";
 
 import { kindIcon } from "~/components/CommandPalette.entries";
 import { EntityRow } from "~/components/entity-row";
+import { PinButton } from "~/components/PinButton";
 import { ResizeHandle } from "~/components/ui/resize-handle";
 import { SectionHeader } from "~/components/ui/section-header";
 import { StatusDot } from "~/components/ui/status-dot";
 import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "@faws/contracts";
 import { AWS_SERVICES, type AwsServiceDefinition, visibleSections } from "~/services/registry";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { clusterRef } from "~/features/ecs/refs";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { trpc } from "~/lib/trpc";
 import { type RecentEntry, usePinnedList, useRecentList } from "~/stores/recents";
@@ -122,7 +124,7 @@ export function AppSidebar() {
         {/* Hidden when empty rather than shown as an empty state: a rail that
             is all headings on a fresh install teaches nothing, and these two
             fill themselves in the course of using the app. */}
-        <RefSection title="Pinned" rows={pinned} here={location.href} />
+        <RefSection title="Pinned" rows={pinned} here={location.href} pinned />
         <RefSection title="Recent" rows={recent} here={location.href} />
 
         <SectionHeader
@@ -159,24 +161,29 @@ export function AppSidebar() {
             const to = `/ecs/clusters/${encodeURIComponent(cluster.name)}`;
             const busy = cluster.pendingTasks > 0;
             return (
-              <EntityRow
-                key={cluster.arn}
-                dense
-                to={to}
-                active={location.pathname.startsWith(to)}
-                icon={
-                  <StatusDot
-                    tone={cluster.status === "ACTIVE" ? (busy ? "warning" : "success") : "neutral"}
-                    pulse={busy}
-                  />
-                }
-                label={cluster.name}
-                actions={
-                  <span className="font-mono text-[10px] text-muted-foreground tabular">
-                    {cluster.activeServices}·{cluster.runningTasks}
-                  </span>
-                }
-              />
+              <div key={cluster.arn} className="group flex items-center gap-0.5">
+                <EntityRow
+                  dense
+                  to={to}
+                  active={location.pathname.startsWith(to)}
+                  icon={
+                    <StatusDot
+                      tone={
+                        cluster.status === "ACTIVE" ? (busy ? "warning" : "success") : "neutral"
+                      }
+                      pulse={busy}
+                    />
+                  }
+                  label={cluster.name}
+                  actions={
+                    <span className="font-mono text-[10px] text-muted-foreground tabular">
+                      {cluster.activeServices}·{cluster.runningTasks}
+                    </span>
+                  }
+                  className="min-w-0 flex-1"
+                />
+                <PinButton quiet target={clusterRef(cluster.name, scope)} />
+              </div>
             );
           })}
 
@@ -210,11 +217,14 @@ function RefSection({
   title,
   rows,
   here,
+  pinned = false,
 }: {
   title: string;
   rows: ReadonlyArray<RecentEntry>;
   /** The current path *with* its search, which is what a stored `to` is. */
   here: string;
+  /** Every row here is pinned, so the mark only shows on hover, as a way to unpin. */
+  pinned?: boolean;
 }) {
   if (rows.length === 0) return null;
 
@@ -225,21 +235,30 @@ function RefSection({
         {rows.map((row) => {
           const Icon = kindIcon(row.kind);
           return (
-            <EntityRow
-              key={row.to}
-              dense
-              to={row.to}
-              // Compared against the search too, not just the path: two
-              // prefixes in one bucket are two rows, and only one of them is
-              // the one being looked at.
-              active={here === row.to}
-              icon={<Icon className="size-3.5 shrink-0" strokeWidth={1.8} />}
-              label={row.label}
-              // The second line goes in the tooltip rather than under the
-              // name: the rail is eight rows deep at most and a bucket's
-              // prefix is longer than the rail is wide.
-              title={row.detail ? `${row.label} - ${row.detail}` : row.label}
-            />
+            <div key={row.to} className="group flex items-center gap-0.5">
+              <EntityRow
+                dense
+                to={row.to}
+                // Compared against the search too, not just the path: two
+                // prefixes in one bucket are two rows, and only one of them is
+                // the one being looked at.
+                active={here === row.to}
+                icon={<Icon className="size-3.5 shrink-0" strokeWidth={1.8} />}
+                label={row.label}
+                // The second line goes in the tooltip rather than under the
+                // name: the rail is eight rows deep at most and a bucket's
+                // prefix is longer than the rail is wide.
+                title={row.detail ? `${row.label} - ${row.detail}` : row.label}
+                className="min-w-0 flex-1"
+              />
+              <PinButton
+                quiet
+                target={row}
+                className={cn(
+                  pinned && "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+                )}
+              />
+            </div>
           );
         })}
       </div>

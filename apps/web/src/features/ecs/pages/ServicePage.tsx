@@ -1,4 +1,4 @@
-import type { EcsTask, ResourceRef } from "@faws/contracts";
+import type { EcsTask } from "@faws/contracts";
 import { relativeTime } from "@faws/shared";
 import { useHotkeys } from "@tanstack/react-hotkeys";
 import { useQuery } from "@tanstack/react-query";
@@ -7,7 +7,7 @@ import { ExternalLink, Pencil, Rocket, ScrollText } from "lucide-react";
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
-import { PinButton } from "~/components/PinButton";
+import { PinButton, pinColumn } from "~/components/PinButton";
 import { DeploymentHistory } from "~/features/ecs/components/DeploymentHistory";
 import {
   DeploymentProgress,
@@ -16,6 +16,7 @@ import {
 import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { LogsPane } from "~/features/ecs/components/LogsPane";
 import { TaskLogsDrawer } from "~/features/ecs/components/TaskLogsDrawer";
+import { serviceRef, taskRef } from "~/features/ecs/refs";
 import { CountMeter } from "~/components/meter";
 import { MetricChart } from "~/components/metric-chart";
 import { Segmented } from "~/components/segmented";
@@ -82,18 +83,10 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
 
   // Recorded from the route rather than from `detail.data`, so a service whose
   // summary is still loading - or has just failed to load - still counts as
-  // somewhere you went. The cluster is the detail line because a service name
-  // on its own is ambiguous across clusters and the key is not.
-  const target = React.useMemo<ResourceRef>(
-    () => ({
-      kind: "ecs-service",
-      id: `${cluster}/${service}`,
-      label: service,
-      detail: cluster,
-      scope: { profile: scope.profile, region: scope.region, connectionId: "" },
-      to: `/ecs/clusters/${encodeURIComponent(cluster)}/services/${encodeURIComponent(service)}`,
-    }),
-    [cluster, service, scope.profile, scope.region],
+  // somewhere you went.
+  const target = React.useMemo(
+    () => serviceRef(cluster, service, scope),
+    [cluster, service, scope],
   );
   useRecordVisit(target);
 
@@ -281,6 +274,7 @@ function ServiceTasks({
     refetch: () => unknown;
   };
 }) {
+  const scope = useAwsScope();
   const navigate = useNavigate();
   const [logsFor, setLogsFor] = React.useState<EcsTask | null>(null);
 
@@ -396,8 +390,9 @@ function ServiceTasks({
           </button>
         ),
       },
+      pinColumn((row) => taskRef(cluster, row.id, row.serviceName, scope)),
     ],
-    [],
+    [cluster, scope],
   );
 
   if (query.isPending) return <LoadingRows />;
