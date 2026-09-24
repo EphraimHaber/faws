@@ -91,6 +91,27 @@ export function deploymentIdFromEvent(message: string): string | null {
   return /\(deployment (ecs-svc\/\d+)\)/.exec(message)?.[1] ?? null;
 }
 
+/** How long a finished rollout stays on screen, in green, before it is put away. */
+export const DEPLOYED_LINGER_MS = 2 * 60_000;
+
+// a rollout that took longer than this to settle is a scale of an old deployment, which also bumps updatedAt
+const MAX_ROLLOUT_MS = 60 * 60_000;
+
+/**
+ * The moment a service's finished rollout should stop being shown, or null
+ * when it has none worth showing.
+ */
+export function deployedUntil(service: EcsService): number | null {
+  if (service.deploymentState !== "steady" || !service.steadySince || !service.lastDeploymentAt) {
+    return null;
+  }
+  const settled = Date.parse(service.steadySince);
+  const started = Date.parse(service.lastDeploymentAt);
+  if (Number.isNaN(settled) || Number.isNaN(started)) return null;
+  if (settled - started > MAX_ROLLOUT_MS) return null;
+  return settled + DEPLOYED_LINGER_MS;
+}
+
 export type RolloutStepState = "done" | "active" | "pending" | "failed";
 
 export interface RolloutStep {
@@ -108,6 +129,8 @@ export interface RolloutView {
   readonly percent: number;
   readonly rollingBack: boolean;
   readonly failing: boolean;
+  /** Every step is done: ECS reports the rollout complete and the old revision is gone. */
+  readonly settled: boolean;
   /** AWS's own explanation, when it gave one. */
   readonly reason: string | null;
 }
@@ -205,6 +228,7 @@ export function rolloutView(
     percent,
     rollingBack,
     failing,
+    settled: steady && !rollingBack,
     reason: primary.rolloutStateReason,
   };
 }

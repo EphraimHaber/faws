@@ -17,6 +17,7 @@ import { StatusDot } from "~/components/ui/status-dot";
 import { TextAction } from "~/components/ui/text-action";
 import { useAwsScope, useScope } from "~/contexts/ScopeContext";
 import { clusterRef, serviceRef } from "~/features/ecs/refs";
+import { deployedUntil } from "~/lib/deployment";
 import { serviceTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
 import { HiddenCount, SilenceMenu } from "~/components/SilenceMenu";
@@ -32,6 +33,7 @@ import {
 } from "~/stores/recents";
 import { partitionSilenced, useSilenced } from "~/stores/silenced";
 import { cn } from "~/lib/utils";
+import { useNowUntil } from "~/hooks/useNowUntil";
 import { useFilterSearch } from "~/hooks/useSearchState";
 
 /**
@@ -310,10 +312,17 @@ function EcsOverview() {
     return partitionSilenced({ dismissed, muted }, failing);
   }, [services, dismissed, muted]);
 
+  const deployedDeadlines = React.useMemo(() => services.map(deployedUntil), [services]);
+  const now = useNowUntil(deployedDeadlines);
   const deploying = React.useMemo(
-    () => services.filter((service) => service.deploymentState === "deploying"),
-    [services],
+    () =>
+      services.filter(
+        (service, index) =>
+          service.deploymentState === "deploying" || (deployedDeadlines[index] ?? 0) > now,
+      ),
+    [services, deployedDeadlines, now],
   );
+  const allDeployed = deploying.every((service) => service.deploymentState === "steady");
 
   const ranks = usePinnedRanks();
   const visibleClusters = React.useMemo(() => {
@@ -378,10 +387,10 @@ function EcsOverview() {
       </Panel>
 
       {deploying.length > 0 ? (
-        <Panel className="shrink-0 border-info/45">
-          <PanelHeader className="bg-info/8">
-            <StatusDot tone="info" pulse />
-            <PanelTitle>Deploying now</PanelTitle>
+        <Panel className={cn("shrink-0", allDeployed ? "border-success/45" : "border-info/45")}>
+          <PanelHeader className={allDeployed ? "bg-success/8" : "bg-info/8"}>
+            <StatusDot tone={allDeployed ? "success" : "info"} pulse={!allDeployed} />
+            <PanelTitle>{allDeployed ? "Just deployed" : "Deploying now"}</PanelTitle>
             <span className="font-mono text-[11px] text-muted-foreground tabular">
               {deploying.length}
             </span>

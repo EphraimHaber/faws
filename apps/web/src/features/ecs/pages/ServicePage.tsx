@@ -32,10 +32,11 @@ import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
 import { useAwsScope, useScope } from "~/contexts/ScopeContext";
 import { fullTimestamp } from "~/lib/format";
-import { classifyEvent, type ClassifiedEvent } from "~/lib/deployment";
+import { classifyEvent, type ClassifiedEvent, deployedUntil } from "~/lib/deployment";
 import { describe } from "~/lib/hotkeys";
 import { useOverlaysOpen } from "~/stores/overlays";
 import { useRecordVisit } from "~/stores/recents";
+import { useNowUntil } from "~/hooks/useNowUntil";
 import { useTabSearch } from "~/hooks/useTabSearch";
 import { serviceTone, taskTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
@@ -80,6 +81,8 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
     ...trpc.ecs.metrics.queryOptions({ ...scope, cluster, service, windowMinutes: 180 }),
     enabled: tab === "metrics",
   });
+  const deployedDeadline = detail.data ? deployedUntil(detail.data.service) : null;
+  const now = useNowUntil([deployedDeadline]);
 
   // Recorded from the route rather than from `detail.data`, so a service whose
   // summary is still loading - or has just failed to load - still counts as
@@ -127,7 +130,10 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
   const { service: summary, deployments, events } = detail.data;
   const tone = serviceTone(summary.deploymentState);
   const classified = events.map(classifyEvent);
-  const rolling = summary.deploymentState === "deploying" || summary.deploymentState === "degraded";
+  const rolling =
+    summary.deploymentState === "deploying" ||
+    summary.deploymentState === "degraded" ||
+    (deployedDeadline ?? 0) > now;
   const settledFailure =
     !rolling && deployments.find((d) => d.status === "PRIMARY")?.rolloutState === "FAILED";
   return (

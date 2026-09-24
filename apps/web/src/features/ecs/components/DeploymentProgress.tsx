@@ -68,24 +68,36 @@ export function DeploymentProgress({
 
   if (!view) return null;
 
-  const { primary, superseded, failing, rollingBack, percent } = view;
+  const { primary, superseded, failing, rollingBack, settled, percent } = view;
+  const tone = rollingBack ? "danger" : failing ? "warning" : settled ? "success" : "info";
 
   return (
     <Panel
       className={cn(
         "shrink-0",
-        rollingBack ? "border-danger/45" : failing ? "border-warning/45" : "border-info/45",
+        tone === "danger"
+          ? "border-danger/45"
+          : tone === "warning"
+            ? "border-warning/45"
+            : tone === "success"
+              ? "border-success/45"
+              : "border-info/45",
       )}
     >
       <PanelHeader
-        className={cn(rollingBack ? "bg-danger/8" : failing ? "bg-warning/8" : "bg-info/8")}
+        className={cn(
+          tone === "danger"
+            ? "bg-danger/8"
+            : tone === "warning"
+              ? "bg-warning/8"
+              : tone === "success"
+                ? "bg-success/8"
+                : "bg-info/8",
+        )}
       >
-        <StatusDot
-          tone={rollingBack ? "danger" : failing ? "warning" : "info"}
-          pulse={!rollingBack}
-        />
+        <StatusDot tone={tone} pulse={!rollingBack && !settled} />
         <PanelTitle className="text-[12px] tracking-normal text-foreground normal-case">
-          {rollingBack ? "Rolling back" : "Deploying"}
+          {rollingBack ? "Rolling back" : settled ? "Deployed" : "Deploying"}
         </PanelTitle>
 
         <span className="flex items-baseline gap-1.5 font-mono text-[11.5px]">
@@ -100,10 +112,15 @@ export function DeploymentProgress({
           <span className="text-foreground">{primary.taskDefinition}</span>
         </span>
 
-        <ProgressBar percent={percent} failing={failing} rollingBack={rollingBack} />
+        <ProgressBar percent={percent} tone={tone} />
 
-        <span className="font-mono text-[10.5px] text-muted-foreground tabular">
-          started {relativeTime(primary.createdAt)}
+        <span
+          className="font-mono text-[10.5px] text-muted-foreground tabular"
+          title={fullTimestamp(settled ? primary.updatedAt : primary.createdAt)}
+        >
+          {settled
+            ? `finished ${relativeTime(primary.updatedAt)}`
+            : `started ${relativeTime(primary.createdAt)}`}
         </span>
 
         <div className="ml-auto flex items-center gap-2">
@@ -182,12 +199,10 @@ export function DeploymentProgress({
 
 function ProgressBar({
   percent,
-  failing,
-  rollingBack,
+  tone,
 }: {
   percent: number;
-  failing: boolean;
-  rollingBack: boolean;
+  tone: "danger" | "warning" | "success" | "info";
 }) {
   return (
     <span className="flex items-center gap-2">
@@ -195,7 +210,13 @@ function ProgressBar({
         <span
           className={cn(
             "absolute inset-y-0 left-0 rounded-full transition-[width] duration-500",
-            rollingBack ? "bg-danger" : failing ? "bg-warning" : "bg-info",
+            tone === "danger"
+              ? "bg-danger"
+              : tone === "warning"
+                ? "bg-warning"
+                : tone === "success"
+                  ? "bg-success"
+                  : "bg-info",
           )}
           style={{ width: `${percent}%` }}
         />
