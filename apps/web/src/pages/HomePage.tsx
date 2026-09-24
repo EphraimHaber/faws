@@ -22,7 +22,14 @@ import { trpc } from "~/lib/trpc";
 import { HiddenCount, SilenceMenu } from "~/components/SilenceMenu";
 import { AWS_SERVICES, resolveService, type AwsServiceDefinition } from "~/services/registry";
 import { kindIcon } from "~/components/CommandPalette.entries";
-import { usePinnedList, useRecentList } from "~/stores/recents";
+import {
+  PIN_DROP_CLASS,
+  pinnedFirst,
+  usePinDrag,
+  usePinnedList,
+  usePinnedRanks,
+  useRecentList,
+} from "~/stores/recents";
 import { partitionSilenced, useSilenced } from "~/stores/silenced";
 import { cn } from "~/lib/utils";
 import { useFilterSearch } from "~/hooks/useSearchState";
@@ -86,6 +93,7 @@ function JumpBackIn() {
   const pinned = usePinnedList(JUMP_BACK_CAP);
   const recent = useRecentList(JUMP_BACK_CAP - pinned.length);
   const rows = [...pinned, ...recent];
+  const pinDrag = usePinDrag();
 
   if (rows.length === 0) return null;
 
@@ -100,7 +108,11 @@ function JumpBackIn() {
           return (
             <div
               key={row.to}
-              className="group flex min-w-0 items-center rounded-md pr-1 transition-colors hover:bg-accent/60"
+              {...pinDrag(row)}
+              className={cn(
+                "group flex min-w-0 items-center rounded-md pr-1 transition-colors hover:bg-accent/60",
+                PIN_DROP_CLASS,
+              )}
             >
               <Link
                 to={row.to}
@@ -303,12 +315,15 @@ function EcsOverview() {
     [services],
   );
 
+  const ranks = usePinnedRanks();
   const visibleClusters = React.useMemo(() => {
     const query = clusterSearch.trim().toLowerCase();
-    return query.length === 0
-      ? clusterList
-      : clusterList.filter((cluster) => cluster.name.toLowerCase().includes(query));
-  }, [clusterList, clusterSearch]);
+    const matching =
+      query.length === 0
+        ? clusterList
+        : clusterList.filter((cluster) => cluster.name.toLowerCase().includes(query));
+    return pinnedFirst(matching, ranks, (cluster) => clusterRef(cluster.name, scope));
+  }, [clusterList, clusterSearch, ranks, scope]);
 
   const recent = React.useMemo(() => {
     const query = recentSearch.trim().toLowerCase();
@@ -596,8 +611,16 @@ function ServiceRow({
 
 function ClusterRow({ cluster }: { cluster: EcsCluster }) {
   const scope = useAwsScope();
+  const pinDrag = usePinDrag();
+  const target = clusterRef(cluster.name, scope);
   return (
-    <li className="group/row flex items-center pr-2 transition-colors hover:bg-accent">
+    <li
+      {...pinDrag(target)}
+      className={cn(
+        "group/row flex items-center pr-2 transition-colors hover:bg-accent",
+        PIN_DROP_CLASS,
+      )}
+    >
       <Link
         to="/ecs/clusters/$cluster"
         params={{ cluster: cluster.name }}
@@ -613,11 +636,7 @@ function ClusterRow({ cluster }: { cluster: EcsCluster }) {
         </span>
         <ArrowRight className="size-3 shrink-0 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground" />
       </Link>
-      <PinButton
-        quiet
-        target={clusterRef(cluster.name, scope)}
-        className="group-hover/row:opacity-100"
-      />
+      <PinButton quiet target={target} className="group-hover/row:opacity-100" />
     </li>
   );
 }

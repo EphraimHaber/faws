@@ -102,6 +102,15 @@ export const recentsSettingsSchema = z.object({
   visited: refMapSchema,
   /** Everywhere you said to keep, until you say otherwise. */
   pinned: refMapSchema,
+  /**
+   * The pinned keys in the order they were arranged, first first.
+   *
+   * Beside the map rather than a field on each entry, so a move is one write
+   * to one list rather than a renumbering of every pin. It may lag the map -
+   * a file written before it existed has none - and `pinnedKeys` is what
+   * reconciles the two, so a pin missing from here is listed, not lost.
+   */
+  order: z.array(z.string()).catch([]),
 });
 
 export type RecentsSettings = z.infer<typeof recentsSettingsSchema>;
@@ -129,7 +138,7 @@ export function resourceKey(ref: ResourceRef): string {
 }
 
 /**
- * The five things a person can do to what the app remembers.
+ * The six things a person can do to what the app remembers.
  *
  * `at` is server-assigned and so is not an input, exactly as with
  * `silenceOpSchema`: a client with a wrong clock would otherwise decide which
@@ -140,6 +149,8 @@ export const recentOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("record"), ref: resourceRefSchema }),
   z.object({ op: z.literal("pin"), ref: resourceRefSchema }),
   z.object({ op: z.literal("unpin"), key: z.string().min(1) }),
+  /** Puts the pin `key` in the place of the pin `target`, as a drop does. */
+  z.object({ op: z.literal("movePinned"), key: z.string().min(1), target: z.string().min(1) }),
   z.object({ op: z.literal("forget"), key: z.string().min(1) }),
   z.object({
     op: z.literal("forgetAll"),
@@ -162,10 +173,48 @@ export const MAX_PINNED_ENTRIES = 100;
  * many entries is to drop the stalest, not to refuse to read any of them.
  */
 export function pruneRecents(recents: RecentsSettings): RecentsSettings {
+  const pinned = pruneMap(recents.pinned, MAX_PINNED_ENTRIES);
   return {
     visited: pruneMap(recents.visited, MAX_RECENT_ENTRIES),
-    pinned: pruneMap(recents.pinned, MAX_PINNED_ENTRIES),
+    pinned,
+    order: recents.order.filter(
+      (key, index) => pinned[key] && recents.order.indexOf(key) === index,
+    ),
   };
+}
+
+/**
+ * Every pinned key, in the order the pins are listed.
+ *
+ * The arranged ones first, as arranged, then any the order does not name yet,
+ * most recently pinned first - which is how every pin was listed before pins
+ * could be arranged, so an older file reads back in the order it always had.
+ */
+export function pinnedKeys(recents: RecentsSettings): string[] {
+  const arranged = recents.order.filter((key) => recents.pinned[key]);
+  const named = new Set(arranged);
+  const rest = Object.entries(recents.pinned)
+    .filter(([key]) => !named.has(key))
+    .toSorted(([, a], [, b]) => b.at.localeCompare(a.at))
+    .map(([key]) => key);
+  return [...new Set(arranged), ...rest];
+}
+
+/**
+ * Moves `key` into the place `target` holds.
+ *
+ * Which side it lands on depends on the direction it came from, as with a
+ * table's columns: dragged down it goes after the target, dragged up it goes
+ * before. Always inserting before would make dropping onto the next pin down
+ * a no-op, since "before the one after me" is where it already was.
+ */
+export function movePinned(order: readonly string[], key: string, target: string): string[] {
+  const from = order.indexOf(key);
+  const to = order.indexOf(target);
+  if (from < 0 || to < 0 || from === to) return [...order];
+  const without = order.filter((entry) => entry !== key);
+  const at = without.indexOf(target) + (from < to ? 1 : 0);
+  return [...without.slice(0, at), key, ...without.slice(at)];
 }
 
 function pruneMap(map: Record<string, RecentEntry>, cap: number): Record<string, RecentEntry> {
@@ -176,7 +225,7 @@ function pruneMap(map: Record<string, RecentEntry>, cap: number): Record<string,
 }
 
 /**
- * The five operations, as pure data.
+ * The six operations, as pure data.
  *
  * `record` touches only `visited`. A pin is a deliberate act with its own
  * timestamp - the moment you decided to keep this - and re-stamping it every
@@ -186,6 +235,10 @@ function pruneMap(map: Record<string, RecentEntry>, cap: number): Record<string,
  * `forget` clears the key from both maps, matching what the button says: the
  * person asked the app to stop remembering this, not to unpick which of the two
  * mechanisms was holding onto it. This is the same call `restore` makes.
+ *
+ * A new pin goes to the top of the order, where a pin always landed before
+ * pins could be arranged; re-pinning one that is already there leaves it
+ * where it was put.
  */
 export function applyRecentOp(current: RecentsSettings, op: RecentOp, at: Date): RecentsSettings {
   switch (op.op) {
@@ -194,22 +247,28 @@ export function applyRecentOp(current: RecentsSettings, op: RecentOp, at: Date):
       return { ...current, visited: { ...current.visited, [resourceKey(op.ref)]: entry } };
     }
     case "pin": {
+      const key = resourceKey(op.ref);
       const entry: RecentEntry = { ...op.ref, at: at.toISOString() };
-      return { ...current, pinned: { ...current.pinned, [resourceKey(op.ref)]: entry } };
+      const pinned = { ...current.pinned, [key]: entry };
+      const order = current.pinned[key] ? pinnedKeys(current) : [key, ...pinnedKeys(current)];
+      return { ...current, pinned, order };
     }
     case "unpin": {
       const { [op.key]: _removed, ...pinned } = current.pinned;
-      return { ...current, pinned };
+      return { ...current, pinned, order: current.order.filter((key) => key !== op.key) };
     }
+    case "movePinned":
+      return { ...current, order: movePinned(pinnedKeys(current), op.key, op.target) };
     case "forget": {
       const { [op.key]: _visited, ...visited } = current.visited;
       const { [op.key]: _pinned, ...pinned } = current.pinned;
-      return { visited, pinned };
+      return { visited, pinned, order: current.order.filter((key) => key !== op.key) };
     }
     case "forgetAll":
       return {
         visited: op.target === "pinned" ? current.visited : {},
         pinned: op.target === "visited" ? current.pinned : {},
+        order: op.target === "visited" ? current.order : [],
       };
   }
 }

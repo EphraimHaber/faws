@@ -5,6 +5,8 @@ import {
   inScope,
   MAX_PINNED_ENTRIES,
   MAX_RECENT_ENTRIES,
+  movePinned,
+  pinnedKeys,
   pruneRecents,
   type RecentEntry,
   type RecentsSettings,
@@ -32,7 +34,7 @@ function entry(key: string, at: string): RecentEntry {
   return { ...ref({ id: key }), at };
 }
 
-const EMPTY: RecentsSettings = { visited: {}, pinned: {} };
+const EMPTY: RecentsSettings = { visited: {}, pinned: {}, order: [] };
 
 describe("resourceKey", () => {
   it("separates the same natural key in two accounts", () => {
@@ -122,12 +124,73 @@ describe("applyRecentOp", () => {
     expect(applyRecentOp(state, { op: "forgetAll", target: "visited" }, AT)).toEqual({
       visited: {},
       pinned: state.pinned,
+      order: state.order,
     });
     expect(applyRecentOp(state, { op: "forgetAll", target: "pinned" }, AT)).toEqual({
       visited: state.visited,
       pinned: {},
+      order: [],
     });
     expect(applyRecentOp(state, { op: "forgetAll", target: "both" }, AT)).toEqual(EMPTY);
+  });
+});
+
+describe("pinned order", () => {
+  const pin = (state: RecentsSettings, id: string) =>
+    applyRecentOp(state, { op: "pin", ref: ref({ id }) }, AT);
+  const key = (id: string) => resourceKey(ref({ id }));
+
+  it("puts a new pin first", () => {
+    const state = pin(pin(EMPTY, "a"), "b");
+    expect(pinnedKeys(state)).toEqual([key("b"), key("a")]);
+  });
+
+  it("leaves a re-pinned pin where it was put", () => {
+    const state = pin(pin(pin(EMPTY, "a"), "b"), "a");
+    expect(pinnedKeys(state)).toEqual([key("b"), key("a")]);
+  });
+
+  it("moves a pin into the place of the one it is dropped on", () => {
+    let state = pin(pin(pin(EMPTY, "c"), "b"), "a");
+    state = applyRecentOp(state, { op: "movePinned", key: key("a"), target: key("c") }, AT);
+    expect(pinnedKeys(state)).toEqual([key("b"), key("c"), key("a")]);
+    state = applyRecentOp(state, { op: "movePinned", key: key("a"), target: key("b") }, AT);
+    expect(pinnedKeys(state)).toEqual([key("a"), key("b"), key("c")]);
+  });
+
+  it("drops an unpinned or forgotten key from the order", () => {
+    let state = pin(pin(EMPTY, "a"), "b");
+    state = applyRecentOp(state, { op: "unpin", key: key("a") }, AT);
+    state = applyRecentOp(state, { op: "forget", key: key("b") }, AT);
+    expect(state.order).toEqual([]);
+  });
+
+  it("lists pins the order does not name, newest first, after the ones it does", () => {
+    // A file written before pins could be arranged has no order at all.
+    const state: RecentsSettings = {
+      visited: {},
+      pinned: {
+        old: entry("old", "2026-01-01T00:00:00.000Z"),
+        mid: entry("mid", "2026-01-02T00:00:00.000Z"),
+        new: entry("new", "2026-01-03T00:00:00.000Z"),
+      },
+      order: ["gone", "old"],
+    };
+    expect(pinnedKeys(state)).toEqual(["old", "new", "mid"]);
+  });
+
+  it("treats a drop onto itself or onto a stranger as no move", () => {
+    expect(movePinned(["a", "b"], "a", "a")).toEqual(["a", "b"]);
+    expect(movePinned(["a", "b"], "a", "z")).toEqual(["a", "b"]);
+  });
+
+  it("prunes the order along with the pins it names", () => {
+    const pruned = pruneRecents({
+      visited: {},
+      pinned: { a: entry("a", AT.toISOString()) },
+      order: ["a", "gone", "a"],
+    });
+    expect(pruned.order).toEqual(["a"]);
   });
 });
 
@@ -143,7 +206,7 @@ describe("pruneRecents", () => {
       // Zero-padded so the string compare the prune sorts by is the numeric one.
       visited[`k${i}`] = entry(`k${i}`, `2026-01-01T00:00:${String(i).padStart(2, "0")}.000Z`);
     }
-    const pruned = pruneRecents({ visited, pinned: {} }).visited;
+    const pruned = pruneRecents({ visited, pinned: {}, order: [] }).visited;
     expect(Object.keys(pruned)).toHaveLength(MAX_RECENT_ENTRIES);
     expect(pruned["k0"]).toBeUndefined();
     expect(pruned[`k${MAX_RECENT_ENTRIES + 9}`]).toBeDefined();
@@ -154,7 +217,7 @@ describe("pruneRecents", () => {
     for (let i = 0; i < MAX_PINNED_ENTRIES + 5; i += 1) {
       pinned[`k${i}`] = entry(`k${i}`, `2026-01-01T00:00:${String(i).padStart(2, "0")}.000Z`);
     }
-    expect(Object.keys(pruneRecents({ visited: {}, pinned }).pinned)).toHaveLength(
+    expect(Object.keys(pruneRecents({ visited: {}, pinned, order: [] }).pinned)).toHaveLength(
       MAX_PINNED_ENTRIES,
     );
   });

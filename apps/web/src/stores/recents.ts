@@ -1,5 +1,6 @@
 import {
   inScope,
+  pinnedKeys,
   type RecentEntry,
   resourceKey,
   type ResourceRef,
@@ -36,6 +37,8 @@ interface RecentActions {
   record(ref: ResourceRef): void;
   pin(ref: ResourceRef): void;
   unpin(key: string): void;
+  /** Puts the pin `key` in the place of the pin `target`. */
+  movePinned(key: string, target: string): void;
   forget(key: string): void;
   forgetAll(target: "visited" | "pinned" | "both"): void;
 }
@@ -44,6 +47,7 @@ export const recentActions: RecentActions = {
   record: (ref) => applyRecent({ op: "record", ref }),
   pin: (ref) => applyRecent({ op: "pin", ref }),
   unpin: (key) => applyRecent({ op: "unpin", key }),
+  movePinned: (key, target) => applyRecent({ op: "movePinned", key, target }),
   forget: (key) => applyRecent({ op: "forget", key }),
   forgetAll: (target) => applyRecent({ op: "forgetAll", target }),
 };
@@ -79,19 +83,138 @@ export function useRecentList(limit?: number): RecentEntry[] {
   }, [visited, pinned, scope, limit]);
 }
 
-/** What you have kept in this account, most recently pinned first. */
+/** What you have kept in this account, in the order the pins were arranged. */
 export function usePinnedList(limit?: number): RecentEntry[] {
-  const pinned = useSettings((state) => state.settings.recents.pinned);
+  const recents = useSettings((state) => state.settings.recents);
   const scope = useResourceScope();
 
   return React.useMemo(() => {
-    const rows = Object.values(pinned)
+    const rows = pinnedKeys(recents)
+      .map((key) => recents.pinned[key]!)
       .filter((entry) => inScope(entry, scope))
-      .map(withScopedLink)
-      .toSorted(newestFirst);
+      .map(withScopedLink);
     return limit === undefined ? rows : rows.slice(0, limit);
-  }, [pinned, scope, limit]);
+  }, [recents, scope, limit]);
 }
+
+/**
+ * Where each pin sits in the pinned order, keyed by `resourceKey`.
+ *
+ * Unscoped on purpose: a rank only has to compare pins that are both on
+ * screen, and the gaps the other accounts' pins leave do not change which of
+ * two comes first.
+ */
+export function usePinnedRanks(): ReadonlyMap<string, number> {
+  const recents = useSettings((state) => state.settings.recents);
+  return React.useMemo(
+    () => new Map(pinnedKeys(recents).map((key, index) => [key, index])),
+    [recents],
+  );
+}
+
+/**
+ * `rows` with the pinned ones first, in the pinned order, and the rest after
+ * them in the order they came.
+ *
+ * Applied on top of whatever sort a list already has rather than instead of
+ * it: the pins are the rows someone said they want every time, and the rest
+ * are still worth finding the usual way.
+ */
+export function pinnedFirst<T>(
+  rows: ReadonlyArray<T>,
+  ranks: ReadonlyMap<string, number>,
+  toRef: (row: T) => ResourceRef | null,
+): T[] {
+  if (ranks.size === 0) return [...rows];
+  return rows
+    .map((row, index) => {
+      const ref = toRef(row);
+      const rank = ref ? ranks.get(resourceKey(ref)) : undefined;
+      return { row, index, rank: rank ?? ranks.size + index };
+    })
+    .toSorted((a, b) => a.rank - b.rank)
+    .map((entry) => entry.row);
+}
+
+/** The drag payload type for a pin, so a stray link or text drag is not a move. */
+export const PIN_DRAG_TYPE = "application/x-faws-pin";
+
+/**
+ * The pin being dragged, if any.
+ *
+ * Module state rather than component state, because the list a pin is picked
+ * up from and the list it is dropped on need not be the same component, and a
+ * drop target has to know during `dragover` - when the payload is still
+ * unreadable - which way the pin is travelling to show where it will land.
+ */
+let dragging: string | null = null;
+
+/** Which edge of a row a dragged pin would land against. */
+export type PinDropEdge = "before" | "after";
+
+/**
+ * Drag and drop between pinned rows, for any list that shows them.
+ *
+ * Returns the props for one row. A pinned row can be picked up and dropped on;
+ * any other row gets nothing, so an unpinned row keeps its text selectable and
+ * its links draggable as they were. `data-pin-drop` names the edge the dragged
+ * pin would land against, for the row to draw a line on.
+ */
+export function usePinDrag() {
+  const ranks = usePinnedRanks();
+  const [over, setOver] = React.useState<{ key: string; edge: PinDropEdge } | null>(null);
+
+  return React.useCallback(
+    (ref: ResourceRef | null) => {
+      const key = ref ? resourceKey(ref) : null;
+      const rank = key === null ? undefined : ranks.get(key);
+      if (key === null || rank === undefined) return {};
+      return {
+        draggable: true,
+        "data-pin-drop": over?.key === key ? over.edge : undefined,
+        onDragStart: (event: React.DragEvent) => {
+          // A pinned row may hold a link, whose own drag would otherwise
+          // start in its place - and be dropped on the address bar.
+          event.stopPropagation();
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData(PIN_DRAG_TYPE, key);
+          dragging = key;
+        },
+        onDragEnd: () => {
+          dragging = null;
+          setOver(null);
+        },
+        onDragOver: (event: React.DragEvent) => {
+          if (!event.dataTransfer.types.includes(PIN_DRAG_TYPE)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          const from = dragging === null ? undefined : ranks.get(dragging);
+          if (dragging === key || from === undefined) return setOver(null);
+          const edge = from < rank ? "after" : "before";
+          if (over?.key !== key || over.edge !== edge) setOver({ key, edge });
+        },
+        onDragLeave: () => setOver(null),
+        onDrop: (event: React.DragEvent) => {
+          if (!event.dataTransfer.types.includes(PIN_DRAG_TYPE)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          setOver(null);
+          const moved = event.dataTransfer.getData(PIN_DRAG_TYPE);
+          if (moved && moved !== key) recentActions.movePinned(moved, key);
+        },
+      };
+    },
+    [ranks, over],
+  );
+}
+
+/**
+ * The line a row draws where a dragged pin would land, keyed off the
+ * `data-pin-drop` that `usePinDrag` sets. For a row whose own box can carry a
+ * shadow; a table row draws it on its cells instead.
+ */
+export const PIN_DROP_CLASS =
+  "data-[pin-drop=before]:shadow-[inset_0_2px_0_var(--primary)] data-[pin-drop=after]:shadow-[inset_0_-2px_0_var(--primary)]";
 
 /** Everything remembered about this account, for the Settings panel. */
 export function useRememberedList(): Array<{ entry: RecentEntry; key: string; pinned: boolean }> {

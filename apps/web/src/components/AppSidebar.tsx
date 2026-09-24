@@ -16,7 +16,15 @@ import { useAwsScope } from "~/contexts/ScopeContext";
 import { clusterRef } from "~/features/ecs/refs";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { trpc } from "~/lib/trpc";
-import { type RecentEntry, usePinnedList, useRecentList } from "~/stores/recents";
+import {
+  PIN_DROP_CLASS,
+  pinnedFirst,
+  type RecentEntry,
+  usePinDrag,
+  usePinnedList,
+  usePinnedRanks,
+  useRecentList,
+} from "~/stores/recents";
 import { updateSettings, useSettings } from "~/stores/settings";
 import { cn } from "~/lib/utils";
 
@@ -39,12 +47,15 @@ export function AppSidebar() {
   // account empties them rather than offering somewhere you cannot go.
   const pinned = usePinnedList(SIDEBAR_CAP);
   const recent = useRecentList(SIDEBAR_CAP);
+  const ranks = usePinnedRanks();
+  const pinDrag = usePinDrag();
 
   const visible = React.useMemo(() => {
     const query = filter.trim().toLowerCase();
     const rows = clusters.data ?? [];
-    return query ? rows.filter((c) => c.name.toLowerCase().includes(query)) : rows;
-  }, [clusters.data, filter]);
+    const matching = query ? rows.filter((c) => c.name.toLowerCase().includes(query)) : rows;
+    return pinnedFirst(matching, ranks, (cluster) => clusterRef(cluster.name, scope));
+  }, [clusters.data, filter, ranks, scope]);
 
   return (
     // One scroll region for the whole rail rather than a pinned nav above a
@@ -160,8 +171,13 @@ export function AppSidebar() {
           {visible.map((cluster) => {
             const to = `/ecs/clusters/${encodeURIComponent(cluster.name)}`;
             const busy = cluster.pendingTasks > 0;
+            const target = clusterRef(cluster.name, scope);
             return (
-              <div key={cluster.arn} className="group flex items-center gap-0.5">
+              <div
+                key={cluster.arn}
+                {...pinDrag(target)}
+                className={cn("group flex items-center gap-0.5 rounded-md", PIN_DROP_CLASS)}
+              >
                 <EntityRow
                   dense
                   to={to}
@@ -182,7 +198,7 @@ export function AppSidebar() {
                   }
                   className="min-w-0 flex-1"
                 />
-                <PinButton quiet target={clusterRef(cluster.name, scope)} />
+                <PinButton quiet target={target} />
               </div>
             );
           })}
@@ -226,6 +242,7 @@ function RefSection({
   /** Every row here is pinned, so the mark only shows on hover, as a way to unpin. */
   pinned?: boolean;
 }) {
+  const pinDrag = usePinDrag();
   if (rows.length === 0) return null;
 
   return (
@@ -235,7 +252,11 @@ function RefSection({
         {rows.map((row) => {
           const Icon = kindIcon(row.kind);
           return (
-            <div key={row.to} className="group flex items-center gap-0.5">
+            <div
+              key={row.to}
+              {...(pinned ? pinDrag(row) : {})}
+              className={cn("group flex items-center gap-0.5 rounded-md", PIN_DROP_CLASS)}
+            >
               <EntityRow
                 dense
                 to={row.to}

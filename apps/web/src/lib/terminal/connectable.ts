@@ -45,9 +45,12 @@ export interface Connectable {
   readonly pinnable: boolean;
 }
 
-/** Which rows are pinned, and when each was last opened, keyed by `resourceKey`. */
+/**
+ * Where each pinned row sits in the pinned order, and when each row was last
+ * opened, keyed by `resourceKey`.
+ */
 export interface ConnectMemory {
-  readonly pinned: ReadonlySet<string>;
+  readonly pinned: ReadonlyMap<string, number>;
   readonly visited: ReadonlyMap<string, string>;
 }
 
@@ -249,13 +252,11 @@ export function searchConnectables(
 function byMemory(rows: ReadonlyArray<Connectable>, memory: ConnectMemory): Connectable[] {
   const rank = (row: Connectable) => {
     const key = resourceKey(row.ref);
-    return { pinned: row.pinnable && memory.pinned.has(key), at: memory.visited.get(key) ?? "" };
+    const rank = row.pinnable ? memory.pinned.get(key) : undefined;
+    return { rank: rank ?? Number.MAX_SAFE_INTEGER, at: memory.visited.get(key) ?? "" };
   };
   return rows
     .map((row, index) => ({ row, index, ...rank(row) }))
-    .toSorted(
-      (a, b) =>
-        Number(b.pinned) - Number(a.pinned) || b.at.localeCompare(a.at) || a.index - b.index,
-    )
+    .toSorted((a, b) => a.rank - b.rank || b.at.localeCompare(a.at) || a.index - b.index)
     .map((entry) => entry.row);
 }

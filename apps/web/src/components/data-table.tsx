@@ -21,6 +21,7 @@ import {
   toggleColumn,
 } from "~/lib/table-layout";
 import { cn } from "~/lib/utils";
+import { pinnedFirst, type ResourceRef, usePinDrag, usePinnedRanks } from "~/stores/recents";
 import { applyTableLayout, useSettings } from "~/stores/settings";
 
 export interface Column<T> {
@@ -40,6 +41,12 @@ export interface Column<T> {
   readonly pin?: "end";
   /** Hidden until someone shows it from the table's gear, for detail most rows do not need. */
   readonly defaultHidden?: boolean;
+  /**
+   * What each row pins, for the column that pins it. A table with such a
+   * column lists its pinned rows first, in the pinned order, and lets them be
+   * dragged into a new one.
+   */
+  readonly pinTarget?: (row: T) => ResourceRef;
 }
 
 /**
@@ -149,10 +156,13 @@ export function DataTable<T>({
     () => applyFilter(rows, declared, filter),
     [rows, declared, filter],
   );
-  const sorted = React.useMemo(
-    () => applySort(filtered, declared, sort),
-    [filtered, declared, sort],
-  );
+  const pinTarget = React.useMemo(() => declared.find((c) => c.pinTarget)?.pinTarget, [declared]);
+  const pinRanks = usePinnedRanks();
+  const pinDrag = usePinDrag();
+  const sorted = React.useMemo(() => {
+    const byColumn = applySort(filtered, declared, sort);
+    return pinTarget ? pinnedFirst(byColumn, pinRanks, pinTarget) : byColumn;
+  }, [filtered, declared, sort, pinTarget, pinRanks]);
 
   const setLayout = (next: TableLayout) => {
     applyTableLayout({ op: "set", table: tableId, layout: next });
@@ -364,12 +374,15 @@ export function DataTable<T>({
             <tr
               key={rowKey(row)}
               ref={rowRef(index)}
+              {...(pinTarget ? pinDrag(pinTarget(row)) : {})}
               onMouseEnter={() => setActiveIndex(index)}
               onClick={() => open(row)}
               onDoubleClick={() => open(row)}
               className={cn(
                 "group border-b border-border/45 transition-colors",
                 onOpen && "cursor-pointer",
+                // Drawn on the cells: a shadow on a collapsed-border row is not.
+                "data-[pin-drop=before]:*:shadow-[inset_0_2px_0_var(--primary)] data-[pin-drop=after]:*:shadow-[inset_0_-2px_0_var(--primary)]",
                 index === activeIndex ? "bg-accent" : "hover:bg-accent/60",
               )}
             >

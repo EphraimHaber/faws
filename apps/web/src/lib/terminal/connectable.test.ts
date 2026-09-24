@@ -189,7 +189,7 @@ describe("searchConnectables with memory", () => {
   const cache = instanceConnectable(instance({ instanceId: "i-0fed", name: "cache-1" }), scope);
   const rows = [api, worker, cache];
   const memory = {
-    pinned: new Set([resourceKey(cache.ref)]),
+    pinned: new Map([[resourceKey(cache.ref), 0]]),
     visited: new Map([
       [resourceKey(api.ref), "2026-01-01T10:00:00.000Z"],
       [resourceKey(worker.ref), "2026-01-01T12:00:00.000Z"],
@@ -199,6 +199,18 @@ describe("searchConnectables with memory", () => {
   it("puts pinned rows first, then the most recently used, with no query", () => {
     const keys = searchConnectables(rows, "", memory)[0]?.rows.map((row) => row.key);
     expect(keys).toEqual(["ssm:i-0fed", "ssm:i-0def", "ssm:i-0abc"]);
+  });
+
+  it("lists pinned rows in the pinned order", () => {
+    const arranged = {
+      ...memory,
+      pinned: new Map([
+        [resourceKey(api.ref), 0],
+        [resourceKey(cache.ref), 1],
+      ]),
+    };
+    const keys = searchConnectables(rows, "", arranged)[0]?.rows.map((row) => row.key);
+    expect(keys).toEqual(["ssm:i-0abc", "ssm:i-0fed", "ssm:i-0def"]);
   });
 
   it("lets the query decide the order once there is one", () => {

@@ -15,6 +15,7 @@
  */
 import {
   applyPatch,
+  applyRecentOp,
   applyTableLayoutOp,
   DEFAULT_SETTINGS,
   type Settings,
@@ -166,8 +167,18 @@ export function applySilence(op: SilenceOp): void {
  * mute - `at` is what the recent list is *sorted by*, so a browser with a
  * skewed clock would otherwise pin its own rows to the top of the list on
  * every other machine.
+ *
+ * A move is the exception, and is applied here first as a column is: a pin
+ * being dragged has to land where it was dropped on this frame, and a move
+ * stamps no `at`, so there is no clock to wait for.
  */
 export function applyRecent(op: RecentOp): void {
+  if (op.op === "movePinned") {
+    const current = useSettings.getState().settings;
+    const next = { ...current, recents: applyRecentOp(current.recents, op, new Date()) };
+    useSettings.setState({ settings: next });
+    writeCache(next);
+  }
   void trpcClient.settings.recents
     .mutate({ op })
     .then((snapshot) => accept(snapshot, null))

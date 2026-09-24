@@ -17,7 +17,13 @@ import { cpuLabel, memoryLabel } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
 import { parseText, useFilterSearch, useSearchState } from "~/hooks/useSearchState";
-import { useRecordVisit } from "~/stores/recents";
+import {
+  PIN_DROP_CLASS,
+  pinnedFirst,
+  usePinDrag,
+  usePinnedRanks,
+  useRecordVisit,
+} from "~/stores/recents";
 
 /**
  * Families on the left, the selected revision's JSON on the right.
@@ -59,11 +65,14 @@ export function TaskDefinitionsPage() {
     enabled: Boolean(revision),
   });
 
+  const ranks = usePinnedRanks();
+  const pinDrag = usePinDrag();
   const visible = React.useMemo(() => {
     const query = filter.trim().toLowerCase();
     const rows = families.data ?? [];
-    return query ? rows.filter((name) => name.toLowerCase().includes(query)) : rows;
-  }, [families.data, filter]);
+    const matching = query ? rows.filter((name) => name.toLowerCase().includes(query)) : rows;
+    return pinnedFirst(matching, ranks, (name) => taskDefinitionRef(name, scope));
+  }, [families.data, filter, ranks, scope]);
 
   return (
     <div className="flex min-h-0 flex-1 gap-3">
@@ -85,8 +94,10 @@ export function TaskDefinitionsPage() {
           {visible.map((name) => (
             <div
               key={name}
+              {...pinDrag(taskDefinitionRef(name, scope))}
               className={cn(
                 "group flex items-center rounded pr-0.5 transition-colors",
+                PIN_DROP_CLASS,
                 name === family
                   ? "bg-accent text-foreground"
                   : "text-muted-foreground hover:bg-accent/60",

@@ -61,9 +61,15 @@ export function PinButton({
   );
 }
 
-/** A table column holding each row's pin, kept in view at the right edge. */
+/**
+ * A table column holding each row's pin, kept in view at the right edge.
+ *
+ * It also tells the table what each row pins, which is what lists the pinned
+ * rows first and lets them be dragged into order.
+ */
 export function pinColumn<T>(toRef: (row: T) => ResourceRef): Column<T> {
   return {
+    pinTarget: toRef,
     id: "pin",
     header: "",
     width: "2.75rem",

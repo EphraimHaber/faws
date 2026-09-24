@@ -23,7 +23,7 @@ import {
   sshHostConnectable,
 } from "~/lib/terminal/connectable";
 import { trpc } from "~/lib/trpc";
-import { recentActions } from "~/stores/recents";
+import { PIN_DROP_CLASS, recentActions, usePinDrag, usePinnedRanks } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
 import { useSettings } from "~/stores/settings";
 
@@ -43,10 +43,11 @@ import { useSettings } from "~/stores/settings";
 export function ConnectPanel() {
   const open = useSessions((state) => state.open);
   const visited = useSettings((state) => state.settings.recents.visited);
-  const pinned = useSettings((state) => state.settings.recents.pinned);
+  const pinned = usePinnedRanks();
+  const pinDrag = usePinDrag();
   const memory = React.useMemo<ConnectMemory>(
     () => ({
-      pinned: new Set(Object.keys(pinned)),
+      pinned,
       visited: new Map(Object.entries(visited).map(([key, entry]) => [key, entry.at])),
     }),
     [visited, pinned],
@@ -135,7 +136,13 @@ export function ConnectPanel() {
               ) : null}
               <ul>
                 {group?.rows.map((row) => (
-                  <li key={row.key}>
+                  // Pins are only in their order while the filter is empty, so
+                  // that is the only time dragging one means anything.
+                  <li
+                    key={row.key}
+                    {...(row.pinnable && !filter.trim() ? pinDrag(row.ref) : {})}
+                    className={PIN_DROP_CLASS}
+                  >
                     <EntityRow
                       label={row.label}
                       detail={row.detail}
