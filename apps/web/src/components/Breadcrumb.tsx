@@ -70,6 +70,15 @@ export function deriveCrumbs(pathname: string): Crumb[] {
 
   const crumbs: Crumb[] = [home, { label: service.label, to: service.basePath }];
 
+  // /cloudwatch/tail reads log groups, so it sits under them in the trail
+  // rather than being a section of its own in the sidebar.
+  if (service.id === "cloudwatch" && segments[1] === "tail") {
+    const groups = service.sections.find((entry) => entry.id === "log-groups");
+    if (groups?.to) crumbs.push({ label: groups.label, to: groups.to });
+    crumbs.push({ label: "Tail", to: `${service.basePath}/tail` });
+    return crumbs;
+  }
+
   // Named from the registry, so a crumb and the sidebar row for the same page
   // can never disagree about what it is called. A path nobody registered stops
   // at the service rather than inventing a label from its slug.
@@ -83,6 +92,16 @@ export function deriveCrumbs(pathname: string): Crumb[] {
     crumbs.push({
       label: decodeURIComponent(segments[2]),
       to: `${service.basePath}/buckets/${segments[2]}`,
+    });
+    return crumbs;
+  }
+
+  // /cloudwatch/log-groups/$group - a group name is a path of its own, so it
+  // arrives as one encoded segment.
+  if (segments[1] === "log-groups" && segments[2]) {
+    crumbs.push({
+      label: decodeURIComponent(segments[2]),
+      to: `${service.basePath}/log-groups/${segments[2]}`,
     });
     return crumbs;
   }

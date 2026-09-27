@@ -4,8 +4,10 @@ import {
   Boxes,
   FileJson,
   Folder,
+  Gauge,
   HardDrive,
   Layers,
+  ScrollText,
   Server,
   TerminalSquare,
 } from "lucide-react";
@@ -165,6 +167,8 @@ const KIND_ICON: Record<ResourceKind, LucideIcon> = {
   "ecs-container-instance": Server,
   "ssh-host": TerminalSquare,
   "kube-context": Layers,
+  "cloudwatch-log-group": ScrollText,
+  "cloudwatch-metric": Gauge,
 };
 
 export function kindIcon(kind: ResourceKind): LucideIcon {

@@ -47,6 +47,8 @@ export const RESOURCE_KINDS = [
   "ecs-container-instance",
   "ssh-host",
   "kube-context",
+  "cloudwatch-log-group",
+  "cloudwatch-metric",
 ] as const;
 
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];

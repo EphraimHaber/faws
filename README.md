@@ -12,7 +12,9 @@ ECS was the first one implemented — clusters, services, tasks, deployments,
 logs, metrics and load balancer health. S3 is the second: buckets, a paged
 object browser, viewers for text, JSON, tables, images, media and raw bytes,
 recursive search, uploads and deletes, plus bucket properties, versions and
-size. CloudWatch, Lambda and SQS are next.
+size. CloudWatch is the third: every log group with its streams and a tail of
+its events, and any metric the account publishes, listed by namespace and
+charted over a window. Lambda and SQS are next.
 
 ## Running
 

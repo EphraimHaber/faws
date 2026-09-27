@@ -230,6 +230,8 @@ export interface MetricSeries {
   /** The CloudWatch metric name, whichever namespace it came from. */
   readonly metric: string;
   readonly points: ReadonlyArray<MetricPoint>;
+  /** What CloudWatch says the values measure (Percent, Bytes, Count...), when known. */
+  readonly unit?: string | null;
 }
 
 /**

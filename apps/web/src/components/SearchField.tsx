@@ -61,6 +61,7 @@ export function SearchField({
   count,
   total,
   hotkey = false,
+  showShape = true,
   inputClassName,
 }: {
   value: string;
@@ -79,6 +80,12 @@ export function SearchField({
   total?: number | undefined;
   /** Whether `/` focuses this field. Only one per page should claim it. */
   hotkey?: boolean | undefined;
+  /**
+   * Whether to badge the query's glob shape. Off where the box is plain text
+   * matched on a server, and a `/` is only a character - the badge would claim
+   * a folder walk that is not happening.
+   */
+  showShape?: boolean | undefined;
   inputClassName?: string | undefined;
 }) {
   const ref = React.useRef<HTMLInputElement>(null);
@@ -116,7 +123,7 @@ export function SearchField({
 
   const typed = value.trim().length > 0;
   const shape = classifyQuery(value);
-  const badge = shape === "empty" ? null : SHAPE_BADGE[shape];
+  const badge = shape === "empty" || !showShape ? null : SHAPE_BADGE[shape];
 
   return (
     <div className="flex min-w-0 flex-col gap-1">

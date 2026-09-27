@@ -1,4 +1,5 @@
 import { awsRouter } from "./api/aws/aws.router.ts";
+import { cloudwatchRouter } from "./api/cloudwatch/cloudwatch.router.ts";
 import { desktopRouter } from "./api/desktop/desktop.router.ts";
 import { ecsActionsRouter } from "./api/ecs/actions.router.ts";
 import { ecsRouter } from "./api/ecs/ecs.router.ts";
@@ -19,6 +20,7 @@ import { router } from "./trpc/index.ts";
  */
 export const appRouter = router({
   aws: awsRouter,
+  cloudwatch: cloudwatchRouter,
   desktop: desktopRouter,
   ecs: ecsRouter,
   ecsActions: ecsActionsRouter,

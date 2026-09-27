@@ -99,11 +99,11 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
     label: "CloudWatch",
     description: "Log groups and metrics beyond the ones ECS surfaces",
     icon: Gauge,
-    status: "planned",
+    status: "available",
     basePath: "/cloudwatch",
     sections: [
-      { id: "logs", label: "Log groups", icon: ScrollText },
-      { id: "metrics", label: "Metrics", icon: Gauge },
+      { id: "log-groups", label: "Log groups", icon: ScrollText, to: "/cloudwatch/log-groups" },
+      { id: "metrics", label: "Metrics", icon: Gauge, to: "/cloudwatch/metrics" },
     ],
   },
   {

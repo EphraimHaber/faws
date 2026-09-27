@@ -93,6 +93,22 @@ describe("deriveCrumbs", () => {
     expect(labels("/kubernetes/nodes")).toEqual(["Overview", "Kubernetes"]);
   });
 
+  it("names a log group whole, slashes and all", () => {
+    expect(labels("/cloudwatch/log-groups/%2Faws%2Flambda%2Fapi")).toEqual([
+      "Overview",
+      "CloudWatch",
+      "Log groups",
+      "/aws/lambda/api",
+    ]);
+    expect(paths("/cloudwatch/log-groups/%2Faws%2Flambda%2Fapi").at(-1)).toBe(
+      "/cloudwatch/log-groups/%2Faws%2Flambda%2Fapi",
+    );
+  });
+
+  it("puts a tail of several groups under the log groups", () => {
+    expect(labels("/cloudwatch/tail")).toEqual(["Overview", "CloudWatch", "Log groups", "Tail"]);
+  });
+
   it("reaches the EC2 instance list", () => {
     // Stopping at "EC2" would leave the page it is on out of the trail.
     expect(labels("/ec2/instances")).toEqual(["Overview", "EC2", "Instances"]);

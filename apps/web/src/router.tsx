@@ -1,3 +1,4 @@
+import { CLOUDWATCH_WINDOWS, MAX_TAILED_GROUPS } from "@faws/contracts";
 import { useHotkeys } from "@tanstack/react-hotkeys";
 import {
   createRootRoute,
@@ -20,6 +21,11 @@ import { describe } from "~/lib/hotkeys";
 import { useLogIngest } from "~/lib/log-store";
 import { getSocket } from "~/lib/socket";
 import { findService } from "~/services/registry";
+import { CloudWatchIndexPage } from "~/features/cloudwatch/pages/CloudWatchIndexPage";
+import { LogGroupPage } from "~/features/cloudwatch/pages/LogGroupPage";
+import { LogGroupsPage } from "~/features/cloudwatch/pages/LogGroupsPage";
+import { MetricsPage } from "~/features/cloudwatch/pages/MetricsPage";
+import { TailPage } from "~/features/cloudwatch/pages/TailPage";
 import { CLUSTER_TABS, ClusterPage } from "~/features/ecs/pages/ClusterPage";
 import { ClustersPage } from "~/features/ecs/pages/ClustersPage";
 import { DeploymentsPage } from "~/features/ecs/pages/DeploymentsPage";
@@ -207,6 +213,87 @@ const s3ConnectionsRoute = createRoute({
   component: ConnectionsPage,
 });
 
+const cloudwatchIndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cloudwatch",
+  component: CloudWatchIndexPage,
+});
+
+const logGroupsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cloudwatch/log-groups",
+  validateSearch: filterSearch.extend({
+    /** Ticked groups, to be tailed together. */
+    sel: z.string().max(8000).optional().catch(undefined),
+  }),
+  component: LogGroupsPage,
+});
+
+/**
+ * How far back a CloudWatch page reads, from the fixed set it offers. Coerced,
+ * because the page writes it as text and the URL hands it back as either.
+ */
+const windowSearch = z.coerce
+  .number()
+  .pipe(z.literal(CLOUDWATCH_WINDOWS))
+  .optional()
+  .catch(undefined);
+
+/**
+ * A log group's name is a path of its own - `/aws/lambda/api` - so it rides
+ * as one percent-encoded segment, and the breadcrumb decodes it back whole.
+ * The stream is `logStream` because `stream` already means the ECS log pane's
+ * task column.
+ */
+const logGroupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cloudwatch/log-groups/$group",
+  validateSearch: logSearch.extend({
+    logStream: z.string().max(512).optional().catch(undefined),
+    window: windowSearch,
+    /** The stream list down the side, hidden. */
+    streams: z.literal("hidden").optional().catch(undefined),
+  }),
+  component: LogGroupRoute,
+});
+
+/**
+ * Several log groups tailed at once. The groups are a list rather than a
+ * comma-joined string because a group name may be any path, and the router
+ * encodes a list whole.
+ */
+const tailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cloudwatch/tail",
+  validateSearch: logSearch.extend({
+    groups: z.array(z.string().min(1).max(512)).max(MAX_TAILED_GROUPS).optional().catch(undefined),
+    window: windowSearch,
+    layout: z.literal("split").optional().catch(undefined),
+  }),
+  component: TailPage,
+});
+
+const metricsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cloudwatch/metrics",
+  validateSearch: filterSearch.extend({
+    ns: z.string().max(255).optional().catch(undefined),
+    /** The charted metric, whole: a metric is its name and every dimension. */
+    chart: z
+      .object({
+        namespace: z.string().min(1).max(255),
+        name: z.string().min(1).max(255),
+        dimensions: z
+          .array(z.object({ name: z.string().min(1).max(255), value: z.string().max(1024) }))
+          .max(30),
+      })
+      .optional()
+      .catch(undefined),
+    window: windowSearch,
+  }),
+  component: MetricsPage,
+});
+
 const ec2IndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ec2",
@@ -290,6 +377,11 @@ const routeTree = rootRoute.addChildren([
   bucketsRoute,
   bucketRoute,
   s3ConnectionsRoute,
+  cloudwatchIndexRoute,
+  logGroupsRoute,
+  logGroupRoute,
+  tailRoute,
+  metricsRoute,
   ec2IndexRoute,
   ec2InstancesRoute,
   kubeIndexRoute,
@@ -328,6 +420,11 @@ function TaskRoute() {
 function BucketRoute() {
   const { bucket } = bucketRoute.useParams();
   return <BucketPage bucket={bucket} />;
+}
+
+function LogGroupRoute() {
+  const { group } = logGroupRoute.useParams();
+  return <LogGroupPage group={group} />;
 }
 
 function RootLayout() {

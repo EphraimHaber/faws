@@ -74,6 +74,7 @@ export function AnalyticsPane({ bucket, prefix }: { bucket: string; prefix: stri
                     : (value) => (value === null ? "-" : Math.round(value).toLocaleString())
                 }
                 peakFloor={1}
+                axis="auto"
               />
             ))}
           </div>

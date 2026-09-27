@@ -1,4 +1,5 @@
 export * from "./aws.ts";
+export * from "./cloudwatch.ts";
 export * from "./ecs.ts";
 export * from "./errors.ts";
 export * from "./exec.ts";

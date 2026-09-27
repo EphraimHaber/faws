@@ -256,6 +256,17 @@ describe("recentsSettingsSchema", () => {
     expect(Object.keys(parsed.pinned)).toEqual([...kinds]);
   });
 
+  it("reads back a pinned log group", () => {
+    const pinned = {
+      group: {
+        ...ref({ kind: "cloudwatch-log-group", id: "/aws/lambda/api" }),
+        at: AT.toISOString(),
+      },
+    };
+    const parsed = recentsSettingsSchema.parse({ visited: {}, pinned });
+    expect(parsed.pinned["group"]?.kind).toBe("cloudwatch-log-group");
+  });
+
   it("fills a missing scope rather than dropping the entry", () => {
     const parsed = recentsSettingsSchema.parse({
       visited: { good: { ...ref(), scope: undefined, at: AT.toISOString() } },
