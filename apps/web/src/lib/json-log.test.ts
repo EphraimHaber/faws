@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { jsonLineText, parseJsonLine, tokenize } from "./json-log.ts";
+import { clipTokens, jsonLineText, parseJsonLine, tokenize } from "./json-log.ts";
 
 const LINE = '{"level":30,"msg":"commands publish","ok":true,"err":null,"n":1.5e3}';
 
@@ -104,5 +104,19 @@ describe("jsonLineText", () => {
     expect(line && jsonLineText(line, true)).toBe(
       '12:00:01 INFO {\n  "level": "info",\n  "n": 1\n}',
     );
+  });
+});
+
+describe("clipTokens", () => {
+  const tokens = tokenize('{"a":"bcdef","g":1}');
+
+  it("keeps tokens up to the budget and cuts the one that crosses it", () => {
+    const clipped = clipTokens(tokens, 8);
+    expect(clipped.map((token) => token.text).join("")).toBe('{"a":"bc');
+    expect(clipped.at(-1)?.kind).toBe("string");
+  });
+
+  it("returns the same tokens when they already fit", () => {
+    expect(clipTokens(tokens, 1_000)).toBe(tokens);
   });
 });

@@ -128,3 +128,18 @@ export function jsonLineText(line: JsonLine, expanded: boolean): string {
     : line.tokens.map((token) => token.text).join("");
   return `${line.prefix}${body}`;
 }
+
+/** The leading tokens that fit in `chars` characters, the last one cut to fit. */
+export function clipTokens(
+  tokens: ReadonlyArray<JsonToken>,
+  chars: number,
+): ReadonlyArray<JsonToken> {
+  const kept: JsonToken[] = [];
+  let left = chars;
+  for (const token of tokens) {
+    if (left <= 0) return kept;
+    kept.push(token.text.length > left ? { ...token, text: token.text.slice(0, left) } : token);
+    left -= token.text.length;
+  }
+  return tokens;
+}

@@ -3,7 +3,14 @@ import * as React from "react";
 
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { type AnsiSpan, parseAnsi, stripAnsi } from "~/lib/ansi";
-import { type JsonToken, jsonLineText, parseJsonLine, TOKEN_CLASS, tokenize } from "~/lib/json-log";
+import {
+  clipTokens,
+  type JsonToken,
+  jsonLineText,
+  parseJsonLine,
+  TOKEN_CLASS,
+  tokenize,
+} from "~/lib/json-log";
 import { cn } from "~/lib/utils";
 
 /**
@@ -23,8 +30,25 @@ import { cn } from "~/lib/utils";
  * Every line can be selected like any text, and carries a copy button on
  * hover for the whole message - escapes stripped, since they are for a
  * terminal and not for whatever this is pasted into.
+ *
+ * A line longer than `CLIP_CHARS` is clipped until asked for in full, and
+ * shown in full it is plain text: every styled run and highlighted token is
+ * its own element, and a single 170 KB payload is a hundred thousand of them.
  */
-export function LogLine({ text, className }: { text: string; className?: string | undefined }) {
+export const LogLine = React.memo(function LogLine({
+  text,
+  className,
+}: {
+  text: string;
+  className?: string | undefined;
+}) {
+  const [whole, setWhole] = React.useState(false);
+  const long = text.length > CLIP_CHARS;
+  const clipped = long && !whole;
+  const toggle = long ? (
+    <ClipToggle whole={whole} length={text.length} onToggle={() => setWhole((prev) => !prev)} />
+  ) : null;
+
   // Keyed by offset into the original line: spans are positional slices of an
   // immutable string, so where a run starts is its identity.
   // Escapes and JSON are mutually exclusive in practice, and a structured line
@@ -33,32 +57,66 @@ export function LogLine({ text, className }: { text: string; className?: string 
 
   const spans = React.useMemo(
     () =>
-      parseAnsi(text).reduce<Array<{ span: AnsiSpan; key: string }>>((acc, span, index) => {
-        const previous = acc[index - 1];
-        const offset = previous ? Number(previous.key) + previous.span.text.length : 0;
-        acc.push({ span, key: String(offset) });
-        return acc;
-      }, []),
-    [text],
+      json || (long && whole)
+        ? null
+        : parseAnsi(clipped ? text.slice(0, CLIP_CHARS) : text).reduce<
+            Array<{ span: AnsiSpan; key: string }>
+          >((acc, span, index) => {
+            const previous = acc[index - 1];
+            const offset = previous ? Number(previous.key) + previous.span.text.length : 0;
+            acc.push({ span, key: String(offset) });
+            return acc;
+          }, []),
+    [text, json, long, whole, clipped],
   );
 
   if (json) {
-    return <JsonLogLine line={json} className={className} />;
+    return <JsonLogLine line={json} clipped={clipped} toggle={toggle} className={className} />;
   }
 
   return (
     <span className={cn("group/line relative min-w-0 flex-1", className)}>
       <CopyLine text={() => stripAnsi(text)} />
-      {spans.map(({ span, key }) =>
-        span.className ? (
-          <span key={key} className={span.className}>
-            {span.text}
-          </span>
-        ) : (
-          <LogfmtRun key={key} span={span} />
-        ),
-      )}
+      {spans
+        ? spans.map(({ span, key }) =>
+            span.className ? (
+              <span key={key} className={span.className}>
+                {span.text}
+              </span>
+            ) : (
+              <LogfmtRun key={key} span={span} />
+            ),
+          )
+        : stripAnsi(text)}
+      {toggle}
     </span>
+  );
+});
+
+/** How much of a long line is shown until it is asked for in full. */
+const CLIP_CHARS = 2_000;
+
+/** Past this many tokens JSON is shown as plain text, for the same reason. */
+const MAX_HIGHLIGHTED_TOKENS = 5_000;
+
+/** Shows the rest of a clipped line, or clips it again. */
+function ClipToggle({
+  whole,
+  length,
+  onToggle,
+}: {
+  whole: boolean;
+  length: number;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="ml-1 cursor-pointer rounded px-1 text-primary hover:bg-accent"
+    >
+      {whole ? "show less" : `… show all ${Math.round(length / 1000)}k characters`}
+    </button>
   );
 }
 
@@ -113,16 +171,27 @@ function LogfmtRun({ span }: { span: AnsiSpan }) {
  */
 function JsonLogLine({
   line,
+  clipped,
+  toggle,
   className,
 }: {
   line: NonNullable<ReturnType<typeof parseJsonLine>>;
+  /** Collapsed, only the first `CLIP_CHARS` are shown. Expanded is always whole. */
+  clipped: boolean;
+  toggle: React.ReactNode;
   className?: string | undefined;
 }) {
   const [expanded, setExpanded] = React.useState(false);
 
-  const tokens = React.useMemo(
-    () => (expanded ? tokenize(JSON.stringify(line.value, null, 2)) : line.tokens),
-    [expanded, line],
+  const tokens = React.useMemo(() => {
+    if (expanded) return tokenize(JSON.stringify(line.value, null, 2));
+    return clipped ? clipTokens(line.tokens, CLIP_CHARS) : line.tokens;
+  }, [expanded, clipped, line]);
+
+  const plain = React.useMemo(
+    () =>
+      tokens.length > MAX_HIGHLIGHTED_TOKENS ? tokens.map((token) => token.text).join("") : null,
+    [tokens],
   );
 
   const Chevron = expanded ? ChevronDown : ChevronRight;
@@ -142,8 +211,9 @@ function JsonLogLine({
       </button>
       {line.prefix ? <span className="text-muted-foreground/70">{line.prefix}</span> : null}
       <span className={cn(expanded && "block whitespace-pre")}>
-        <JsonTokens tokens={tokens} />
+        {plain ?? <JsonTokens tokens={tokens} />}
       </span>
+      {expanded ? null : toggle}
     </span>
   );
 }
