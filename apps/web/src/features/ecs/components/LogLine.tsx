@@ -1,7 +1,9 @@
+import { Check, ChevronDown, ChevronRight, Copy, X } from "lucide-react";
 import * as React from "react";
 
+import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { type AnsiSpan, parseAnsi, stripAnsi } from "~/lib/ansi";
-import { type JsonToken, parseJsonLine, TOKEN_CLASS, tokenize } from "~/lib/json-log";
+import { type JsonToken, jsonLineText, parseJsonLine, TOKEN_CLASS, tokenize } from "~/lib/json-log";
 import { cn } from "~/lib/utils";
 
 /**
@@ -17,6 +19,10 @@ import { cn } from "~/lib/utils";
  * 3. Runs the program left unstyled get `key=` dimmed, which separates the
  *    field names from the values in logfmt-style output without inventing a
  *    colour scheme on top of one the program may already be using.
+ *
+ * Every line can be selected like any text, and carries a copy button on
+ * hover for the whole message - escapes stripped, since they are for a
+ * terminal and not for whatever this is pasted into.
  */
 export function LogLine({ text, className }: { text: string; className?: string | undefined }) {
   // Keyed by offset into the original line: spans are positional slices of an
@@ -41,7 +47,8 @@ export function LogLine({ text, className }: { text: string; className?: string 
   }
 
   return (
-    <span className={cn("min-w-0 flex-1", className)}>
+    <span className={cn("group/line relative min-w-0 flex-1", className)}>
+      <CopyLine text={() => stripAnsi(text)} />
       {spans.map(({ span, key }) =>
         span.className ? (
           <span key={key} className={span.className}>
@@ -98,6 +105,11 @@ function LogfmtRun({ span }: { span: AnsiSpan }) {
  * Expanding re-tokenises the re-serialised value rather than reflowing the
  * original text, so the indented form is genuinely valid JSON even when the
  * producer wrote it without spaces.
+ *
+ * Only the chevron toggles it. A line that expanded on any click could not
+ * have a word double-clicked or a value dragged across, which is most of what
+ * anyone does with a line of JSON. A copy takes the form on screen: indented
+ * when expanded, the original single line when not.
  */
 function JsonLogLine({
   line,
@@ -113,20 +125,25 @@ function JsonLogLine({
     [expanded, line],
   );
 
+  const Chevron = expanded ? ChevronDown : ChevronRight;
+
   return (
-    <span className={cn("min-w-0 flex-1", className)}>
-      {line.prefix ? <span className="text-muted-foreground/70">{line.prefix}</span> : null}
+    <span className={cn("group/line relative min-w-0 flex-1", className)}>
+      <CopyLine text={() => jsonLineText(line, expanded)} />
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
+        aria-expanded={expanded}
+        aria-label={expanded ? "Collapse this JSON" : "Expand this JSON"}
         title={expanded ? "Collapse" : "Expand this JSON"}
-        className={cn(
-          "cursor-pointer rounded text-left hover:bg-accent/40",
-          expanded && "block whitespace-pre",
-        )}
+        className="mr-1 inline-grid size-3.5 cursor-pointer place-items-center rounded align-[-2px] text-muted-foreground/60 hover:bg-accent hover:text-foreground"
       >
-        <JsonTokens tokens={tokens} />
+        <Chevron className="size-3" strokeWidth={2} />
       </button>
+      {line.prefix ? <span className="text-muted-foreground/70">{line.prefix}</span> : null}
+      <span className={cn(expanded && "block whitespace-pre")}>
+        <JsonTokens tokens={tokens} />
+      </span>
     </span>
   );
 }
@@ -156,5 +173,33 @@ function JsonTokens({ tokens }: { tokens: ReadonlyArray<JsonToken> }) {
         ),
       )}
     </>
+  );
+}
+
+/**
+ * The whole message to the clipboard, from the top right of its line.
+ *
+ * Hidden until the line is hovered or the button focused: a copy icon on every
+ * line of a busy tail is a column of noise. The text is a thunk so nothing is
+ * serialised for the thousands of lines nobody copies.
+ */
+function CopyLine({ text }: { text: () => string }) {
+  const { copied, failed, copy } = useCopyToClipboard();
+  const Icon = copied ? Check : failed ? X : Copy;
+
+  return (
+    <button
+      type="button"
+      onClick={() => void copy(text())}
+      aria-label="Copy this line"
+      title={copied ? "Copied" : failed ? "Copy failed" : "Copy this line"}
+      className={cn(
+        "absolute top-0 right-0 z-[1] grid size-5 cursor-pointer place-items-center rounded border border-border bg-card text-muted-foreground opacity-0 transition-opacity group-hover/line:opacity-100 hover:text-foreground focus-visible:opacity-100",
+        copied && "text-success opacity-100",
+        failed && "text-danger opacity-100",
+      )}
+    >
+      <Icon className="size-3" strokeWidth={2} />
+    </button>
   );
 }

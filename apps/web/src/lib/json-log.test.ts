@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseJsonLine, tokenize } from "./json-log.ts";
+import { jsonLineText, parseJsonLine, tokenize } from "./json-log.ts";
 
 const LINE = '{"level":30,"msg":"commands publish","ok":true,"err":null,"n":1.5e3}';
 
@@ -90,5 +90,19 @@ describe("tokenize", () => {
     const tokens = tokenize('{\n  "a": 1\n}');
     expect(tokens.map((token) => token.text).join("")).toBe('{\n  "a": 1\n}');
     expect(tokens.some((token) => token.kind === "whitespace")).toBe(true);
+  });
+});
+
+describe("jsonLineText", () => {
+  const line = parseJsonLine('12:00:01 INFO {"level":"info","n":1}');
+
+  it("copies the line as it arrived while collapsed", () => {
+    expect(line && jsonLineText(line, false)).toBe('12:00:01 INFO {"level":"info","n":1}');
+  });
+
+  it("copies indented JSON while expanded, prefix and all", () => {
+    expect(line && jsonLineText(line, true)).toBe(
+      '12:00:01 INFO {\n  "level": "info",\n  "n": 1\n}',
+    );
   });
 });

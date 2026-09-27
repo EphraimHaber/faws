@@ -116,3 +116,15 @@ export const TOKEN_CLASS: Readonly<Record<JsonTokenKind, string>> = {
   punctuation: "text-muted-foreground/60",
   whitespace: "",
 };
+
+/**
+ * The text of a structured line as it is shown: indented when expanded, the
+ * single line it arrived as when not. What a copy of the line should hold, so
+ * that pasting it gives what was on screen.
+ */
+export function jsonLineText(line: JsonLine, expanded: boolean): string {
+  const body = expanded
+    ? JSON.stringify(line.value, null, 2)
+    : line.tokens.map((token) => token.text).join("");
+  return `${line.prefix}${body}`;
+}
