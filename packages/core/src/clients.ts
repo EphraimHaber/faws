@@ -165,6 +165,26 @@ export async function collectPages<T>(
   return out;
 }
 
+/**
+ * `collectPages` that stops after `maxPages`, for a listing the page sorts and
+ * filters as a whole. `truncated` says there were more pages than the cap.
+ */
+export async function collectPagesUpTo<T>(
+  maxPages: number,
+  page: (token: string | undefined) => Promise<{ items: ReadonlyArray<T>; nextToken?: string }>,
+): Promise<{ items: T[]; truncated: boolean }> {
+  const items: T[] = [];
+  let token: string | undefined;
+  let pages = 0;
+  do {
+    const result = await page(token);
+    items.push(...result.items);
+    token = result.nextToken;
+    pages += 1;
+  } while (token && pages < maxPages);
+  return { items, truncated: Boolean(token) };
+}
+
 /** DescribeServices caps at 10 ids per call; DescribeTasks at 100. */
 export function chunk<T>(items: ReadonlyArray<T>, size: number): T[][] {
   const out: T[][] = [];

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { parseSelection, parseText, serializeSelection } from "./useSearchState.ts";
+import {
+  parseSelection,
+  parseText,
+  serializeSelection,
+  withoutListSearch,
+} from "./useSearchState.ts";
 
 /**
  * The hook itself needs a router; these are the parts that decide what a URL
@@ -47,5 +52,17 @@ describe("serializeSelection", () => {
   it("round-trips through parse", () => {
     const selected = new Set(["arn:aws:s3:::one", "arn:aws:s3:::two"]);
     expect(parseSelection(serializeSelection(selected))).toEqual(selected);
+  });
+});
+
+describe("withoutListSearch", () => {
+  it("drops the filter, sort and columns and keeps the rest", () => {
+    expect(
+      withoutListSearch({ tab: "keys", q: "prod", sort: "-name", cols: "name,id", plan: "p1" }),
+    ).toEqual({ tab: "keys", plan: "p1" });
+  });
+
+  it("leaves a search without them as it was", () => {
+    expect(withoutListSearch({ tab: "stages" })).toEqual({ tab: "stages" });
   });
 });

@@ -21,7 +21,7 @@ export function methodSettingTarget(key: string): { resourcePath: string; httpMe
   return { resourcePath: path.startsWith("/") ? path : `/${path}`, httpMethod };
 }
 
-export function restApiMethodSetting(key: string, setting: MethodSetting): RestApiMethodSetting {
+function restApiMethodSetting(key: string, setting: MethodSetting): RestApiMethodSetting {
   return {
     ...methodSettingTarget(key),
     loggingLevel: setting.loggingLevel ?? null,

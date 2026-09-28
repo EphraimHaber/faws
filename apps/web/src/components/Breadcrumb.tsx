@@ -66,9 +66,8 @@ const REST_API_PATH = /^\/api-gateway\/rest-apis\/([^/]+)/;
 /**
  * Names for crumbs whose segment is an opaque id, keyed by the crumb's path.
  *
- * Read from what the page has already fetched and never fetched here, so the
- * trail shows the id until the page knows the name, and costs no call of its
- * own.
+ * Read from the query cache with the query disabled, so it costs no call of
+ * its own: the trail shows the id until the REST API's detail is cached.
  */
 function useCrumbNames(pathname: string): Readonly<Record<string, string>> {
   const scope = useAwsScope();

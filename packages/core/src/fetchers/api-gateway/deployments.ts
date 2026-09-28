@@ -2,7 +2,7 @@ import { type Deployment, GetDeploymentsCommand } from "@aws-sdk/client-api-gate
 import type { AwsScope, RestApiDeployment, RestApiDeploymentListing } from "@faws/contracts";
 import { toIso } from "@faws/shared";
 
-import { apiGatewayClient, callAws } from "../../clients.ts";
+import { apiGatewayClient, callAws, collectPagesUpTo } from "../../clients.ts";
 
 /** GetDeployments returns at most 500 a page; an API rarely keeps this many. */
 const MAX_DEPLOYMENT_PAGES = 20;
@@ -26,10 +26,7 @@ export async function listDeployments(
   apiId: string,
 ): Promise<RestApiDeploymentListing> {
   const client = apiGatewayClient(scope);
-  const deployments: RestApiDeployment[] = [];
-  let position: string | undefined;
-  let pages = 0;
-  do {
+  const { items, truncated } = await collectPagesUpTo(MAX_DEPLOYMENT_PAGES, async (position) => {
     const page = await callAws("apigateway", () =>
       client.send(
         new GetDeploymentsCommand({
@@ -39,18 +36,13 @@ export async function listDeployments(
         }),
       ),
     );
-    for (const item of page.items ?? []) {
-      const deployment = restApiDeployment(item);
-      if (deployment) deployments.push(deployment);
-    }
-    position = page.position;
-    pages += 1;
-  } while (position && pages < MAX_DEPLOYMENT_PAGES);
+    return { items: page.items ?? [], ...(page.position ? { nextToken: page.position } : {}) };
+  });
 
   return {
-    deployments: deployments.toSorted((a, b) =>
-      (b.createdAt ?? "").localeCompare(a.createdAt ?? ""),
-    ),
-    truncated: Boolean(position),
+    deployments: items
+      .flatMap((item) => restApiDeployment(item) ?? [])
+      .toSorted((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")),
+    truncated,
   };
 }

@@ -1,4 +1,9 @@
-import { CLOUDWATCH_WINDOWS, MAX_TAILED_GROUPS, REST_API_EXPORT_FORMATS } from "@faws/contracts";
+import {
+  CLOUDWATCH_WINDOWS,
+  MAX_TAILED_GROUPS,
+  METRIC_STATISTICS,
+  REST_API_EXPORT_FORMATS,
+} from "@faws/contracts";
 import { useHotkeys } from "@tanstack/react-hotkeys";
 import {
   createRootRoute,
@@ -295,6 +300,8 @@ const metricsRoute = createRoute({
       .optional()
       .catch(undefined),
     window: windowSearch,
+    /** What the chart draws; absent, the average under the maximum. */
+    stat: z.enum(METRIC_STATISTICS).optional().catch(undefined),
   }),
   component: MetricsPage,
 });

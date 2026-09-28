@@ -4,17 +4,17 @@ import {
   GetBasePathMappingsCommand,
   GetDomainNamesCommand,
 } from "@aws-sdk/client-api-gateway";
-import {
-  AwsRequestError,
-  type AwsScope,
-  type BasePathMapping,
-  type BasePathMappingListing,
-  type CustomDomain,
-  type CustomDomainListing,
+import type {
+  AwsScope,
+  BasePathMapping,
+  BasePathMappingListing,
+  CustomDomain,
+  CustomDomainListing,
 } from "@faws/contracts";
 import { toIso } from "@faws/shared";
 
-import { apiGatewayClient, callAws } from "../../clients.ts";
+import { apiGatewayClient, callAws, collectPagesUpTo } from "../../clients.ts";
+import { nullIfNotFound } from "./notFound.ts";
 
 /** GetDomainNames returns at most 500 a page; a region rarely holds this many. */
 const MAX_DOMAIN_PAGES = 10;
@@ -63,27 +63,22 @@ export function basePathMapping(mapping: AwsBasePathMapping): BasePathMapping {
 /** Every custom domain the account owns in the region, by name, up to a cap. */
 export async function listDomainNames(scope: AwsScope): Promise<CustomDomainListing> {
   const client = apiGatewayClient(scope);
-  const domains: CustomDomain[] = [];
-  let position: string | undefined;
-  let pages = 0;
-  do {
+  const { items, truncated } = await collectPagesUpTo(MAX_DOMAIN_PAGES, async (position) => {
     const page = await callAws("apigateway", () =>
       client.send(new GetDomainNamesCommand({ limit: 500, ...(position ? { position } : {}) })),
     );
-    for (const item of page.items ?? []) {
-      const domain = customDomain(item);
-      if (domain) domains.push(domain);
-    }
-    position = page.position;
-    pages += 1;
-  } while (position && pages < MAX_DOMAIN_PAGES);
+    return { items: page.items ?? [], ...(page.position ? { nextToken: page.position } : {}) };
+  });
 
   return {
-    domains: domains.toSorted(
-      (a, b) =>
-        a.name.localeCompare(b.name) || (a.domainNameId ?? "").localeCompare(b.domainNameId ?? ""),
-    ),
-    truncated: Boolean(position),
+    domains: items
+      .flatMap((item) => customDomain(item) ?? [])
+      .toSorted(
+        (a, b) =>
+          a.name.localeCompare(b.name) ||
+          (a.domainNameId ?? "").localeCompare(b.domainNameId ?? ""),
+      ),
+    truncated,
   };
 }
 
@@ -97,11 +92,8 @@ export async function listBasePathMappings(
   domainNameId: string | null,
 ): Promise<BasePathMappingListing | null> {
   const client = apiGatewayClient(scope);
-  const mappings: BasePathMapping[] = [];
-  let position: string | undefined;
-  let pages = 0;
-  try {
-    do {
+  const listed = await nullIfNotFound(() =>
+    collectPagesUpTo(MAX_MAPPING_PAGES, async (position) => {
       const page = await callAws("apigateway", () =>
         client.send(
           new GetBasePathMappingsCommand({
@@ -112,18 +104,15 @@ export async function listBasePathMappings(
           }),
         ),
       );
-      for (const item of page.items ?? []) mappings.push(basePathMapping(item));
-      position = page.position;
-      pages += 1;
-    } while (position && pages < MAX_MAPPING_PAGES);
-  } catch (err) {
-    // A stale link to a deleted domain is an answer, not a fault.
-    if (err instanceof AwsRequestError && err.code === "NotFoundException") return null;
-    throw err;
-  }
+      return { items: page.items ?? [], ...(page.position ? { nextToken: page.position } : {}) };
+    }),
+  );
+  if (!listed) return null;
 
   return {
-    mappings: mappings.toSorted((a, b) => a.basePath.localeCompare(b.basePath)),
-    truncated: Boolean(position),
+    mappings: listed.items
+      .map(basePathMapping)
+      .toSorted((a, b) => a.basePath.localeCompare(b.basePath)),
+    truncated: listed.truncated,
   };
 }

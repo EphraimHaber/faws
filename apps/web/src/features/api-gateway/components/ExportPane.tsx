@@ -10,7 +10,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { JsonText } from "~/features/api-gateway/components/JsonText";
-import { useSearchState } from "~/hooks/useSearchState";
+import { parseText, useSearchState } from "~/hooks/useSearchState";
 import { trpc } from "~/lib/trpc";
 
 const FORMAT_LABELS: Record<RestApiExportFormat, string> = {
@@ -19,15 +19,15 @@ const FORMAT_LABELS: Record<RestApiExportFormat, string> = {
 };
 
 /**
- * One stage's API definition as AWS exports it. The stage is the same URL
- * param the stages tab picks with, so moving between the two keeps it.
+ * One stage's API definition as AWS exports it. The stage is picked by the
+ * `stage` URL param; absent, or naming a stage the API lacks, it is the first.
  */
 export function ExportPane({ apiId }: { apiId: string }) {
   const scope = useAwsScope();
   const [picked, setPicked] = useSearchState<string>({
     key: "stage",
     fallback: "",
-    parse: (raw) => (typeof raw === "string" ? raw : ""),
+    parse: parseText,
   });
   const [format, setFormat] = useSearchState<RestApiExportFormat>({
     key: "format",

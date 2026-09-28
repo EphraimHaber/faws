@@ -1,7 +1,8 @@
 import { GetRestApiCommand, type RestApi } from "@aws-sdk/client-api-gateway";
-import { AwsRequestError, type AwsScope, type RestApiDetail } from "@faws/contracts";
+import type { AwsScope, RestApiDetail } from "@faws/contracts";
 
 import { apiGatewayClient, callAws } from "../../clients.ts";
+import { nullIfNotFound } from "./notFound.ts";
 import { restApiSummary } from "./restApis.ts";
 
 /**
@@ -50,14 +51,8 @@ export function restApiDetail(api: RestApi): RestApiDetail | null {
 /** One REST API, or `null` when the region has no API with that id. */
 export async function getRestApi(scope: AwsScope, apiId: string): Promise<RestApiDetail | null> {
   const client = apiGatewayClient(scope);
-  try {
-    const api = await callAws("apigateway", () =>
-      client.send(new GetRestApiCommand({ restApiId: apiId })),
-    );
-    return restApiDetail(api);
-  } catch (err) {
-    // A stale link or a pin from another region is an answer, not a fault.
-    if (err instanceof AwsRequestError && err.code === "NotFoundException") return null;
-    throw err;
-  }
+  const api = await nullIfNotFound(() =>
+    callAws("apigateway", () => client.send(new GetRestApiCommand({ restApiId: apiId }))),
+  );
+  return api ? restApiDetail(api) : null;
 }

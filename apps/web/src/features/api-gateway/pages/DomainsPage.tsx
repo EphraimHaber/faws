@@ -12,8 +12,9 @@ import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { DomainPanel } from "~/features/api-gateway/components/DomainPanel";
+import { TruncatedNote } from "~/features/api-gateway/components/parts";
 import { dnsTarget, domainKey, statusTone } from "~/features/api-gateway/domains";
-import { useFilterSearch, useSearchState } from "~/hooks/useSearchState";
+import { parseText, useFilterSearch, useSearchState } from "~/hooks/useSearchState";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -27,7 +28,7 @@ export function DomainsPage() {
   const [picked, setPicked] = useSearchState<string>({
     key: "domain",
     fallback: "",
-    parse: (raw) => (typeof raw === "string" ? raw : ""),
+    parse: parseText,
   });
 
   const domains = useQuery(trpc.apiGateway.domainNames.queryOptions(scope));
@@ -122,12 +123,7 @@ export function DomainsPage() {
             {domains.isPending ? "…" : rows.length}
           </span>
           {domains.data?.truncated ? (
-            <span
-              className="font-mono text-[10.5px] whitespace-nowrap text-warning"
-              title="This region has more custom domains than one listing covers."
-            >
-              first {rows.length} only
-            </span>
+            <TruncatedNote count={rows.length} noun="custom domains" place="header" />
           ) : null}
           <div className="ml-auto flex items-center gap-2">
             <FilterInput value={filter} onChange={setFilter} total={rows.length} />

@@ -131,6 +131,22 @@ export function parseText(raw: unknown): string {
 }
 
 /**
+ * `search` without the params that describe one list: its filter, sort and
+ * columns.
+ *
+ * For a move to a different list on the same route, such as another tab.
+ * Those params name the old list's columns, and carried over they would
+ * filter the new list to nothing or hide the columns it has that the old one
+ * did not.
+ */
+export function withoutListSearch<S extends Record<string, unknown>>(
+  search: S,
+): Omit<S, "q" | "sort" | "cols"> {
+  const { q: _q, sort: _sort, cols: _cols, ...rest } = search;
+  return rest;
+}
+
+/**
  * Which rows are ticked, in the URL.
  *
  * Comma-separated, which is readable in a link and safe here because the ids

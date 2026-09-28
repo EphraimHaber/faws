@@ -1,8 +1,8 @@
 import type { ThrottleLimits, UsagePlan, UsagePlanApiStage, UsagePlanQuota } from "@faws/contracts";
 
-/** A throttle as a rate and a burst, e.g. `100/s, burst 200`. */
+/** A throttle as a rate and a burst, e.g. `100/s, burst 200`; `none` when it sets neither. */
 export function limitsLabel(throttle: ThrottleLimits | null): string {
-  if (!throttle) return "none";
+  if (!throttle || (throttle.rateLimit === null && throttle.burstLimit === null)) return "none";
   return `${throttle.rateLimit ?? "-"}/s, burst ${throttle.burstLimit ?? "-"}`;
 }
 

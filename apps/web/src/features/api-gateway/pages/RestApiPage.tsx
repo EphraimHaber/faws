@@ -20,7 +20,7 @@ import { ResourcesPane } from "~/features/api-gateway/components/ResourcesPane";
 import { RestApiOverview } from "~/features/api-gateway/components/RestApiOverview";
 import { StagesPane } from "~/features/api-gateway/components/StagesPane";
 import { restApiRef } from "~/features/api-gateway/refs";
-import { useTabSearch } from "~/hooks/useTabSearch";
+import { useListTabSearch } from "~/hooks/useTabSearch";
 import { trpc } from "~/lib/trpc";
 import { useRecordVisit } from "~/stores/recents";
 
@@ -44,7 +44,7 @@ type Tab = (typeof REST_API_TABS)[number];
 export function RestApiPage({ apiId }: { apiId: string }) {
   const scope = useAwsScope();
   const { region } = useScope();
-  const [tab, setTab] = useTabSearch(REST_API_TABS, "overview");
+  const [tab, setTab] = useListTabSearch(REST_API_TABS, "overview");
 
   const detail = useQuery(trpc.apiGateway.restApi.queryOptions({ ...scope, apiId }));
   const resources = useQuery({

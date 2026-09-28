@@ -14,10 +14,11 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader } from "~/components/ui/panel";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { TruncatedNote } from "~/features/api-gateway/components/parts";
 import { UsagePlanPanel } from "~/features/api-gateway/components/UsagePlanPanel";
 import { limitsLabel, quotaLabel } from "~/features/api-gateway/usage-plans";
-import { useFilterSearch, useSearchState } from "~/hooks/useSearchState";
-import { useTabSearch } from "~/hooks/useTabSearch";
+import { parseText, useFilterSearch, useSearchState } from "~/hooks/useSearchState";
+import { useListTabSearch } from "~/hooks/useTabSearch";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
 
@@ -33,12 +34,12 @@ type Tab = (typeof USAGE_PLAN_TABS)[number];
  */
 export function UsagePlansPage() {
   const scope = useAwsScope();
-  const [tab, setTab] = useTabSearch(USAGE_PLAN_TABS, "plans");
+  const [tab, setTab] = useListTabSearch(USAGE_PLAN_TABS, "plans");
   const [filter, setFilter] = useFilterSearch();
   const [picked, setPicked] = useSearchState<string>({
     key: "plan",
     fallback: "",
-    parse: (raw) => (typeof raw === "string" ? raw : ""),
+    parse: parseText,
   });
 
   const plans = useQuery(trpc.apiGateway.usagePlans.queryOptions(scope));
@@ -77,12 +78,11 @@ export function UsagePlansPage() {
             ]}
           />
           {active.data?.truncated ? (
-            <span
-              className="font-mono text-[10.5px] whitespace-nowrap text-warning"
-              title={`This region has more ${tab === "plans" ? "usage plans" : "API keys"} than one listing covers.`}
-            >
-              first {count} only
-            </span>
+            <TruncatedNote
+              count={count ?? 0}
+              noun={tab === "plans" ? "usage plans" : "API keys"}
+              place="header"
+            />
           ) : null}
           {tab === "keys" ? (
             <span className="text-[11px] text-muted-foreground">Key values are never read.</span>

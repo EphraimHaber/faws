@@ -15,6 +15,7 @@ import { MetricChart } from "~/components/metric-chart";
 import { Button } from "~/components/ui/button";
 import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
+import { TextAction } from "~/components/ui/text-action";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import {
   API_GATEWAY_NAMESPACE,
@@ -25,21 +26,21 @@ import {
 } from "~/features/api-gateway/metrics";
 import { WindowPicker } from "~/features/cloudwatch/components/LogWindow";
 import { chartStatistics, formatterFor, windowReaching } from "~/features/cloudwatch/metric-ref";
-import { useSearchState } from "~/hooks/useSearchState";
+import { parseText, useSearchState } from "~/hooks/useSearchState";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
 
 /**
  * What CloudWatch has on the API: traffic, errors, latency and cache use, for
- * every stage together or one stage alone. The stage is the same URL param the
- * stages tab picks with; here its absence means every stage.
+ * every stage together or one stage alone. The stage is picked by the `stage`
+ * URL param; absent, it is every stage.
  */
 export function MetricsPane({ apiId, apiName }: { apiId: string; apiName: string }) {
   const scope = useAwsScope();
   const [picked, setPicked] = useSearchState<string>({
     key: "stage",
     fallback: "",
-    parse: (raw) => (typeof raw === "string" ? raw : ""),
+    parse: parseText,
   });
   const [windowMinutes, setWindowMinutes] = useSearchState<CloudWatchWindow>({
     key: "window",
@@ -50,8 +51,12 @@ export function MetricsPane({ apiId, apiName }: { apiId: string; apiName: string
 
   const stages = useQuery(trpc.apiGateway.stages.queryOptions({ ...scope, apiId }));
   // A stage from a link that the API no longer has reads as every stage,
-  // rather than as charts of a dimension nothing reports under.
-  const stageName = stages.data?.find((stage) => stage.name === picked)?.name ?? null;
+  // rather than as charts of a dimension nothing reports under. Without a
+  // stage list to check against, the linked stage is charted as it is.
+  const stageName = stages.isError
+    ? picked || null
+    : (stages.data?.find((stage) => stage.name === picked)?.name ?? null);
+  const stageNames = stages.data?.map((stage) => stage.name) ?? (stageName ? [stageName] : []);
   const dimensions = restApiDimensions(apiName, stageName);
 
   return (
@@ -64,12 +69,18 @@ export function MetricsPane({ apiId, apiName }: { apiId: string; apiName: string
           className="h-7 max-w-48 min-w-0 cursor-pointer truncate rounded-md border border-border bg-transparent px-2 font-mono text-[12px] focus:outline-none"
         >
           <option value="">All stages</option>
-          {(stages.data ?? []).map((stage) => (
-            <option key={stage.name} value={stage.name}>
-              {stage.name}
+          {stageNames.map((name) => (
+            <option key={name} value={name}>
+              {name}
             </option>
           ))}
         </select>
+        {stages.isError ? (
+          <span className="flex items-center gap-1.5 font-mono text-[10.5px] text-danger">
+            <span title={stages.error.message}>stages could not be read</span>
+            <TextAction onClick={() => void stages.refetch()}>retry</TextAction>
+          </span>
+        ) : null}
         <WindowPicker value={windowMinutes} onChange={setWindowMinutes} />
         <span
           className="ml-auto truncate font-mono text-[10.5px] text-muted-foreground"
@@ -81,9 +92,7 @@ export function MetricsPane({ apiId, apiName }: { apiId: string; apiName: string
         </span>
       </div>
 
-      {stages.isError ? (
-        <ErrorState error={stages.error} onRetry={() => void stages.refetch()} />
-      ) : picked && stages.isPending ? (
+      {picked && stages.isPending ? (
         // Until the stages load, a linked stage cannot be told from a stale
         // one, and charting every stage meanwhile would be read twice.
         <LoadingRows rows={8} />
@@ -182,6 +191,7 @@ function RestApiMetricChart({
             ns: API_GATEWAY_NAMESPACE,
             chart: { namespace: API_GATEWAY_NAMESPACE, name: chart.metric, dimensions },
             window: windowMinutes,
+            stat: chart.statistic,
           }}
           className="ml-auto inline-flex items-center gap-1 underline decoration-border underline-offset-2 hover:text-primary"
         >

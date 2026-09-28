@@ -12,7 +12,7 @@ import type {
   RestApiResourceListing,
 } from "@faws/contracts";
 
-import { apiGatewayClient, callAws } from "../../clients.ts";
+import { apiGatewayClient, callAws, collectPagesUpTo } from "../../clients.ts";
 
 /** GetResources returns at most 500 a page; the default quota is 300 resources an API. */
 const MAX_RESOURCE_PAGES = 20;
@@ -25,7 +25,7 @@ function methodRank(httpMethod: string): number {
   return rank === -1 ? METHOD_ORDER.length : rank;
 }
 
-export function restApiIntegration(integration: Integration): RestApiIntegration {
+function restApiIntegration(integration: Integration): RestApiIntegration {
   return {
     type: integration.type ?? null,
     httpMethod: integration.httpMethod ?? null,
@@ -39,7 +39,7 @@ export function restApiIntegration(integration: Integration): RestApiIntegration
   };
 }
 
-export function restApiMethod(httpMethod: string, method: Method): RestApiMethod {
+function restApiMethod(httpMethod: string, method: Method): RestApiMethod {
   return {
     httpMethod: method.httpMethod ?? httpMethod,
     authorizationType: method.authorizationType ?? null,
@@ -79,10 +79,7 @@ export async function listResources(
   apiId: string,
 ): Promise<RestApiResourceListing> {
   const client = apiGatewayClient(scope);
-  const resources: RestApiResource[] = [];
-  let position: string | undefined;
-  let pages = 0;
-  do {
+  const { items, truncated } = await collectPagesUpTo(MAX_RESOURCE_PAGES, async (position) => {
     const page = await callAws("apigateway", () =>
       client.send(
         new GetResourcesCommand({
@@ -93,13 +90,8 @@ export async function listResources(
         }),
       ),
     );
-    for (const item of page.items ?? []) {
-      const resource = restApiResource(item);
-      if (resource) resources.push(resource);
-    }
-    position = page.position;
-    pages += 1;
-  } while (position && pages < MAX_RESOURCE_PAGES);
+    return { items: page.items ?? [], ...(page.position ? { nextToken: page.position } : {}) };
+  });
 
-  return { resources, truncated: Boolean(position) };
+  return { resources: items.flatMap((item) => restApiResource(item) ?? []), truncated };
 }

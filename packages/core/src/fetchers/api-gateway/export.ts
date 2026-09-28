@@ -7,7 +7,7 @@ import { apiGatewayClient, callAws } from "../../clients.ts";
  * The largest definition passed on to the page. A few thousand operations fit
  * well under it; past it the JSON viewer and the tRPC response both struggle.
  */
-export const MAX_EXPORT_BYTES = 4 * 1024 * 1024;
+const MAX_EXPORT_BYTES = 4 * 1024 * 1024;
 
 /** An export's body decoded to text, or left out when it is over `maxBytes`. */
 export function restApiExport(

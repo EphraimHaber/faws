@@ -22,6 +22,10 @@ describe("limitsLabel", () => {
     expect(limitsLabel({ rateLimit: null, burstLimit: 20 })).toBe("-/s, burst 20");
     expect(limitsLabel(null)).toBe("none");
   });
+
+  it("reads a throttle that sets neither limit as none", () => {
+    expect(limitsLabel({ rateLimit: null, burstLimit: null })).toBe("none");
+  });
 });
 
 describe("quotaLabel", () => {

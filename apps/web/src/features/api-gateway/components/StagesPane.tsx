@@ -12,6 +12,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { SectionHeader } from "~/components/ui/section-header";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { linkClass, TagsSection } from "~/features/api-gateway/components/parts";
 import {
   executionLogGroup,
   executionLoggingOn,
@@ -19,13 +20,10 @@ import {
   logGroupFromArn,
 } from "~/features/api-gateway/stages";
 import { limitsLabel, plansForStage, quotaLabel } from "~/features/api-gateway/usage-plans";
-import { useSearchState } from "~/hooks/useSearchState";
+import { parseText, useSearchState } from "~/hooks/useSearchState";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
-
-const linkClass =
-  "inline-flex items-center gap-1 break-all underline decoration-border underline-offset-2 hover:text-primary";
 
 /**
  * The API's stages down the side, and how the picked one is set up on the
@@ -36,7 +34,7 @@ export function StagesPane({ api }: { api: RestApiDetail }) {
   const [picked, setPicked] = useSearchState<string>({
     key: "stage",
     fallback: "",
-    parse: (raw) => (typeof raw === "string" ? raw : ""),
+    parse: parseText,
   });
 
   const stages = useQuery(trpc.apiGateway.stages.queryOptions({ ...scope, apiId: api.id }));
@@ -100,7 +98,6 @@ function StageDetail({ api, stage }: { api: RestApiDetail; stage: RestApiStage }
   const { region } = useScope();
   const url = invokeUrl(api.id, region, stage.name);
   const variables = Object.entries(stage.variables).toSorted(([a], [b]) => a.localeCompare(b));
-  const tags = Object.entries(stage.tags);
 
   return (
     <div className="flex flex-col">
@@ -194,18 +191,7 @@ function StageDetail({ api, stage }: { api: RestApiDetail; stage: RestApiStage }
 
       <StageUsagePlans apiId={api.id} stageName={stage.name} />
 
-      {tags.length > 0 ? (
-        <section className="flex flex-col gap-2 border-b border-border px-3.5 py-3">
-          <SectionHeader title="Tags" count={tags.length} />
-          <KeyValueGrid>
-            {tags.map(([key, value]) => (
-              <KeyValue key={key} label={key}>
-                {value}
-              </KeyValue>
-            ))}
-          </KeyValueGrid>
-        </section>
-      ) : null}
+      <TagsSection tags={stage.tags} className="border-b border-border py-3" />
     </div>
   );
 }
@@ -335,7 +321,12 @@ function MethodSettingDetail({ setting }: { setting: RestApiMethodSetting }) {
         <KeyValue label="Logging">{setting.loggingLevel ?? "OFF"}</KeyValue>
         <KeyValue label="Data trace">{setting.dataTraceEnabled ? "on" : "off"}</KeyValue>
         <KeyValue label="Detailed metrics">{setting.metricsEnabled ? "on" : "off"}</KeyValue>
-        <KeyValue label="Throttling">{throttleLabel(setting)}</KeyValue>
+        <KeyValue label="Throttling">
+          {limitsLabel({
+            rateLimit: setting.throttlingRateLimit,
+            burstLimit: setting.throttlingBurstLimit,
+          })}
+        </KeyValue>
         <KeyValue label="Caching">{cachingLabel(setting)}</KeyValue>
       </KeyValueGrid>
     </div>
@@ -346,12 +337,6 @@ function cacheLabel(stage: RestApiStage): string {
   if (!stage.cacheClusterEnabled) return "off";
   const size = stage.cacheClusterSize ? `${stage.cacheClusterSize} GB` : "on";
   return stage.cacheClusterStatus ? `${size} · ${stage.cacheClusterStatus}` : size;
-}
-
-function throttleLabel(setting: RestApiMethodSetting): string {
-  const { throttlingRateLimit: rate, throttlingBurstLimit: burst } = setting;
-  if (rate === null && burst === null) return "-";
-  return `${rate ?? "-"}/s, burst ${burst ?? "-"}`;
 }
 
 function cachingLabel(setting: RestApiMethodSetting): string {

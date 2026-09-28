@@ -7,19 +7,19 @@ import {
   type UsagePlan as AwsUsagePlan,
   type UsagePlanKey as AwsUsagePlanKey,
 } from "@aws-sdk/client-api-gateway";
-import {
-  AwsRequestError,
-  type AwsScope,
-  type ThrottleLimits,
-  type UsagePlan,
-  type UsagePlanApiStage,
-  type UsagePlanKey,
-  type UsagePlanKeyListing,
-  type UsagePlanListing,
-  type UsagePlanQuota,
+import type {
+  AwsScope,
+  ThrottleLimits,
+  UsagePlan,
+  UsagePlanApiStage,
+  UsagePlanKey,
+  UsagePlanKeyListing,
+  UsagePlanListing,
+  UsagePlanQuota,
 } from "@faws/contracts";
 
-import { apiGatewayClient, callAws } from "../../clients.ts";
+import { apiGatewayClient, callAws, collectPagesUpTo } from "../../clients.ts";
+import { nullIfNotFound } from "./notFound.ts";
 import { methodSettingTarget } from "./stages.ts";
 
 /** GetUsagePlans returns at most 500 a page; a region rarely holds this many. */
@@ -43,7 +43,7 @@ export function usagePlanQuota(quota: QuotaSettings | undefined): UsagePlanQuota
 }
 
 /** A plan's stage, or `null` for one missing its API or stage. */
-export function usagePlanApiStage(apiStage: ApiStage): UsagePlanApiStage | null {
+function usagePlanApiStage(apiStage: ApiStage): UsagePlanApiStage | null {
   if (!apiStage.apiId || !apiStage.stage) return null;
   const methodThrottles = Object.entries(apiStage.throttle ?? {}).flatMap(([key, throttle]) => {
     const limits = throttleLimits(throttle);
@@ -89,24 +89,18 @@ export function usagePlanKey(key: AwsUsagePlanKey): UsagePlanKey | null {
 /** Every usage plan in the region, by name, up to a cap. */
 export async function listUsagePlans(scope: AwsScope): Promise<UsagePlanListing> {
   const client = apiGatewayClient(scope);
-  const plans: UsagePlan[] = [];
-  let position: string | undefined;
-  let pages = 0;
-  do {
+  const { items, truncated } = await collectPagesUpTo(MAX_PLAN_PAGES, async (position) => {
     const page = await callAws("apigateway", () =>
       client.send(new GetUsagePlansCommand({ limit: 500, ...(position ? { position } : {}) })),
     );
-    for (const item of page.items ?? []) {
-      const plan = usagePlan(item);
-      if (plan) plans.push(plan);
-    }
-    position = page.position;
-    pages += 1;
-  } while (position && pages < MAX_PLAN_PAGES);
+    return { items: page.items ?? [], ...(page.position ? { nextToken: page.position } : {}) };
+  });
 
   return {
-    plans: plans.toSorted((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
-    truncated: Boolean(position),
+    plans: items
+      .flatMap((item) => usagePlan(item) ?? [])
+      .toSorted((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
+    truncated,
   };
 }
 
@@ -119,11 +113,8 @@ export async function listUsagePlanKeys(
   usagePlanId: string,
 ): Promise<UsagePlanKeyListing | null> {
   const client = apiGatewayClient(scope);
-  const keys: UsagePlanKey[] = [];
-  let position: string | undefined;
-  let pages = 0;
-  try {
-    do {
+  const listed = await nullIfNotFound(() =>
+    collectPagesUpTo(MAX_PLAN_KEY_PAGES, async (position) => {
       const page = await callAws("apigateway", () =>
         client.send(
           new GetUsagePlanKeysCommand({
@@ -133,23 +124,17 @@ export async function listUsagePlanKeys(
           }),
         ),
       );
-      for (const item of page.items ?? []) {
-        const key = usagePlanKey(item);
-        if (key) keys.push(key);
-      }
-      position = page.position;
-      pages += 1;
-    } while (position && pages < MAX_PLAN_KEY_PAGES);
-  } catch (err) {
-    // A stale link to a deleted plan is an answer, not a fault.
-    if (err instanceof AwsRequestError && err.code === "NotFoundException") return null;
-    throw err;
-  }
+      return { items: page.items ?? [], ...(page.position ? { nextToken: page.position } : {}) };
+    }),
+  );
+  if (!listed) return null;
 
   return {
-    keys: keys.toSorted(
-      (a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id) || a.id.localeCompare(b.id),
-    ),
-    truncated: Boolean(position),
+    keys: listed.items
+      .flatMap((item) => usagePlanKey(item) ?? [])
+      .toSorted(
+        (a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id) || a.id.localeCompare(b.id),
+      ),
+    truncated: listed.truncated,
   };
 }

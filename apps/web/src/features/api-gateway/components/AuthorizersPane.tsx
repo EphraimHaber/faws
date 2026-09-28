@@ -12,21 +12,20 @@ import { ErrorState } from "~/components/ui/error-state";
 import { SectionHeader } from "~/components/ui/section-header";
 import { LoadingRows } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { linkClass, TruncatedNote } from "~/features/api-gateway/components/parts";
 import {
   type AuthorizedMethod,
   lambdaFromUri,
   methodsByAuthorizer,
 } from "~/features/api-gateway/authorizers";
+import { withoutListSearch } from "~/hooks/useSearchState";
 import { trpc } from "~/lib/trpc";
-
-const linkClass =
-  "inline-flex items-center gap-1 break-all underline decoration-border underline-offset-2 hover:text-primary";
 
 /** Every authorizer of the API, each with what it calls and the methods it guards. */
 export function AuthorizersPane({ apiId }: { apiId: string }) {
   const scope = useAwsScope();
   const listing = useQuery(trpc.apiGateway.authorizers.queryOptions({ ...scope, apiId }));
-  // Shared with the resources tab's query, so opening both costs one fetch.
+  // The methods each authorizer guards are only on the resources.
   const resources = useQuery(trpc.apiGateway.resources.queryOptions({ ...scope, apiId }));
   const guarded = React.useMemo(
     () => methodsByAuthorizer(resources.data?.resources ?? []),
@@ -50,9 +49,12 @@ export function AuthorizersPane({ apiId }: { apiId: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto">
       {listing.data.truncated ? (
-        <p className="border-b border-border px-3.5 py-1.5 font-mono text-[10.5px] text-warning">
-          first {listing.data.authorizers.length} authorizers only
-        </p>
+        <TruncatedNote
+          count={listing.data.authorizers.length}
+          noun="authorizers"
+          place="banner"
+          className="px-3.5"
+        />
       ) : null}
       {listing.data.authorizers.map((authorizer) => (
         <AuthorizerDetail
@@ -150,7 +152,11 @@ function AuthorizerDetail({
                   <Link
                     to="/api-gateway/rest-apis/$apiId"
                     params={{ apiId }}
-                    search={(prev) => ({ ...prev, tab: "resources", resource: method.resourceId })}
+                    search={(prev) => ({
+                      ...withoutListSearch(prev),
+                      tab: "resources",
+                      resource: method.resourceId,
+                    })}
                     className="inline-flex items-center gap-2 font-mono text-[11.5px] hover:text-primary"
                   >
                     <Badge tone="primary">{method.httpMethod}</Badge>

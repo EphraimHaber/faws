@@ -14,12 +14,10 @@ import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { SectionHeader } from "~/components/ui/section-header";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { linkClass, TagsSection } from "~/features/api-gateway/components/parts";
 import { dnsTarget, mappedApi, mappingUrl, statusTone } from "~/features/api-gateway/domains";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
-
-const linkClass =
-  "inline-flex items-center gap-1 break-all underline decoration-border underline-offset-2 hover:text-primary";
 
 /**
  * One custom domain: how it is served, and which API and stage each of its
@@ -71,7 +69,6 @@ export function DomainPanel({
 
 function DomainDetail({ domain }: { domain: CustomDomain }) {
   const target = dnsTarget(domain);
-  const tags = Object.entries(domain.tags);
 
   return (
     <div className="flex min-h-0 flex-col overflow-auto">
@@ -122,18 +119,7 @@ function DomainDetail({ domain }: { domain: CustomDomain }) {
 
       <Mappings domain={domain} />
 
-      {tags.length > 0 ? (
-        <section className="flex flex-col gap-2 px-3.5 pb-3">
-          <SectionHeader title="Tags" count={tags.length} />
-          <KeyValueGrid>
-            {tags.map(([key, value]) => (
-              <KeyValue key={key} label={key}>
-                {value}
-              </KeyValue>
-            ))}
-          </KeyValueGrid>
-        </section>
-      ) : null}
+      <TagsSection tags={domain.tags} />
     </div>
   );
 }

@@ -2,7 +2,9 @@ import {
   CLOUDWATCH_WINDOWS,
   type CloudWatchWindow,
   DEFAULT_CLOUDWATCH_WINDOW,
+  METRIC_STATISTICS,
   type MetricDescriptor,
+  type MetricStatistic,
   windowLabel,
 } from "@faws/contracts";
 import { relativeTime } from "@faws/shared";
@@ -24,6 +26,7 @@ import { TextAction } from "~/components/ui/text-action";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { WindowPicker } from "~/features/cloudwatch/components/LogWindow";
 import {
+  chartStatistics,
   dimensionsLabel,
   formatterFor,
   metricKey,
@@ -75,7 +78,8 @@ export function MetricsPage() {
     void navigate({
       to: ".",
       search: ((prev: Record<string, unknown>) => {
-        const { chart: _chart, ...rest } = prev;
+        // The statistic was picked for the metric being closed or replaced.
+        const { chart: _chart, stat: _stat, ...rest } = prev;
         return next ? { ...rest, chart: next } : rest;
       }) as never,
       replace: true,
@@ -277,9 +281,17 @@ function useDebounced<T>(value: T, ms: number): T {
   return settled;
 }
 
-/** Average and maximum of the picked metric, over a window that ends now. */
+/**
+ * The picked metric over a window that ends now: average and maximum, unless
+ * the `stat` URL param asks for a sum or the p99.
+ */
 function ChartPanel({ metric, onClose }: { metric: MetricDescriptor; onClose: () => void }) {
   const scope = useAwsScope();
+  const [statistic] = useSearchState<MetricStatistic>({
+    key: "stat",
+    fallback: "average",
+    parse: (raw) => METRIC_STATISTICS.find((value) => value === raw) ?? "average",
+  });
   const [windowMinutes, setWindowMinutes] = useSearchState<CloudWatchWindow>({
     key: "window",
     fallback: DEFAULT_CLOUDWATCH_WINDOW,
@@ -294,6 +306,7 @@ function ChartPanel({ metric, onClose }: { metric: MetricDescriptor; onClose: ()
       metricName: metric.name,
       dimensions: [...metric.dimensions],
       windowMinutes,
+      statistic,
     }),
   );
   const format = formatterFor(series.data?.unit);
@@ -336,6 +349,7 @@ function ChartPanel({ metric, onClose }: { metric: MetricDescriptor; onClose: ()
             series={series.data}
             label={series.data.unit && series.data.unit !== "None" ? series.data.unit : "Metric"}
             format={format}
+            statistics={chartStatistics(statistic)}
             axis={series.data.unit === "Percent" ? "percent" : "auto"}
             peakFloor={series.data.unit === "Percent" ? 10 : 0}
             height={160}

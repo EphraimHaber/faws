@@ -153,7 +153,7 @@ export interface MetricSeriesQuery {
 
 /**
  * Any one metric over a window ending now, as the statistics asked for - by
- * default the average and maximum, the same pair the ECS charts draw.
+ * default the average and maximum.
  *
  * A metric can be listed and still be empty in the window: ListMetrics names
  * anything that reported in the last two weeks, and plenty of metrics report

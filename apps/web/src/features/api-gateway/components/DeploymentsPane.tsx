@@ -11,7 +11,9 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { TruncatedNote } from "~/features/api-gateway/components/parts";
 import { stagesByDeployment } from "~/features/api-gateway/stages";
+import { withoutListSearch } from "~/hooks/useSearchState";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
 
@@ -50,7 +52,11 @@ export function DeploymentsPane({ apiId }: { apiId: string }) {
                   key={`${use.stage} ${use.canary}`}
                   to="/api-gateway/rest-apis/$apiId"
                   params={{ apiId }}
-                  search={(prev) => ({ ...prev, tab: "stages", stage: use.stage })}
+                  search={(prev) => ({
+                    ...withoutListSearch(prev),
+                    tab: "stages",
+                    stage: use.stage,
+                  })}
                   title={use.canary ? `Canary of ${use.stage}` : `Served on ${use.stage}`}
                 >
                   <Badge tone={use.canary ? "info" : "success"}>
@@ -106,9 +112,11 @@ export function DeploymentsPane({ apiId }: { apiId: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {deployments.data.truncated ? (
-        <p className="border-b border-border px-3 py-1.5 font-mono text-[10.5px] text-warning">
-          first {deployments.data.deployments.length} deployments only
-        </p>
+        <TruncatedNote
+          count={deployments.data.deployments.length}
+          noun="deployments"
+          place="banner"
+        />
       ) : null}
       {stages.isError ? (
         <p className="border-b border-border px-3 py-1.5 font-mono text-[10.5px] text-warning">

@@ -13,6 +13,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { TruncatedNote } from "~/features/api-gateway/components/parts";
 import { restApiRef } from "~/features/api-gateway/refs";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
@@ -115,12 +116,7 @@ export function RestApisPage() {
           {apis.isPending ? "…" : rows.length}
         </span>
         {apis.data?.truncated ? (
-          <span
-            className="font-mono text-[10.5px] whitespace-nowrap text-warning"
-            title="This region has more REST APIs than one listing covers."
-          >
-            first {rows.length} only
-          </span>
+          <TruncatedNote count={rows.length} noun="REST APIs" place="header" />
         ) : null}
         <div className="ml-auto flex items-center gap-2">
           <FilterInput value={filter} onChange={setFilter} total={rows.length} />

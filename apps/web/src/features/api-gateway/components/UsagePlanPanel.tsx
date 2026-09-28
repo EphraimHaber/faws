@@ -19,11 +19,9 @@ import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { SectionHeader } from "~/components/ui/section-header";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { linkClass, TagsSection } from "~/features/api-gateway/components/parts";
 import { limitsLabel, quotaLabel } from "~/features/api-gateway/usage-plans";
 import { trpc } from "~/lib/trpc";
-
-const linkClass =
-  "inline-flex items-center gap-1 break-all underline decoration-border underline-offset-2 hover:text-primary";
 
 /**
  * One usage plan: its limits, the API stages it meters, and the keys on it.
@@ -80,7 +78,6 @@ export function UsagePlanPanel({
 function PlanDetail({ plan, apiKeys }: { plan: UsagePlan; apiKeys: ApiKeyListing | undefined }) {
   const scope = useAwsScope();
   const apis = useQuery(trpc.apiGateway.restApis.queryOptions(scope));
-  const tags = Object.entries(plan.tags);
 
   return (
     <div className="flex min-h-0 flex-col overflow-auto">
@@ -127,18 +124,7 @@ function PlanDetail({ plan, apiKeys }: { plan: UsagePlan; apiKeys: ApiKeyListing
 
       <PlanKeys planId={plan.id} apiKeys={apiKeys} />
 
-      {tags.length > 0 ? (
-        <section className="flex flex-col gap-2 px-3.5 pb-3">
-          <SectionHeader title="Tags" count={tags.length} />
-          <KeyValueGrid>
-            {tags.map(([key, value]) => (
-              <KeyValue key={key} label={key}>
-                {value}
-              </KeyValue>
-            ))}
-          </KeyValueGrid>
-        </section>
-      ) : null}
+      <TagsSection tags={plan.tags} />
     </div>
   );
 }

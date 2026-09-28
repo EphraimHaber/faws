@@ -1,6 +1,7 @@
+import { useNavigate } from "@tanstack/react-router";
 import * as React from "react";
 
-import { useSearchState } from "~/hooks/useSearchState";
+import { useSearchState, withoutListSearch } from "~/hooks/useSearchState";
 
 /**
  * The open tab, kept in the URL rather than in component state.
@@ -27,4 +28,34 @@ export function useTabSearch<T extends string>(
   );
 
   return useSearchState<T>({ key: "tab", fallback, parse });
+}
+
+/**
+ * `useTabSearch` for tabs that each show a different list. Switching tabs
+ * also drops the list params (`q`, `sort`, `cols`) in the same history write,
+ * since they describe the list being left.
+ */
+export function useListTabSearch<T extends string>(
+  tabs: readonly T[],
+  fallback: T,
+): readonly [T, (next: T) => void] {
+  const navigate = useNavigate();
+  const [tab] = useTabSearch(tabs, fallback);
+
+  const set = React.useCallback(
+    (next: T) => {
+      if (next === tab) return;
+      void navigate({
+        to: ".",
+        search: ((prev: Record<string, unknown>) => {
+          const { tab: _tab, ...rest } = withoutListSearch(prev);
+          return next === fallback ? rest : { ...rest, tab: next };
+        }) as never,
+        replace: true,
+      });
+    },
+    [navigate, tab, fallback],
+  );
+
+  return [tab, set] as const;
 }

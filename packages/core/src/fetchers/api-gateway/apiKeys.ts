@@ -2,7 +2,7 @@ import { type ApiKey as AwsApiKey, GetApiKeysCommand } from "@aws-sdk/client-api
 import type { ApiKey, ApiKeyListing, AwsScope } from "@faws/contracts";
 import { toIso } from "@faws/shared";
 
-import { apiGatewayClient, callAws } from "../../clients.ts";
+import { apiGatewayClient, callAws, collectPagesUpTo } from "../../clients.ts";
 
 /** GetApiKeys returns at most 500 a page. */
 const MAX_KEY_PAGES = 10;
@@ -42,23 +42,17 @@ export function apiKey(key: AwsApiKey): ApiKey | null {
  */
 export async function listApiKeys(scope: AwsScope): Promise<ApiKeyListing> {
   const client = apiGatewayClient(scope);
-  const keys: ApiKey[] = [];
-  let position: string | undefined;
-  let pages = 0;
-  do {
+  const { items, truncated } = await collectPagesUpTo(MAX_KEY_PAGES, async (position) => {
     const page = await callAws("apigateway", () =>
       client.send(new GetApiKeysCommand({ limit: 500, ...(position ? { position } : {}) })),
     );
-    for (const item of page.items ?? []) {
-      const key = apiKey(item);
-      if (key) keys.push(key);
-    }
-    position = page.position;
-    pages += 1;
-  } while (position && pages < MAX_KEY_PAGES);
+    return { items: page.items ?? [], ...(page.position ? { nextToken: page.position } : {}) };
+  });
 
   return {
-    keys: keys.toSorted((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
-    truncated: Boolean(position),
+    keys: items
+      .flatMap((item) => apiKey(item) ?? [])
+      .toSorted((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)),
+    truncated,
   };
 }

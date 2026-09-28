@@ -13,12 +13,18 @@ import { ErrorState } from "~/components/ui/error-state";
 import { SectionHeader } from "~/components/ui/section-header";
 import { LoadingRows } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { TruncatedNote } from "~/features/api-gateway/components/parts";
 import {
   buildResourceTree,
   type ResourceRow,
   resourceRows,
 } from "~/features/api-gateway/resource-tree";
-import { useFilterSearch, useSearchState } from "~/hooks/useSearchState";
+import {
+  parseText,
+  useFilterSearch,
+  useSearchState,
+  withoutListSearch,
+} from "~/hooks/useSearchState";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
 
@@ -33,7 +39,7 @@ export function ResourcesPane({ apiId }: { apiId: string }) {
   const [picked, setPicked] = useSearchState<string>({
     key: "resource",
     fallback: "",
-    parse: (raw) => (typeof raw === "string" ? raw : ""),
+    parse: parseText,
   });
 
   const listing = useQuery(trpc.apiGateway.resources.queryOptions({ ...scope, apiId }));
@@ -88,9 +94,7 @@ export function ResourcesPane({ apiId }: { apiId: string }) {
           />
         </div>
         {listing.data.truncated ? (
-          <p className="border-b border-border px-3 py-1.5 font-mono text-[10.5px] text-warning">
-            first {listing.data.resources.length} resources only
-          </p>
+          <TruncatedNote count={listing.data.resources.length} noun="resources" place="banner" />
         ) : null}
         <div className="min-h-0 flex-1 overflow-auto">
           {rows.length === 0 ? (
@@ -225,7 +229,7 @@ function MethodDetail({
             <Link
               to="/api-gateway/rest-apis/$apiId"
               params={{ apiId }}
-              search={(prev) => ({ ...prev, tab: "authorizers" })}
+              search={(prev) => ({ ...withoutListSearch(prev), tab: "authorizers" })}
               title={`Authorizer ${method.authorizerId}`}
               className="underline decoration-border underline-offset-2 hover:text-primary"
             >

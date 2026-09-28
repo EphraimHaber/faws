@@ -1,7 +1,7 @@
 import { type Authorizer, GetAuthorizersCommand } from "@aws-sdk/client-api-gateway";
 import type { AwsScope, RestApiAuthorizer, RestApiAuthorizerListing } from "@faws/contracts";
 
-import { apiGatewayClient, callAws } from "../../clients.ts";
+import { apiGatewayClient, callAws, collectPagesUpTo } from "../../clients.ts";
 
 /** GetAuthorizers returns at most 500 a page, and an API may have only a few dozen. */
 const MAX_AUTHORIZER_PAGES = 5;
@@ -28,10 +28,7 @@ export async function listAuthorizers(
   apiId: string,
 ): Promise<RestApiAuthorizerListing> {
   const client = apiGatewayClient(scope);
-  const authorizers: RestApiAuthorizer[] = [];
-  let position: string | undefined;
-  let pages = 0;
-  do {
+  const { items, truncated } = await collectPagesUpTo(MAX_AUTHORIZER_PAGES, async (position) => {
     const page = await callAws("apigateway", () =>
       client.send(
         new GetAuthorizersCommand({
@@ -41,16 +38,13 @@ export async function listAuthorizers(
         }),
       ),
     );
-    for (const item of page.items ?? []) {
-      const authorizer = restApiAuthorizer(item);
-      if (authorizer) authorizers.push(authorizer);
-    }
-    position = page.position;
-    pages += 1;
-  } while (position && pages < MAX_AUTHORIZER_PAGES);
+    return { items: page.items ?? [], ...(page.position ? { nextToken: page.position } : {}) };
+  });
 
   return {
-    authorizers: authorizers.toSorted((a, b) => a.name.localeCompare(b.name)),
-    truncated: Boolean(position),
+    authorizers: items
+      .flatMap((item) => restApiAuthorizer(item) ?? [])
+      .toSorted((a, b) => a.name.localeCompare(b.name)),
+    truncated,
   };
 }
