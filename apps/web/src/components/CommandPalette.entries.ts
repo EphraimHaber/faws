@@ -10,6 +10,7 @@ import {
   ScrollText,
   Server,
   TerminalSquare,
+  Waypoints,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -169,6 +170,7 @@ const KIND_ICON: Record<ResourceKind, LucideIcon> = {
   "kube-context": Layers,
   "cloudwatch-log-group": ScrollText,
   "cloudwatch-metric": Gauge,
+  "api-gateway-rest-api": Waypoints,
 };
 
 export function kindIcon(kind: ResourceKind): LucideIcon {

@@ -49,6 +49,7 @@ export const RESOURCE_KINDS = [
   "kube-context",
   "cloudwatch-log-group",
   "cloudwatch-metric",
+  "api-gateway-rest-api",
 ] as const;
 
 export type ResourceKind = (typeof RESOURCE_KINDS)[number];

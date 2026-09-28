@@ -10,12 +10,14 @@ import {
   Inbox,
   Layers,
   Monitor,
+  Network,
   Plug,
   Rocket,
   ScrollText,
   Server,
   Ship,
   TerminalSquare,
+  Waypoints,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -104,6 +106,17 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
     sections: [
       { id: "log-groups", label: "Log groups", icon: ScrollText, to: "/cloudwatch/log-groups" },
       { id: "metrics", label: "Metrics", icon: Gauge, to: "/cloudwatch/metrics" },
+    ],
+  },
+  {
+    id: "api-gateway",
+    label: "API Gateway",
+    description: "REST APIs in this region, read only",
+    icon: Waypoints,
+    status: "available",
+    basePath: "/api-gateway",
+    sections: [
+      { id: "rest-apis", label: "REST APIs", icon: Network, to: "/api-gateway/rest-apis" },
     ],
   },
   {

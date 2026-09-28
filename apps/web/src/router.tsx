@@ -21,6 +21,8 @@ import { describe } from "~/lib/hotkeys";
 import { useLogIngest } from "~/lib/log-store";
 import { getSocket } from "~/lib/socket";
 import { findService } from "~/services/registry";
+import { ApiGatewayIndexPage } from "~/features/api-gateway/pages/ApiGatewayIndexPage";
+import { RestApisPage } from "~/features/api-gateway/pages/RestApisPage";
 import { CloudWatchIndexPage } from "~/features/cloudwatch/pages/CloudWatchIndexPage";
 import { LogGroupPage } from "~/features/cloudwatch/pages/LogGroupPage";
 import { LogGroupsPage } from "~/features/cloudwatch/pages/LogGroupsPage";
@@ -294,6 +296,19 @@ const metricsRoute = createRoute({
   component: MetricsPage,
 });
 
+const apiGatewayIndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/api-gateway",
+  component: ApiGatewayIndexPage,
+});
+
+const restApisRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/api-gateway/rest-apis",
+  validateSearch: filterSearch,
+  component: RestApisPage,
+});
+
 const ec2IndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ec2",
@@ -382,6 +397,8 @@ const routeTree = rootRoute.addChildren([
   logGroupRoute,
   tailRoute,
   metricsRoute,
+  apiGatewayIndexRoute,
+  restApisRoute,
   ec2IndexRoute,
   ec2InstancesRoute,
   kubeIndexRoute,

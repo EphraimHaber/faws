@@ -14,7 +14,8 @@ object browser, viewers for text, JSON, tables, images, media and raw bytes,
 recursive search, uploads and deletes, plus bucket properties, versions and
 size. CloudWatch is the third: every log group with its streams and a tail of
 its events, and any metric the account publishes, listed by namespace and
-charted over a window. Lambda and SQS are next.
+charted over a window. API Gateway is the fourth, read only: every REST API
+in the region. Lambda and SQS are next.
 
 ## Running
 

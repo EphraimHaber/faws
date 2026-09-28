@@ -6,6 +6,7 @@
  * memoized per scope so we don't re-resolve credentials (which can mean an
  * SSO token read or a `credential_process` spawn) on every keystroke.
  */
+import { APIGatewayClient } from "@aws-sdk/client-api-gateway";
 import { CloudWatchClient } from "@aws-sdk/client-cloudwatch";
 import { CloudWatchLogsClient } from "@aws-sdk/client-cloudwatch-logs";
 import { EC2Client } from "@aws-sdk/client-ec2";
@@ -27,6 +28,7 @@ type ClientBundle = {
   readonly ssm: SSMClient;
   readonly ec2: EC2Client;
   readonly ec2InstanceConnect: EC2InstanceConnectClient;
+  readonly apiGateway: APIGatewayClient;
 };
 
 const bundles = new Map<string, ClientBundle>();
@@ -62,6 +64,7 @@ function bundleFor(scope: AwsScope): ClientBundle {
     ssm: new SSMClient(config),
     ec2: new EC2Client(config),
     ec2InstanceConnect: new EC2InstanceConnectClient(config),
+    apiGateway: new APIGatewayClient(config),
   };
   bundles.set(key, bundle);
   return bundle;
@@ -99,6 +102,10 @@ export function ec2InstanceConnectClient(scope: AwsScope): EC2InstanceConnectCli
   return bundleFor(scope).ec2InstanceConnect;
 }
 
+export function apiGatewayClient(scope: AwsScope): APIGatewayClient {
+  return bundleFor(scope).apiGateway;
+}
+
 /** Drops cached clients for a scope so the next call re-resolves credentials. */
 export function invalidateScope(scope: AwsScope): void {
   const key = scopeKey(scope);
@@ -112,6 +119,7 @@ export function invalidateScope(scope: AwsScope): void {
   bundle.ssm.destroy();
   bundle.ec2.destroy();
   bundle.ec2InstanceConnect.destroy();
+  bundle.apiGateway.destroy();
   bundles.delete(key);
 }
 

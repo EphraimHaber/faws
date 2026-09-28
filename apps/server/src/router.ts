@@ -1,3 +1,4 @@
+import { apiGatewayRouter } from "./api/api-gateway/api-gateway.router.ts";
 import { awsRouter } from "./api/aws/aws.router.ts";
 import { cloudwatchRouter } from "./api/cloudwatch/cloudwatch.router.ts";
 import { desktopRouter } from "./api/desktop/desktop.router.ts";
@@ -19,6 +20,7 @@ import { router } from "./trpc/index.ts";
  * client picks it up through the same typed `AppRouter`.
  */
 export const appRouter = router({
+  apiGateway: apiGatewayRouter,
   aws: awsRouter,
   cloudwatch: cloudwatchRouter,
   desktop: desktopRouter,

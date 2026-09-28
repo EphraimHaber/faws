@@ -267,6 +267,17 @@ describe("recentsSettingsSchema", () => {
     expect(parsed.pinned["group"]?.kind).toBe("cloudwatch-log-group");
   });
 
+  it("reads back a pinned REST API", () => {
+    const pinned = {
+      api: {
+        ...ref({ kind: "api-gateway-rest-api", id: "a1b2c3d4e5" }),
+        at: AT.toISOString(),
+      },
+    };
+    const parsed = recentsSettingsSchema.parse({ visited: {}, pinned });
+    expect(parsed.pinned["api"]?.kind).toBe("api-gateway-rest-api");
+  });
+
   it("fills a missing scope rather than dropping the entry", () => {
     const parsed = recentsSettingsSchema.parse({
       visited: { good: { ...ref(), scope: undefined, at: AT.toISOString() } },

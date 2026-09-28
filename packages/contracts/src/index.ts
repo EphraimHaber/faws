@@ -1,3 +1,4 @@
+export * from "./api-gateway.ts";
 export * from "./aws.ts";
 export * from "./cloudwatch.ts";
 export * from "./ecs.ts";
