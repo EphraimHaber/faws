@@ -71,7 +71,12 @@ export function UsagePlansPage() {
         <PanelHeader>
           <Segmented<Tab>
             value={tab}
-            onChange={setTab}
+            onChange={(next) => {
+              // Supersedes a filter still waiting out its debounce, which
+              // would otherwise land on the tab just opened.
+              setTab(next);
+              setFilter("");
+            }}
             options={[
               { value: "plans", label: "Usage plans", count: plans.data?.plans.length },
               { value: "keys", label: "API keys", count: keys.data?.keys.length },
