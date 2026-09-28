@@ -6,6 +6,7 @@ import {
   Film,
   FunctionSquare,
   Gauge,
+  Globe,
   HardDrive,
   Inbox,
   Layers,
@@ -111,12 +112,13 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
   {
     id: "api-gateway",
     label: "API Gateway",
-    description: "REST APIs in this region, read only",
+    description: "REST APIs and custom domains in this region, read only",
     icon: Waypoints,
     status: "available",
     basePath: "/api-gateway",
     sections: [
       { id: "rest-apis", label: "REST APIs", icon: Network, to: "/api-gateway/rest-apis" },
+      { id: "domains", label: "Custom domains", icon: Globe, to: "/api-gateway/domains" },
     ],
   },
   {

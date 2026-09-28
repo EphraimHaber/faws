@@ -184,3 +184,59 @@ export interface RestApiExport {
   /** The definition as JSON text, or `null` when it is too large to send on. */
   readonly body: string | null;
 }
+
+/** A custom domain name that callers reach APIs through, as GetDomainNames lists it. */
+export interface CustomDomain {
+  readonly name: string;
+  /** Set only on a private custom domain, which is known by its name and this id together. */
+  readonly domainNameId: string | null;
+  readonly arn: string | null;
+  /** EDGE, REGIONAL or PRIVATE. */
+  readonly endpointTypes: ReadonlyArray<string>;
+  /** What the domain's DNS record points at for a regional endpoint. */
+  readonly regionalDomainName: string | null;
+  readonly regionalHostedZoneId: string | null;
+  /** The CloudFront distribution the DNS record points at for an edge optimized endpoint. */
+  readonly distributionDomainName: string | null;
+  readonly distributionHostedZoneId: string | null;
+  /** The ACM certificate served: the regional one, or the edge or private one when there is none. */
+  readonly certificateArn: string | null;
+  readonly certificateName: string | null;
+  readonly certificateUploadedAt: string | null;
+  /** The TLS version and cipher suite, e.g. `TLS_1_2`. */
+  readonly securityPolicy: string | null;
+  /** AVAILABLE, UPDATING, PENDING, FAILED or one of the PENDING_ reasons. */
+  readonly status: string | null;
+  readonly statusMessage: string | null;
+  /** How requests are routed: by base path mapping, by routing rule, or both. */
+  readonly routingMode: string | null;
+  /** The S3 URI of the truststore when callers must present a client certificate. */
+  readonly mutualTlsTruststoreUri: string | null;
+  readonly ownershipVerificationCertificateArn: string | null;
+  readonly tags: Readonly<Record<string, string>>;
+}
+
+/** The custom domains a listing reached, by name; `truncated` when the region has more. */
+export interface CustomDomainListing {
+  readonly domains: ReadonlyArray<CustomDomain>;
+  readonly truncated: boolean;
+}
+
+/** Which API and stage one path under a custom domain goes to. */
+export interface BasePathMapping {
+  /** The first path segment callers add after the domain; empty for the domain's root. */
+  readonly basePath: string;
+  /**
+   * The API it points at. Usually a REST API, but it can be an HTTP or
+   * WebSocket API mapped to the same domain, or an API since deleted.
+   */
+  readonly restApiId: string | null;
+  /** `null` when the caller names the stage in the path after the base path. */
+  readonly stage: string | null;
+}
+
+/** The mappings a listing reached, by base path; `truncated` when the domain has more. */
+export interface BasePathMappingListing {
+  readonly mappings: ReadonlyArray<BasePathMapping>;
+  readonly truncated: boolean;
+}

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Network } from "lucide-react";
+import { Globe, Network } from "lucide-react";
 
 import { SectionCard } from "~/components/section-card";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
@@ -11,7 +11,9 @@ export function ApiGatewayIndexPage() {
   const scope = useAwsScope();
   const { region } = useScope();
   const apis = useQuery(trpc.apiGateway.restApis.queryOptions(scope));
+  const domains = useQuery(trpc.apiGateway.domainNames.queryOptions(scope));
   const count = apis.data?.apis.length ?? 0;
+  const domainCount = domains.data?.domains.length ?? 0;
 
   return (
     <Panel className="flex-1">
@@ -30,6 +32,20 @@ export function ApiGatewayIndexPage() {
             apis.isPending ? "…" : apis.isError ? "-" : `${count}${apis.data.truncated ? "+" : ""}`
           }
           metricLabel={count === 1 ? "API" : "APIs"}
+        />
+        <SectionCard
+          to="/api-gateway/domains"
+          icon={Globe}
+          label="Custom domains"
+          description="The domain names APIs are called on, their certificates, and which API and stage each base path serves."
+          metric={
+            domains.isPending
+              ? "…"
+              : domains.isError
+                ? "-"
+                : `${domainCount}${domains.data.truncated ? "+" : ""}`
+          }
+          metricLabel={domainCount === 1 ? "domain" : "domains"}
         />
       </div>
     </Panel>

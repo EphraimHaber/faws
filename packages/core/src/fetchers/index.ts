@@ -7,6 +7,7 @@
  */
 export * from "./api-gateway/authorizers.ts";
 export * from "./api-gateway/deployments.ts";
+export * from "./api-gateway/domains.ts";
 export * from "./api-gateway/export.ts";
 export * from "./api-gateway/resources.ts";
 export * from "./api-gateway/restApi.ts";

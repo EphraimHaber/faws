@@ -22,6 +22,7 @@ import { useLogIngest } from "~/lib/log-store";
 import { getSocket } from "~/lib/socket";
 import { findService } from "~/services/registry";
 import { ApiGatewayIndexPage } from "~/features/api-gateway/pages/ApiGatewayIndexPage";
+import { DomainsPage } from "~/features/api-gateway/pages/DomainsPage";
 import { REST_API_TABS, RestApiPage } from "~/features/api-gateway/pages/RestApiPage";
 import { RestApisPage } from "~/features/api-gateway/pages/RestApisPage";
 import { CloudWatchIndexPage } from "~/features/cloudwatch/pages/CloudWatchIndexPage";
@@ -326,6 +327,16 @@ const restApiRoute = createRoute({
   component: RestApiRoute,
 });
 
+const domainsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/api-gateway/domains",
+  validateSearch: filterSearch.extend({
+    /** The picked domain: its name, or `name+id` for a private one. */
+    domain: z.string().max(320).optional().catch(undefined),
+  }),
+  component: DomainsPage,
+});
+
 const ec2IndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ec2",
@@ -417,6 +428,7 @@ const routeTree = rootRoute.addChildren([
   apiGatewayIndexRoute,
   restApisRoute,
   restApiRoute,
+  domainsRoute,
   ec2IndexRoute,
   ec2InstancesRoute,
   kubeIndexRoute,

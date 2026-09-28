@@ -8,7 +8,9 @@ import {
   exportApi,
   getRestApi,
   listAuthorizers,
+  listBasePathMappings,
   listDeployments,
+  listDomainNames,
   listResources,
   listRestApis,
   listStages,
@@ -53,5 +55,20 @@ export const apiGatewayRouter = router({
     )
     .query(({ input }) =>
       guard(() => exportApi(input, input.apiId, input.stageName, input.format)),
+    ),
+
+  domainNames: publicProcedure
+    .input(scopeInput)
+    .query(({ input }) => guard(() => listDomainNames(input))),
+
+  basePathMappings: publicProcedure
+    .input(
+      scopeInput.extend({
+        domainName: z.string().min(1).max(253),
+        domainNameId: z.string().min(1).max(64).nullable(),
+      }),
+    )
+    .query(({ input }) =>
+      guard(() => listBasePathMappings(input, input.domainName, input.domainNameId)),
     ),
 });
