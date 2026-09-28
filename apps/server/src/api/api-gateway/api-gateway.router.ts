@@ -1,12 +1,13 @@
 /**
  * Read-only API Gateway surface for REST APIs.
  *
- * Nothing here changes an API, and nothing reads an API key's value.
+ * Nothing here changes an API, and no API key's value is asked for or passed on.
  */
 import { REST_API_EXPORT_FORMATS } from "@faws/contracts";
 import {
   exportApi,
   getRestApi,
+  listApiKeys,
   listAuthorizers,
   listBasePathMappings,
   listDeployments,
@@ -14,6 +15,8 @@ import {
   listResources,
   listRestApis,
   listStages,
+  listUsagePlanKeys,
+  listUsagePlans,
 } from "@faws/core";
 import { z } from "zod";
 
@@ -71,4 +74,14 @@ export const apiGatewayRouter = router({
     .query(({ input }) =>
       guard(() => listBasePathMappings(input, input.domainName, input.domainNameId)),
     ),
+
+  usagePlans: publicProcedure
+    .input(scopeInput)
+    .query(({ input }) => guard(() => listUsagePlans(input))),
+
+  usagePlanKeys: publicProcedure
+    .input(scopeInput.extend({ usagePlanId: z.string().min(1).max(64) }))
+    .query(({ input }) => guard(() => listUsagePlanKeys(input, input.usagePlanId))),
+
+  apiKeys: publicProcedure.input(scopeInput).query(({ input }) => guard(() => listApiKeys(input))),
 });

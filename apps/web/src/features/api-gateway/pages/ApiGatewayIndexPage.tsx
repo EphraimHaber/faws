@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Globe, Network } from "lucide-react";
+import { Globe, KeyRound, Network } from "lucide-react";
 
 import { SectionCard } from "~/components/section-card";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
@@ -12,8 +12,10 @@ export function ApiGatewayIndexPage() {
   const { region } = useScope();
   const apis = useQuery(trpc.apiGateway.restApis.queryOptions(scope));
   const domains = useQuery(trpc.apiGateway.domainNames.queryOptions(scope));
+  const plans = useQuery(trpc.apiGateway.usagePlans.queryOptions(scope));
   const count = apis.data?.apis.length ?? 0;
   const domainCount = domains.data?.domains.length ?? 0;
+  const planCount = plans.data?.plans.length ?? 0;
 
   return (
     <Panel className="flex-1">
@@ -46,6 +48,20 @@ export function ApiGatewayIndexPage() {
                 : `${domainCount}${domains.data.truncated ? "+" : ""}`
           }
           metricLabel={domainCount === 1 ? "domain" : "domains"}
+        />
+        <SectionCard
+          to="/api-gateway/usage-plans"
+          icon={KeyRound}
+          label="Usage plans"
+          description="The throttles and quotas callers are held to, the API stages each plan meters, and the API keys on it."
+          metric={
+            plans.isPending
+              ? "…"
+              : plans.isError
+                ? "-"
+                : `${planCount}${plans.data.truncated ? "+" : ""}`
+          }
+          metricLabel={planCount === 1 ? "plan" : "plans"}
         />
       </div>
     </Panel>

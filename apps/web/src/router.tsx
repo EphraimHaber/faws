@@ -25,6 +25,7 @@ import { ApiGatewayIndexPage } from "~/features/api-gateway/pages/ApiGatewayInde
 import { DomainsPage } from "~/features/api-gateway/pages/DomainsPage";
 import { REST_API_TABS, RestApiPage } from "~/features/api-gateway/pages/RestApiPage";
 import { RestApisPage } from "~/features/api-gateway/pages/RestApisPage";
+import { USAGE_PLAN_TABS, UsagePlansPage } from "~/features/api-gateway/pages/UsagePlansPage";
 import { CloudWatchIndexPage } from "~/features/cloudwatch/pages/CloudWatchIndexPage";
 import { LogGroupPage } from "~/features/cloudwatch/pages/LogGroupPage";
 import { LogGroupsPage } from "~/features/cloudwatch/pages/LogGroupsPage";
@@ -337,6 +338,16 @@ const domainsRoute = createRoute({
   component: DomainsPage,
 });
 
+const usagePlansRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/api-gateway/usage-plans",
+  validateSearch: tabSearch(USAGE_PLAN_TABS).extend({
+    /** The picked usage plan, by id. */
+    plan: z.string().max(64).optional().catch(undefined),
+  }),
+  component: UsagePlansPage,
+});
+
 const ec2IndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ec2",
@@ -429,6 +440,7 @@ const routeTree = rootRoute.addChildren([
   restApisRoute,
   restApiRoute,
   domainsRoute,
+  usagePlansRoute,
   ec2IndexRoute,
   ec2InstancesRoute,
   kubeIndexRoute,

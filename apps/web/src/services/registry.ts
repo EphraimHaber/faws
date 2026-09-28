@@ -9,6 +9,7 @@ import {
   Globe,
   HardDrive,
   Inbox,
+  KeyRound,
   Layers,
   Monitor,
   Network,
@@ -112,13 +113,19 @@ export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefiniti
   {
     id: "api-gateway",
     label: "API Gateway",
-    description: "REST APIs and custom domains in this region, read only",
+    description: "REST APIs, custom domains and usage plans in this region, read only",
     icon: Waypoints,
     status: "available",
     basePath: "/api-gateway",
     sections: [
       { id: "rest-apis", label: "REST APIs", icon: Network, to: "/api-gateway/rest-apis" },
       { id: "domains", label: "Custom domains", icon: Globe, to: "/api-gateway/domains" },
+      {
+        id: "usage-plans",
+        label: "Usage plans",
+        icon: KeyRound,
+        to: "/api-gateway/usage-plans",
+      },
     ],
   },
   {

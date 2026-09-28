@@ -10,7 +10,7 @@ import { CopyButton } from "~/components/ui/copy-button";
 import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { SectionHeader } from "~/components/ui/section-header";
-import { LoadingRows } from "~/components/ui/spinner";
+import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useAwsScope, useScope } from "~/contexts/ScopeContext";
 import {
   executionLogGroup,
@@ -18,6 +18,7 @@ import {
   invokeUrl,
   logGroupFromArn,
 } from "~/features/api-gateway/stages";
+import { limitsLabel, plansForStage, quotaLabel } from "~/features/api-gateway/usage-plans";
 import { useSearchState } from "~/hooks/useSearchState";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
@@ -191,6 +192,8 @@ function StageDetail({ api, stage }: { api: RestApiDetail; stage: RestApiStage }
         )}
       </section>
 
+      <StageUsagePlans apiId={api.id} stageName={stage.name} />
+
       {tags.length > 0 ? (
         <section className="flex flex-col gap-2 border-b border-border px-3.5 py-3">
           <SectionHeader title="Tags" count={tags.length} />
@@ -204,6 +207,55 @@ function StageDetail({ api, stage }: { api: RestApiDetail; stage: RestApiStage }
         </section>
       ) : null}
     </div>
+  );
+}
+
+/** The usage plans that meter this stage, read from the region's whole plan listing. */
+function StageUsagePlans({ apiId, stageName }: { apiId: string; stageName: string }) {
+  const scope = useAwsScope();
+  const plans = useQuery(trpc.apiGateway.usagePlans.queryOptions(scope));
+  const matches = plans.data ? plansForStage(plans.data.plans, apiId, stageName) : [];
+
+  return (
+    <section className="flex flex-col gap-2 border-b border-border px-3.5 py-3">
+      <SectionHeader
+        title="Usage plans"
+        count={plans.data ? `${matches.length}${plans.data.truncated ? "+" : ""}` : undefined}
+        action={plans.isFetching ? <Spinner className="size-3" /> : undefined}
+      />
+      {plans.isPending ? (
+        <LoadingRows rows={2} />
+      ) : plans.isError ? (
+        <ErrorState error={plans.error} onRetry={() => void plans.refetch()} />
+      ) : matches.length === 0 ? (
+        <p className="text-[12px] text-muted-foreground">
+          {plans.data.truncated
+            ? "None among the plans listed; this region has more than one listing covers."
+            : "None: no usage plan meters this stage, so a method that requires an API key refuses every call."}
+        </p>
+      ) : (
+        matches.map(({ plan, apiStage }) => (
+          <div
+            key={plan.id}
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border/70 px-3 py-2 text-[12px]"
+          >
+            <Link to="/api-gateway/usage-plans" search={{ plan: plan.id }} className={linkClass}>
+              {plan.name}
+              <span className="font-mono text-[11px] text-muted-foreground">{plan.id}</span>
+            </Link>
+            <span className="font-mono text-[11.5px] text-muted-foreground">
+              throttle {limitsLabel(plan.throttle)} · quota {quotaLabel(plan.quota)}
+            </span>
+            {apiStage.methodThrottles.length > 0 ? (
+              <span className="font-mono text-[11px] text-muted-foreground">
+                {apiStage.methodThrottles.length} method{" "}
+                {apiStage.methodThrottles.length === 1 ? "throttle" : "throttles"}
+              </span>
+            ) : null}
+          </div>
+        ))
+      )}
+    </section>
   );
 }
 

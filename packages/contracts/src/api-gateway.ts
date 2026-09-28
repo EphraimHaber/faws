@@ -240,3 +240,93 @@ export interface BasePathMappingListing {
   readonly mappings: ReadonlyArray<BasePathMapping>;
   readonly truncated: boolean;
 }
+
+/** A steady request rate and the burst allowed above it; either may be unset. */
+export interface ThrottleLimits {
+  /** Requests a second. */
+  readonly rateLimit: number | null;
+  readonly burstLimit: number | null;
+}
+
+/** How many requests a key may make in each period. */
+export interface UsagePlanQuota {
+  readonly limit: number | null;
+  /** DAY, WEEK or MONTH. */
+  readonly period: string | null;
+  /** Requests taken off the limit in the first period only. */
+  readonly offset: number | null;
+}
+
+/** A per-method throttle a usage plan sets on one of its stages. */
+export interface UsagePlanMethodThrottle {
+  readonly resourcePath: string;
+  readonly httpMethod: string;
+  readonly throttle: ThrottleLimits;
+}
+
+/** One stage of one API that a usage plan meters. */
+export interface UsagePlanApiStage {
+  readonly apiId: string;
+  readonly stage: string;
+  /** Sorted by path, then method. */
+  readonly methodThrottles: ReadonlyArray<UsagePlanMethodThrottle>;
+}
+
+/** A usage plan, as GetUsagePlans lists it. */
+export interface UsagePlan {
+  readonly id: string;
+  /** Falls back to the id when the plan has no name. */
+  readonly name: string;
+  readonly description: string | null;
+  /** `null` when the plan sets no throttle, so the stage's own limits apply. */
+  readonly throttle: ThrottleLimits | null;
+  /** `null` when the plan sets no quota. */
+  readonly quota: UsagePlanQuota | null;
+  readonly apiStages: ReadonlyArray<UsagePlanApiStage>;
+  /** The AWS Marketplace product the plan is sold as, if any. */
+  readonly productCode: string | null;
+  readonly tags: Readonly<Record<string, string>>;
+}
+
+/** The usage plans a listing reached, by name; `truncated` when the region has more. */
+export interface UsagePlanListing {
+  readonly plans: ReadonlyArray<UsagePlan>;
+  readonly truncated: boolean;
+}
+
+/** One key on a usage plan. The key's value is never read. */
+export interface UsagePlanKey {
+  /** The API key's id. */
+  readonly id: string;
+  readonly name: string | null;
+  /** Always API_KEY today. */
+  readonly type: string | null;
+}
+
+/** The keys a listing reached on one plan, by name; `truncated` when the plan has more. */
+export interface UsagePlanKeyListing {
+  readonly keys: ReadonlyArray<UsagePlanKey>;
+  readonly truncated: boolean;
+}
+
+/** An API key, as GetApiKeys lists it without values. */
+export interface ApiKey {
+  readonly id: string;
+  /** Falls back to the id when the key has no name. */
+  readonly name: string;
+  readonly description: string | null;
+  /** The AWS Marketplace customer the key was issued to, if any. */
+  readonly customerId: string | null;
+  readonly enabled: boolean;
+  readonly createdAt: string | null;
+  readonly updatedAt: string | null;
+  /** The stages the key is tied to directly, outside any usage plan. */
+  readonly stageKeys: ReadonlyArray<{ readonly apiId: string; readonly stage: string }>;
+  readonly tags: Readonly<Record<string, string>>;
+}
+
+/** The API keys a listing reached, by name; `truncated` when the region has more. */
+export interface ApiKeyListing {
+  readonly keys: ReadonlyArray<ApiKey>;
+  readonly truncated: boolean;
+}
