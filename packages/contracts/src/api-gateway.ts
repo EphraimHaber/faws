@@ -77,3 +77,70 @@ export interface RestApiResourceListing {
   readonly resources: ReadonlyArray<RestApiResource>;
   readonly truncated: boolean;
 }
+
+/** How requests to some or all of a stage's methods are logged, throttled and cached. */
+export interface RestApiMethodSetting {
+  /** `*` when the setting covers every path; otherwise a resource path such as `/orders`. */
+  readonly resourcePath: string;
+  /** `*` when the setting covers every method. */
+  readonly httpMethod: string;
+  /** OFF, ERROR or INFO: what goes to the stage's execution log group. */
+  readonly loggingLevel: string | null;
+  /** Whether full requests and responses are written to the execution log. */
+  readonly dataTraceEnabled: boolean;
+  /** Whether per method metrics are sent to CloudWatch. */
+  readonly metricsEnabled: boolean;
+  readonly throttlingBurstLimit: number | null;
+  /** Requests a second. */
+  readonly throttlingRateLimit: number | null;
+  readonly cachingEnabled: boolean;
+  readonly cacheTtlSeconds: number | null;
+  readonly cacheDataEncrypted: boolean;
+}
+
+/** A canary: a share of a stage's traffic sent to another deployment. */
+export interface RestApiCanary {
+  /** 0 to 100. */
+  readonly percentTraffic: number | null;
+  readonly deploymentId: string | null;
+  readonly stageVariableOverrides: Readonly<Record<string, string>>;
+  readonly useStageCache: boolean;
+}
+
+/** One stage of a REST API, as GetStages lists it. */
+export interface RestApiStage {
+  readonly name: string;
+  readonly deploymentId: string | null;
+  readonly description: string | null;
+  readonly createdAt: string | null;
+  readonly updatedAt: string | null;
+  readonly variables: Readonly<Record<string, string>>;
+  readonly cacheClusterEnabled: boolean;
+  /** In GB, e.g. `0.5`, as text because AWS names the sizes that way. */
+  readonly cacheClusterSize: string | null;
+  readonly cacheClusterStatus: string | null;
+  /** Whether requests are traced with X-Ray. */
+  readonly tracingEnabled: boolean;
+  readonly webAclArn: string | null;
+  readonly clientCertificateId: string | null;
+  readonly documentationVersion: string | null;
+  /** Where access logs go, a log group or Firehose stream ARN, and their format. */
+  readonly accessLog: { readonly destinationArn: string; readonly format: string | null } | null;
+  readonly canary: RestApiCanary | null;
+  /** The stage wide `*` setting first, then per method overrides by path. */
+  readonly methodSettings: ReadonlyArray<RestApiMethodSetting>;
+  readonly tags: Readonly<Record<string, string>>;
+}
+
+/** One deployment: a snapshot of the API that stages serve. */
+export interface RestApiDeployment {
+  readonly id: string;
+  readonly description: string | null;
+  readonly createdAt: string | null;
+}
+
+/** The deployments a listing reached, newest first; `truncated` when the API has more. */
+export interface RestApiDeploymentListing {
+  readonly deployments: ReadonlyArray<RestApiDeployment>;
+  readonly truncated: boolean;
+}

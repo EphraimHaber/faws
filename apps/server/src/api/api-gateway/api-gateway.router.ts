@@ -3,7 +3,7 @@
  *
  * Nothing here changes an API, and nothing reads an API key's value.
  */
-import { getRestApi, listResources, listRestApis } from "@faws/core";
+import { getRestApi, listDeployments, listResources, listRestApis, listStages } from "@faws/core";
 import { z } from "zod";
 
 import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
@@ -22,4 +22,12 @@ export const apiGatewayRouter = router({
   resources: publicProcedure
     .input(restApiInput)
     .query(({ input }) => guard(() => listResources(input, input.apiId))),
+
+  stages: publicProcedure
+    .input(restApiInput)
+    .query(({ input }) => guard(() => listStages(input, input.apiId))),
+
+  deployments: publicProcedure
+    .input(restApiInput)
+    .query(({ input }) => guard(() => listDeployments(input, input.apiId))),
 });

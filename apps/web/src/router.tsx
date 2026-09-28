@@ -316,6 +316,8 @@ const restApiRoute = createRoute({
   validateSearch: tabSearch(REST_API_TABS).extend({
     /** The resource picked in the resources tab, by id. */
     resource: z.string().max(64).optional().catch(undefined),
+    /** The stage picked in the stages tab, by name. */
+    stage: z.string().max(128).optional().catch(undefined),
   }),
   component: RestApiRoute,
 });

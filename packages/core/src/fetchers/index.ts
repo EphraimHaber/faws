@@ -5,9 +5,11 @@
  * Lambda means adding a directory here and a router under
  * `apps/server/src/api/`, with nothing existing to rewire.
  */
+export * from "./api-gateway/deployments.ts";
 export * from "./api-gateway/resources.ts";
 export * from "./api-gateway/restApi.ts";
 export * from "./api-gateway/restApis.ts";
+export * from "./api-gateway/stages.ts";
 export * from "./cloudwatch/logGroups.ts";
 export * from "./cloudwatch/logs.ts";
 export * from "./cloudwatch/metrics.ts";

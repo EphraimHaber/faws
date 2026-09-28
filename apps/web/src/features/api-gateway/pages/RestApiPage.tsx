@@ -12,15 +12,17 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { DeploymentsPane } from "~/features/api-gateway/components/DeploymentsPane";
 import { ResourcesPane } from "~/features/api-gateway/components/ResourcesPane";
 import { RestApiOverview } from "~/features/api-gateway/components/RestApiOverview";
+import { StagesPane } from "~/features/api-gateway/components/StagesPane";
 import { restApiRef } from "~/features/api-gateway/refs";
 import { useTabSearch } from "~/hooks/useTabSearch";
 import { trpc } from "~/lib/trpc";
 import { useRecordVisit } from "~/stores/recents";
 
 /** The tabs, in the order they are shown; the first is the default. */
-export const REST_API_TABS = ["overview", "resources"] as const;
+export const REST_API_TABS = ["overview", "resources", "stages", "deployments"] as const;
 
 type Tab = (typeof REST_API_TABS)[number];
 
@@ -37,6 +39,14 @@ export function RestApiPage({ apiId }: { apiId: string }) {
   const resources = useQuery({
     ...trpc.apiGateway.resources.queryOptions({ ...scope, apiId }),
     enabled: tab === "resources",
+  });
+  const stages = useQuery({
+    ...trpc.apiGateway.stages.queryOptions({ ...scope, apiId }),
+    enabled: tab === "stages" || tab === "deployments",
+  });
+  const deployments = useQuery({
+    ...trpc.apiGateway.deployments.queryOptions({ ...scope, apiId }),
+    enabled: tab === "deployments",
   });
 
   // Recorded from the route, so an API that fails to load still counts as
@@ -108,13 +118,25 @@ export function RestApiPage({ apiId }: { apiId: string }) {
             options={[
               { value: "overview", label: "Overview" },
               { value: "resources", label: "Resources", count: resources.data?.resources.length },
+              { value: "stages", label: "Stages", count: stages.data?.length },
+              {
+                value: "deployments",
+                label: "Deployments",
+                count: deployments.data?.deployments.length,
+              },
             ]}
           />
-          {tab === "resources" && resources.isFetching ? <Spinner /> : null}
+          {(tab === "resources" && resources.isFetching) ||
+          (tab === "stages" && stages.isFetching) ||
+          (tab === "deployments" && (deployments.isFetching || stages.isFetching)) ? (
+            <Spinner />
+          ) : null}
         </PanelHeader>
 
         {tab === "overview" ? <RestApiOverview api={api} /> : null}
         {tab === "resources" ? <ResourcesPane apiId={api.id} /> : null}
+        {tab === "stages" ? <StagesPane api={api} /> : null}
+        {tab === "deployments" ? <DeploymentsPane apiId={api.id} /> : null}
       </Panel>
     </div>
   );
