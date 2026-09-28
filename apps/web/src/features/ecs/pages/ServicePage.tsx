@@ -137,7 +137,7 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
   const settledFailure =
     !rolling && deployments.find((d) => d.status === "PRIMARY")?.rolloutState === "FAILED";
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto">
       <Panel className="shrink-0">
         <PanelHeader>
           <StatusDot tone={tone.tone} pulse={tone.pulse} />
@@ -220,7 +220,7 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
 
       <UpdateServiceDialog service={summary} open={updating} onClose={() => setUpdating(false)} />
 
-      <Panel className="min-h-0 flex-1">
+      <Panel className="min-h-[22rem] flex-1">
         <PanelHeader>
           <Segmented<Tab>
             value={tab}
