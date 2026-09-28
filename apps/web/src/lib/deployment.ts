@@ -91,17 +91,15 @@ export function deploymentIdFromEvent(message: string): string | null {
   return /\(deployment (ecs-svc\/\d+)\)/.exec(message)?.[1] ?? null;
 }
 
-/** How long a finished rollout stays on screen, in green, before it is put away. */
-export const DEPLOYED_LINGER_MS = 2 * 60_000;
-
 // a rollout that took longer than this to settle is a scale of an old deployment, which also bumps updatedAt
 const MAX_ROLLOUT_MS = 60 * 60_000;
 
 /**
- * The moment a service's finished rollout should stop being shown, or null
- * when it has none worth showing.
+ * The moment a service's finished rollout should stop being shown, `lingerMs`
+ * after it settled, or null when it has none worth showing.
  */
-export function deployedUntil(service: EcsService): number | null {
+export function deployedUntil(service: EcsService, lingerMs: number): number | null {
+  if (lingerMs <= 0) return null;
   if (service.deploymentState !== "steady" || !service.steadySince || !service.lastDeploymentAt) {
     return null;
   }
@@ -109,7 +107,7 @@ export function deployedUntil(service: EcsService): number | null {
   const started = Date.parse(service.lastDeploymentAt);
   if (Number.isNaN(settled) || Number.isNaN(started)) return null;
   if (settled - started > MAX_ROLLOUT_MS) return null;
-  return settled + DEPLOYED_LINGER_MS;
+  return settled + lingerMs;
 }
 
 export type RolloutStepState = "done" | "active" | "pending" | "failed";

@@ -32,6 +32,7 @@ import {
   useRecentList,
 } from "~/stores/recents";
 import { partitionSilenced, useSilenced } from "~/stores/silenced";
+import { useSettings } from "~/stores/settings";
 import { cn } from "~/lib/utils";
 import { useNowUntil } from "~/hooks/useNowUntil";
 import { useFilterSearch } from "~/hooks/useSearchState";
@@ -312,7 +313,11 @@ function EcsOverview() {
     return partitionSilenced({ dismissed, muted }, failing);
   }, [services, dismissed, muted]);
 
-  const deployedDeadlines = React.useMemo(() => services.map(deployedUntil), [services]);
+  const lingerSeconds = useSettings((state) => state.settings.ecs.deployedLingerSeconds);
+  const deployedDeadlines = React.useMemo(
+    () => services.map((service) => deployedUntil(service, lingerSeconds * 1000)),
+    [services, lingerSeconds],
+  );
   const now = useNowUntil(deployedDeadlines);
   const deploying = React.useMemo(
     () =>

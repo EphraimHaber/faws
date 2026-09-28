@@ -71,6 +71,15 @@ describe("settingsSchema", () => {
     );
   });
 
+  it("keeps a finished deploy on screen for two minutes unless told otherwise, and carries the choice", () => {
+    expect(DEFAULT_SETTINGS.ecs.deployedLingerSeconds).toBe(120);
+    expect(
+      settingsSchema.parse({ ecs: { deployedLingerSeconds: 45 } }).ecs.deployedLingerSeconds,
+    ).toBe(120);
+    const patch = settingsPatchSchema.parse({ ecs: { deployedLingerSeconds: 0 } });
+    expect(applyPatch(DEFAULT_SETTINGS, patch).ecs.deployedLingerSeconds).toBe(0);
+  });
+
   it("costs one bad leaf only itself", () => {
     const parsed = settingsSchema.parse({ version: 1, logs: { gutter: "nope", taskGutter: 200 } });
     expect(parsed.logs.gutter).toBe(DEFAULT_LOG_GUTTER);

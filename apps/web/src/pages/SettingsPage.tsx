@@ -1,3 +1,4 @@
+import { DEPLOYED_LINGER_CHOICES } from "@faws/contracts";
 import { relativeTime } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -71,6 +72,7 @@ export function SettingsPage() {
   const { theme, toggle } = useTheme();
   const persistence = useSettings((state) => state.persistence);
   const ssmBash = useSettings((state) => state.settings.terminal.ssmBash);
+  const deployedLinger = useSettings((state) => state.settings.ecs.deployedLingerSeconds);
 
   const whoami = useQuery({ ...trpc.aws.whoami.queryOptions(scope), retry: false });
 
@@ -201,6 +203,29 @@ export function SettingsPage() {
                 fallback={DEFAULT_LOG_TASK_GUTTER}
                 onReset={() => setLogTaskGutter(DEFAULT_LOG_TASK_GUTTER)}
               />
+            </div>
+          </Setting>
+
+          <Setting
+            title="Finished deploys"
+            hint="How long a deploy that has just finished stays on the overview and its service page, in green, before it is put away."
+          >
+            <div className="flex items-center gap-1">
+              {DEPLOYED_LINGER_CHOICES.map((choice) => (
+                <button
+                  key={choice}
+                  type="button"
+                  onClick={() => updateSettings({ ecs: { deployedLingerSeconds: choice } })}
+                  className={cn(
+                    "cursor-pointer rounded px-2 py-1 font-mono text-[11.5px] transition-colors",
+                    choice === deployedLinger
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:bg-accent",
+                  )}
+                >
+                  {choice === 0 ? "off" : choice < 60 ? `${choice}s` : `${choice / 60}m`}
+                </button>
+              ))}
             </div>
           </Setting>
 

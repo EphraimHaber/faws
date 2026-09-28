@@ -36,6 +36,7 @@ import { classifyEvent, type ClassifiedEvent, deployedUntil } from "~/lib/deploy
 import { describe } from "~/lib/hotkeys";
 import { useOverlaysOpen } from "~/stores/overlays";
 import { useRecordVisit } from "~/stores/recents";
+import { useSettings } from "~/stores/settings";
 import { useNowUntil } from "~/hooks/useNowUntil";
 import { useTabSearch } from "~/hooks/useTabSearch";
 import { serviceTone, taskTone } from "~/lib/status";
@@ -81,7 +82,10 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
     ...trpc.ecs.metrics.queryOptions({ ...scope, cluster, service, windowMinutes: 180 }),
     enabled: tab === "metrics",
   });
-  const deployedDeadline = detail.data ? deployedUntil(detail.data.service) : null;
+  const lingerSeconds = useSettings((state) => state.settings.ecs.deployedLingerSeconds);
+  const deployedDeadline = detail.data
+    ? deployedUntil(detail.data.service, lingerSeconds * 1000)
+    : null;
   const now = useNowUntil([deployedDeadline]);
 
   // Recorded from the route rather than from `detail.data`, so a service whose

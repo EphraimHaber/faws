@@ -42,6 +42,10 @@ export const SETTINGS_VERSION = 1;
 export const REFRESH_CHOICES = [-1, 10, 30, 60, 300] as const;
 export const DEFAULT_REFRESH_SECONDS = 30;
 
+/** How long a finished deploy stays on screen, in seconds; 0 hides it the moment it settles. */
+export const DEPLOYED_LINGER_CHOICES = [0, 30, 120, 300, 600] as const;
+export const DEFAULT_DEPLOYED_LINGER_SECONDS = 120;
+
 /** Narrower than this and the column is a stripe, not a timestamp. */
 export const MIN_LOG_GUTTER = 36;
 /** Wide enough for a clock time, which is what the pane opens with. */
@@ -70,6 +74,10 @@ export type Theme = "light" | "dark";
 
 function isRefreshChoice(n: number): boolean {
   return (REFRESH_CHOICES as ReadonlyArray<number>).includes(n);
+}
+
+function isDeployedLingerChoice(n: number): boolean {
+  return (DEPLOYED_LINGER_CHOICES as ReadonlyArray<number>).includes(n);
 }
 
 /**
@@ -195,6 +203,13 @@ export const kubeSettingsSchema = z.object({
   namespace: z.string().catch(""),
 });
 
+export const ecsSettingsSchema = z.object({
+  deployedLingerSeconds: z
+    .number()
+    .refine(isDeployedLingerChoice)
+    .catch(DEFAULT_DEPLOYED_LINGER_SECONDS),
+});
+
 export const silencedSettingsSchema = z.object({
   /** Per-incident, keyed by ARN; comes back when the fingerprint changes. */
   dismissed: silenceMapSchema,
@@ -210,6 +225,7 @@ export const settingsSchema = z.object({
   layout: section(layoutSettingsSchema),
   terminal: section(terminalSettingsSchema),
   kube: section(kubeSettingsSchema),
+  ecs: section(ecsSettingsSchema),
   s3: section(s3SettingsSchema),
   silenced: section(silencedSettingsSchema),
   recents: section(recentsSettingsSchema),
@@ -222,6 +238,7 @@ export type LogSettings = Settings["logs"];
 export type LayoutSettings = Settings["layout"];
 export type TerminalSettings = Settings["terminal"];
 export type KubeSettings = Settings["kube"];
+export type EcsSettings = Settings["ecs"];
 export type S3Settings = Settings["s3"];
 export type SilencedSettings = Settings["silenced"];
 
@@ -252,6 +269,7 @@ export const settingsPatchSchema = z
     layout: layoutSettingsSchema.partial(),
     terminal: terminalSettingsSchema.partial(),
     kube: kubeSettingsSchema.partial(),
+    ecs: ecsSettingsSchema.partial(),
   })
   .partial()
   .strict();
@@ -321,6 +339,7 @@ export function applyPatch(current: Settings, patch: SettingsPatch): Settings {
     layout: mergeSection(current.layout, patch.layout),
     terminal: mergeSection(current.terminal, patch.terminal),
     kube: mergeSection(current.kube, patch.kube),
+    ecs: mergeSection(current.ecs, patch.ecs),
   };
 }
 
