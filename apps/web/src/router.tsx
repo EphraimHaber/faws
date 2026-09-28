@@ -22,6 +22,7 @@ import { useLogIngest } from "~/lib/log-store";
 import { getSocket } from "~/lib/socket";
 import { findService } from "~/services/registry";
 import { ApiGatewayIndexPage } from "~/features/api-gateway/pages/ApiGatewayIndexPage";
+import { REST_API_TABS, RestApiPage } from "~/features/api-gateway/pages/RestApiPage";
 import { RestApisPage } from "~/features/api-gateway/pages/RestApisPage";
 import { CloudWatchIndexPage } from "~/features/cloudwatch/pages/CloudWatchIndexPage";
 import { LogGroupPage } from "~/features/cloudwatch/pages/LogGroupPage";
@@ -309,6 +310,16 @@ const restApisRoute = createRoute({
   component: RestApisPage,
 });
 
+const restApiRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/api-gateway/rest-apis/$apiId",
+  validateSearch: tabSearch(REST_API_TABS).extend({
+    /** The resource picked in the resources tab, by id. */
+    resource: z.string().max(64).optional().catch(undefined),
+  }),
+  component: RestApiRoute,
+});
+
 const ec2IndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/ec2",
@@ -399,6 +410,7 @@ const routeTree = rootRoute.addChildren([
   metricsRoute,
   apiGatewayIndexRoute,
   restApisRoute,
+  restApiRoute,
   ec2IndexRoute,
   ec2InstancesRoute,
   kubeIndexRoute,
@@ -442,6 +454,11 @@ function BucketRoute() {
 function LogGroupRoute() {
   const { group } = logGroupRoute.useParams();
   return <LogGroupPage group={group} />;
+}
+
+function RestApiRoute() {
+  const { apiId } = restApiRoute.useParams();
+  return <RestApiPage apiId={apiId} />;
 }
 
 function RootLayout() {

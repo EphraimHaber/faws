@@ -105,6 +105,19 @@ describe("deriveCrumbs", () => {
     );
   });
 
+  it("names a REST API by its name when one is known, and by its id until then", () => {
+    expect(labels("/api-gateway/rest-apis/a1b2c3d4e5")).toEqual([
+      "Overview",
+      "API Gateway",
+      "REST APIs",
+      "a1b2c3d4e5",
+    ]);
+    const named = deriveCrumbs("/api-gateway/rest-apis/a1b2c3d4e5", {
+      "/api-gateway/rest-apis/a1b2c3d4e5": "orders",
+    });
+    expect(named.at(-1)).toEqual({ label: "orders", to: "/api-gateway/rest-apis/a1b2c3d4e5" });
+  });
+
   it("puts a tail of several groups under the log groups", () => {
     expect(labels("/cloudwatch/tail")).toEqual(["Overview", "CloudWatch", "Log groups", "Tail"]);
   });

@@ -1,6 +1,7 @@
 import type { RestApiSummary } from "@faws/contracts";
 import { relativeTime } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { Network } from "lucide-react";
 import * as React from "react";
 
@@ -20,6 +21,7 @@ import { useFilterSearch } from "~/hooks/useSearchState";
 /** Every REST API in the scoped region. */
 export function RestApisPage() {
   const scope = useAwsScope();
+  const navigate = useNavigate();
   const [filter, setFilter] = useFilterSearch();
 
   const apis = useQuery(trpc.apiGateway.restApis.queryOptions(scope));
@@ -133,6 +135,9 @@ export function RestApisPage() {
           rows={rows}
           columns={columns}
           rowKey={(row) => row.id}
+          onOpen={(row) =>
+            void navigate({ to: "/api-gateway/rest-apis/$apiId", params: { apiId: row.id } })
+          }
           filter={filter}
           onClearFilter={() => setFilter("")}
           emptyState={

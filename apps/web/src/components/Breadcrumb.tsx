@@ -1,8 +1,11 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import * as React from "react";
 
+import { useAwsScope } from "~/contexts/ScopeContext";
 import { AWS_SERVICES } from "~/services/registry";
+import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
 
 export interface Crumb {
@@ -22,7 +25,11 @@ export interface Crumb {
  */
 export function Breadcrumb() {
   const { location } = useRouterState();
-  const crumbs = React.useMemo(() => deriveCrumbs(location.pathname), [location.pathname]);
+  const names = useCrumbNames(location.pathname);
+  const crumbs = React.useMemo(
+    () => deriveCrumbs(location.pathname, names),
+    [location.pathname, names],
+  );
   if (crumbs.length === 0) return null;
 
   return (
@@ -54,7 +61,37 @@ export function Breadcrumb() {
   );
 }
 
-export function deriveCrumbs(pathname: string): Crumb[] {
+const REST_API_PATH = /^\/api-gateway\/rest-apis\/([^/]+)/;
+
+/**
+ * Names for crumbs whose segment is an opaque id, keyed by the crumb's path.
+ *
+ * Read from what the page has already fetched and never fetched here, so the
+ * trail shows the id until the page knows the name, and costs no call of its
+ * own.
+ */
+function useCrumbNames(pathname: string): Readonly<Record<string, string>> {
+  const scope = useAwsScope();
+  const segment = REST_API_PATH.exec(pathname)?.[1] ?? "";
+  const api = useQuery({
+    ...trpc.apiGateway.restApi.queryOptions({ ...scope, apiId: decodeURIComponent(segment) }),
+    enabled: false,
+  });
+  const name = segment ? api.data?.name : undefined;
+  return React.useMemo(
+    () => (name ? { [`/api-gateway/rest-apis/${segment}`]: name } : {}),
+    [segment, name],
+  );
+}
+
+/**
+ * `names` labels the crumbs whose path segment is an id rather than a name;
+ * a crumb it has nothing for is labelled with the segment itself.
+ */
+export function deriveCrumbs(
+  pathname: string,
+  names: Readonly<Record<string, string>> = {},
+): Crumb[] {
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 0) return [{ label: "Overview", to: "/" }];
 
@@ -103,6 +140,14 @@ export function deriveCrumbs(pathname: string): Crumb[] {
       label: decodeURIComponent(segments[2]),
       to: `${service.basePath}/log-groups/${segments[2]}`,
     });
+    return crumbs;
+  }
+
+  // /api-gateway/rest-apis/$apiId - the id is what the route carries, but the
+  // name is what anyone calls the API.
+  if (segments[1] === "rest-apis" && segments[2]) {
+    const to = `${service.basePath}/rest-apis/${segments[2]}`;
+    crumbs.push({ label: names[to] ?? decodeURIComponent(segments[2]), to });
     return crumbs;
   }
 
