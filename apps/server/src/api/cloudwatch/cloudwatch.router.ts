@@ -6,7 +6,7 @@
  * this is the view that is not tied to anything, for the log groups and
  * metrics that no other page reaches.
  */
-import { CLOUDWATCH_WINDOWS } from "@faws/contracts";
+import { CLOUDWATCH_WINDOWS, METRIC_STATISTICS } from "@faws/contracts";
 import {
   fetchLogWindow,
   listLogGroups,
@@ -86,6 +86,7 @@ export const cloudwatchRouter = router({
           .array(z.object({ name: z.string().min(1).max(255), value: z.string().max(1024) }))
           .max(30),
         windowMinutes: windowInput,
+        statistic: z.enum(METRIC_STATISTICS).optional(),
       }),
     )
     .query(({ input }) =>
@@ -95,6 +96,7 @@ export const cloudwatchRouter = router({
           metricName: input.metricName,
           dimensions: input.dimensions,
           windowMinutes: input.windowMinutes,
+          ...(input.statistic ? { statistic: input.statistic } : {}),
         }),
       ),
     ),

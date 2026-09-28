@@ -23,7 +23,12 @@ import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { TextAction } from "~/components/ui/text-action";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { WindowPicker } from "~/features/cloudwatch/components/LogWindow";
-import { dimensionsLabel, formatterFor, metricKey } from "~/features/cloudwatch/metric-ref";
+import {
+  dimensionsLabel,
+  formatterFor,
+  metricKey,
+  windowReaching,
+} from "~/features/cloudwatch/metric-ref";
 import { metricRef } from "~/features/cloudwatch/refs";
 import { useFilterSearch, useSearchState } from "~/hooks/useSearchState";
 import { fullTimestamp } from "~/lib/format";
@@ -270,12 +275,6 @@ function useDebounced<T>(value: T, ms: number): T {
     return () => clearTimeout(timer);
   }, [value, ms]);
   return settled;
-}
-
-/** The smallest window that reaches back to `iso`, or null if none does. */
-function windowReaching(iso: string): CloudWatchWindow | null {
-  const ageMinutes = (Date.now() - Date.parse(iso)) / 60_000;
-  return CLOUDWATCH_WINDOWS.find((minutes) => minutes >= ageMinutes) ?? null;
 }
 
 /** Average and maximum of the picked metric, over a window that ends now. */

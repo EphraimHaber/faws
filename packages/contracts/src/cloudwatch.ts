@@ -99,6 +99,17 @@ export interface MetricPage {
 }
 
 /**
+ * Which statistics a metric chart reads: its line, and the hairline above it.
+ *
+ * `average` is the average under the maximum. `p99` is the average under the
+ * 99th percentile, for a latency, where the maximum is one outlier and the
+ * percentile is what the slowest callers saw. `sum` is the total per period
+ * with no hairline, for a count, whose largest single sample is always 1.
+ */
+export const METRIC_STATISTICS = ["average", "p99", "sum"] as const;
+export type MetricStatistic = (typeof METRIC_STATISTICS)[number];
+
+/**
  * A metric's datapoints over a window, and - when the window held none - when
  * it last reported at all, so an empty chart can say how far back to look
  * instead of only that there is nothing here.
@@ -106,6 +117,10 @@ export interface MetricPage {
 export interface MetricChartData {
   readonly metric: string;
   readonly unit: string | null;
+  /**
+   * `average` is the line and `maximum` the hairline, whichever statistics
+   * were asked for: a `sum` puts the sum in `average` and null in `maximum`.
+   */
   readonly points: ReadonlyArray<{
     readonly timestamp: string;
     readonly average: number | null;

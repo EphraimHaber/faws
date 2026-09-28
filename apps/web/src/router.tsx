@@ -316,10 +316,12 @@ const restApiRoute = createRoute({
   validateSearch: tabSearch(REST_API_TABS).extend({
     /** The resource picked in the resources tab, by id. */
     resource: z.string().max(64).optional().catch(undefined),
-    /** The stage picked in the stages and export tabs, by name. */
+    /** The stage picked in the stages, export and metrics tabs, by name. */
     stage: z.string().max(128).optional().catch(undefined),
     /** The definition format picked in the export tab. */
     format: z.enum(REST_API_EXPORT_FORMATS).optional().catch(undefined),
+    /** How far back the metrics tab reads. */
+    window: windowSearch,
   }),
   component: RestApiRoute,
 });

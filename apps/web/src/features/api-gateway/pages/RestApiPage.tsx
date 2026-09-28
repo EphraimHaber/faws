@@ -15,6 +15,7 @@ import { useAwsScope, useScope } from "~/contexts/ScopeContext";
 import { AuthorizersPane } from "~/features/api-gateway/components/AuthorizersPane";
 import { DeploymentsPane } from "~/features/api-gateway/components/DeploymentsPane";
 import { ExportPane } from "~/features/api-gateway/components/ExportPane";
+import { MetricsPane } from "~/features/api-gateway/components/MetricsPane";
 import { ResourcesPane } from "~/features/api-gateway/components/ResourcesPane";
 import { RestApiOverview } from "~/features/api-gateway/components/RestApiOverview";
 import { StagesPane } from "~/features/api-gateway/components/StagesPane";
@@ -31,6 +32,7 @@ export const REST_API_TABS = [
   "deployments",
   "authorizers",
   "export",
+  "metrics",
 ] as const;
 
 type Tab = (typeof REST_API_TABS)[number];
@@ -51,7 +53,7 @@ export function RestApiPage({ apiId }: { apiId: string }) {
   });
   const stages = useQuery({
     ...trpc.apiGateway.stages.queryOptions({ ...scope, apiId }),
-    enabled: tab === "stages" || tab === "deployments" || tab === "export",
+    enabled: tab === "stages" || tab === "deployments" || tab === "export" || tab === "metrics",
   });
   const deployments = useQuery({
     ...trpc.apiGateway.deployments.queryOptions({ ...scope, apiId }),
@@ -143,13 +145,14 @@ export function RestApiPage({ apiId }: { apiId: string }) {
                 count: authorizers.data?.authorizers.length,
               },
               { value: "export", label: "Export" },
+              { value: "metrics", label: "Metrics" },
             ]}
           />
           {(tab === "resources" && resources.isFetching) ||
           (tab === "stages" && stages.isFetching) ||
           (tab === "deployments" && (deployments.isFetching || stages.isFetching)) ||
           (tab === "authorizers" && authorizers.isFetching) ||
-          (tab === "export" && stages.isFetching) ? (
+          ((tab === "export" || tab === "metrics") && stages.isFetching) ? (
             <Spinner />
           ) : null}
         </PanelHeader>
@@ -160,6 +163,7 @@ export function RestApiPage({ apiId }: { apiId: string }) {
         {tab === "deployments" ? <DeploymentsPane apiId={api.id} /> : null}
         {tab === "authorizers" ? <AuthorizersPane apiId={api.id} /> : null}
         {tab === "export" ? <ExportPane apiId={api.id} /> : null}
+        {tab === "metrics" ? <MetricsPane apiId={api.id} apiName={api.name} /> : null}
       </Panel>
     </div>
   );

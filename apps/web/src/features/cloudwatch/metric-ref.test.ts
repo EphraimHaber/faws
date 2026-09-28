@@ -2,7 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { chartGeometry, gapSegments, nearestIndex, niceCeiling } from "~/components/metric-chart";
 
-import { dimensionsLabel, formatterFor, metricKey, retentionLabel } from "./metric-ref.ts";
+import {
+  chartStatistics,
+  dimensionsLabel,
+  formatterFor,
+  metricKey,
+  retentionLabel,
+  windowReaching,
+} from "./metric-ref.ts";
 
 describe("metricKey", () => {
   it("ignores the order the dimensions were listed in", () => {
@@ -57,6 +64,28 @@ describe("retentionLabel", () => {
     expect(retentionLabel(180)).toBe("6 months");
     expect(retentionLabel(365)).toBe("1 year");
     expect(retentionLabel(3653)).toBe("3653 days");
+  });
+});
+
+describe("chartStatistics", () => {
+  it("names the hairline for what it read, and drops it for a sum", () => {
+    expect(chartStatistics("average")).toEqual({ line: "avg", upper: "max" });
+    expect(chartStatistics("p99")).toEqual({ line: "avg", upper: "p99" });
+    expect(chartStatistics("sum")).toEqual({ line: "sum", upper: null });
+  });
+});
+
+describe("windowReaching", () => {
+  const now = Date.parse("2026-01-02T00:00:00.000Z");
+
+  it("picks the smallest window that reaches back far enough", () => {
+    expect(windowReaching("2026-01-01T23:50:00.000Z", now)).toBe(15);
+    expect(windowReaching("2026-01-01T22:00:00.000Z", now)).toBe(180);
+    expect(windowReaching("2026-01-01T00:00:00.000Z", now)).toBe(1440);
+  });
+
+  it("is null past the widest window", () => {
+    expect(windowReaching("2025-12-20T00:00:00.000Z", now)).toBeNull();
   });
 });
 

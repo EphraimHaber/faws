@@ -1,6 +1,13 @@
-import { type MetricDescriptor, metricDimensionsText } from "@faws/contracts";
+import {
+  CLOUDWATCH_WINDOWS,
+  type CloudWatchWindow,
+  type MetricDescriptor,
+  type MetricStatistic,
+  metricDimensionsText,
+} from "@faws/contracts";
 import { byteSize } from "@faws/shared";
 
+import type { ChartStatistics } from "~/components/metric-chart";
 import { percent } from "~/lib/format";
 
 /**
@@ -57,6 +64,24 @@ export function formatterFor(unit: string | null | undefined): (value: number | 
     default:
       return (value) => (value === null ? "-" : `${compact.format(value)} ${unit}`);
   }
+}
+
+/** What a chart calls its line and hairline, for the statistics it read. */
+export function chartStatistics(statistic: MetricStatistic): ChartStatistics {
+  switch (statistic) {
+    case "average":
+      return { line: "avg", upper: "max" };
+    case "p99":
+      return { line: "avg", upper: "p99" };
+    case "sum":
+      return { line: "sum", upper: null };
+  }
+}
+
+/** The smallest window that reaches back to `iso`, or null if none does. */
+export function windowReaching(iso: string, now = Date.now()): CloudWatchWindow | null {
+  const ageMinutes = (now - Date.parse(iso)) / 60_000;
+  return CLOUDWATCH_WINDOWS.find((minutes) => minutes >= ageMinutes) ?? null;
 }
 
 /** A log group's retention as a person would say it. */

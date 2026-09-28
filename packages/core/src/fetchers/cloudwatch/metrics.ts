@@ -1,4 +1,10 @@
-import { GetMetricStatisticsCommand, ListMetricsCommand } from "@aws-sdk/client-cloudwatch";
+import {
+  type Datapoint,
+  GetMetricStatisticsCommand,
+  type GetMetricStatisticsCommandInput,
+  ListMetricsCommand,
+  type Statistic,
+} from "@aws-sdk/client-cloudwatch";
 import type {
   AwsScope,
   CloudWatchWindow,
@@ -7,6 +13,7 @@ import type {
   MetricChartData,
   MetricPage,
   MetricSeries,
+  MetricStatistic,
 } from "@faws/contracts";
 import { metricMatches, periodFor } from "@faws/contracts";
 import { toIso } from "@faws/shared";
@@ -140,11 +147,13 @@ export interface MetricSeriesQuery {
   readonly metricName: string;
   readonly dimensions: ReadonlyArray<MetricDimension>;
   readonly windowMinutes: CloudWatchWindow;
+  /** Defaults to `average`, the average under the maximum. */
+  readonly statistic?: MetricStatistic;
 }
 
 /**
- * Average and maximum of any one metric over a window ending now, the same
- * pair the ECS charts draw.
+ * Any one metric over a window ending now, as the statistics asked for - by
+ * default the average and maximum, the same pair the ECS charts draw.
  *
  * A metric can be listed and still be empty in the window: ListMetrics names
  * anything that reported in the last two weeks, and plenty of metrics report
@@ -157,33 +166,37 @@ export async function metricSeries(
   query: MetricSeriesQuery,
 ): Promise<MetricChartData> {
   const client = cloudWatchClient(scope);
+  const statistic = query.statistic ?? "average";
   const dimensions = query.dimensions.map((dimension) => ({
     Name: dimension.name,
     Value: dimension.value,
   }));
   const endTime = new Date();
   const startTime = new Date(endTime.getTime() - query.windowMinutes * 60_000);
-  const page = await callAws("cloudwatch", () =>
-    client.send(
-      new GetMetricStatisticsCommand({
-        Namespace: query.namespace,
-        MetricName: query.metricName,
-        Dimensions: dimensions,
-        StartTime: startTime,
-        EndTime: endTime,
-        Period: periodFor(query.windowMinutes),
-        Statistics: ["Average", "Maximum"],
-      }),
-    ),
-  );
+  const read = (
+    statistics: Pick<GetMetricStatisticsCommandInput, "Statistics" | "ExtendedStatistics">,
+  ) =>
+    callAws("cloudwatch", () =>
+      client.send(
+        new GetMetricStatisticsCommand({
+          Namespace: query.namespace,
+          MetricName: query.metricName,
+          Dimensions: dimensions,
+          StartTime: startTime,
+          EndTime: endTime,
+          Period: periodFor(query.windowMinutes),
+          ...statistics,
+        }),
+      ),
+    );
+  // GetMetricStatistics takes plain statistics or percentiles, never both in
+  // one call, so a percentile is a second read joined on the timestamp.
+  const [page, percentiles] = await Promise.all([
+    read({ Statistics: [...PLAIN_STATISTICS[statistic]] }),
+    statistic === "p99" ? read({ ExtendedStatistics: ["p99"] }) : null,
+  ]);
   const datapoints = page.Datapoints ?? [];
-  const points = datapoints
-    .map((point) => ({
-      timestamp: toIso(point.Timestamp) ?? "",
-      average: point.Average ?? null,
-      maximum: point.Maximum ?? null,
-    }))
-    .toSorted((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const points = chartPoints(statistic, datapoints, percentiles?.Datapoints ?? []);
 
   let lastDatapointAt: string | null = null;
   if (points.length === 0) {
@@ -218,3 +231,38 @@ export async function metricSeries(
 
 /** How far back an empty window looks for the metric's last datapoint. */
 const LOOKBACK_DAYS = 15;
+
+/** The plain statistics each choice reads; a `p99` reads its percentile separately. */
+const PLAIN_STATISTICS = {
+  average: ["Average", "Maximum"],
+  p99: ["Average"],
+  sum: ["Sum"],
+} as const satisfies Record<MetricStatistic, ReadonlyArray<Statistic>>;
+
+/**
+ * Datapoints as a chart's line and hairline, oldest first. `percentiles` is
+ * only read for `p99`, matched to the datapoint of the same timestamp.
+ */
+export function chartPoints(
+  statistic: MetricStatistic,
+  datapoints: ReadonlyArray<Datapoint>,
+  percentiles: ReadonlyArray<Datapoint> = [],
+): MetricChartData["points"] {
+  const p99 = new Map(
+    percentiles.map((point) => [
+      toIso(point.Timestamp) ?? "",
+      point.ExtendedStatistics?.["p99"] ?? null,
+    ]),
+  );
+  return datapoints
+    .map((point) => {
+      const timestamp = toIso(point.Timestamp) ?? "";
+      if (statistic === "sum") return { timestamp, average: point.Sum ?? null, maximum: null };
+      return {
+        timestamp,
+        average: point.Average ?? null,
+        maximum: statistic === "p99" ? (p99.get(timestamp) ?? null) : (point.Maximum ?? null),
+      };
+    })
+    .toSorted((a, b) => a.timestamp.localeCompare(b.timestamp));
+}

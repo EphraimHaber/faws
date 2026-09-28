@@ -8,7 +8,8 @@ type Point = MetricSeries["points"][number];
 
 /**
  * CloudWatch average + maximum for one metric, drawn as an area with the
- * max as a hairline above it.
+ * max as a hairline above it - or whichever line and hairline `statistics`
+ * names, such as a p99 over an average or a sum alone.
  *
  * e1s prints these as numbers. A shape is the reason to leave the terminal:
  * a sawtooth that never settles and a flat line at 90% read differently at a
@@ -28,6 +29,7 @@ export function MetricChart({
   peakFloor = 10,
   axis = "percent",
   empty,
+  statistics = DEFAULT_STATISTICS,
 }: {
   series: Pick<MetricSeries, "metric" | "points">;
   height?: number;
@@ -46,6 +48,11 @@ export function MetricChart({
   axis?: "percent" | "auto";
   /** What an empty window says instead of the default line. */
   empty?: React.ReactNode;
+  /**
+   * What the line and the hairline are called. A null `upper` draws
+   * no hairline, for a series such as a sum that has none.
+   */
+  statistics?: ChartStatistics;
 }) {
   const [hover, setHover] = React.useState<number | null>(null);
   const points = series.points;
@@ -72,6 +79,7 @@ export function MetricChart({
     );
   }
 
+  const { line: lineLabel, upper } = statistics;
   const hoverX = hover === null ? null : (geometry.xs[hover] ?? null);
   const hovered = hover === null ? null : points[hover];
 
@@ -84,9 +92,11 @@ export function MetricChart({
         <span className="font-mono text-[12.5px] text-foreground tabular">
           {format(active?.average ?? null)}
         </span>
-        <span className="font-mono text-[10.5px] text-muted-foreground tabular">
-          max {format(active?.maximum ?? null)}
-        </span>
+        {upper ? (
+          <span className="font-mono text-[10.5px] text-muted-foreground tabular">
+            {upper} {format(active?.maximum ?? null)}
+          </span>
+        ) : null}
         <span className="ml-auto font-mono text-[10px] text-muted-foreground/70 tabular">
           {points.length} {points.length === 1 ? "point" : "points"}
           {active ? ` · ${clockTime(active.timestamp)}` : ""}
@@ -121,15 +131,17 @@ export function MetricChart({
             />
           ))}
           <path d={geometry.areaPath} className="fill-primary/15" />
-          <path
-            d={geometry.maxPath}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="0.6"
-            strokeDasharray="1.5 1.5"
-            vectorEffect="non-scaling-stroke"
-            className="text-muted-foreground/55"
-          />
+          {upper ? (
+            <path
+              d={geometry.maxPath}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="0.6"
+              strokeDasharray="1.5 1.5"
+              vectorEffect="non-scaling-stroke"
+              className="text-muted-foreground/55"
+            />
+          ) : null}
           <path
             d={geometry.avgPath}
             fill="none"
@@ -168,11 +180,13 @@ export function MetricChart({
           : null}
         {hovered && hoverX !== null ? (
           <>
-            <Dot
-              x={hoverX}
-              y={geometry.toY(hovered.maximum)}
-              className="size-2 border border-muted-foreground bg-card"
-            />
+            {upper ? (
+              <Dot
+                x={hoverX}
+                y={geometry.toY(hovered.maximum)}
+                className="size-2 border border-muted-foreground bg-card"
+              />
+            ) : null}
             <Dot
               x={hoverX}
               y={geometry.toY(hovered.average)}
@@ -191,11 +205,13 @@ export function MetricChart({
             >
               <div className="text-muted-foreground">{fullTimestamp(hovered.timestamp)}</div>
               <div>
-                avg <span className="text-foreground">{format(hovered.average)}</span>
+                {lineLabel} <span className="text-foreground">{format(hovered.average)}</span>
               </div>
-              <div>
-                max <span className="text-foreground">{format(hovered.maximum)}</span>
-              </div>
+              {upper ? (
+                <div>
+                  {upper} <span className="text-foreground">{format(hovered.maximum)}</span>
+                </div>
+              ) : null}
             </div>
           </>
         ) : null}
@@ -207,6 +223,13 @@ export function MetricChart({
     </div>
   );
 }
+
+export interface ChartStatistics {
+  readonly line: string;
+  readonly upper: string | null;
+}
+
+const DEFAULT_STATISTICS: ChartStatistics = { line: "avg", upper: "max" };
 
 /** At or under this many points, every datapoint gets a dot of its own. */
 const SPARSE_POINTS = 40;
