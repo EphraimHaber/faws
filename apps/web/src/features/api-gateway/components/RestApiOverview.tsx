@@ -1,12 +1,11 @@
 import type { RestApiDetail } from "@faws/contracts";
 import { byteSize, relativeTime } from "@faws/shared";
-import * as React from "react";
 
-import { JsonViewer } from "~/components/JsonViewer";
 import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { Badge } from "~/components/ui/badge";
 import { CopyButton } from "~/components/ui/copy-button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
+import { JsonText } from "~/features/api-gateway/components/JsonText";
 import { fullTimestamp } from "~/lib/format";
 
 /** How a REST API is set up as a whole, apart from its paths. */
@@ -82,26 +81,9 @@ export function RestApiOverview({ api }: { api: RestApiDetail }) {
               className="ml-auto"
             />
           </PanelHeader>
-          <PolicyDocument text={api.policy} />
+          <JsonText text={api.policy} />
         </Panel>
       ) : null}
     </div>
   );
-}
-
-function PolicyDocument({ text }: { text: string }) {
-  // Parsed outside the render, so a document that does not parse falls back to
-  // its own text rather than throwing where nothing is left to catch it.
-  const parsed = React.useMemo(() => {
-    try {
-      return { ok: true as const, value: JSON.parse(text) as unknown };
-    } catch {
-      return { ok: false as const };
-    }
-  }, [text]);
-
-  if (!parsed.ok) {
-    return <pre className="overflow-auto p-3 font-mono text-[11.5px]">{text}</pre>;
-  }
-  return <JsonViewer value={parsed.value} />;
 }

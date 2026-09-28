@@ -1,5 +1,6 @@
 import type { RestApiMethod, RestApiResource } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { FolderTree, Route } from "lucide-react";
 import * as React from "react";
 
@@ -39,6 +40,21 @@ export function ResourcesPane({ apiId }: { apiId: string }) {
   const resources = listing.data?.resources;
   const tree = React.useMemo(() => buildResourceTree(resources ?? []), [resources]);
   const rows = React.useMemo(() => resourceRows(tree, filter), [tree, filter]);
+
+  const usesAuthorizers = Boolean(
+    resources?.some((resource) => resource.methods.some((method) => method.authorizerId)),
+  );
+  const authorizers = useQuery({
+    ...trpc.apiGateway.authorizers.queryOptions({ ...scope, apiId }),
+    enabled: usesAuthorizers,
+  });
+  const authorizerNames = React.useMemo(
+    () =>
+      new Map(
+        (authorizers.data?.authorizers ?? []).map((authorizer) => [authorizer.id, authorizer.name]),
+      ),
+    [authorizers.data],
+  );
 
   if (listing.isPending) return <LoadingRows rows={8} />;
   if (listing.isError) {
@@ -93,7 +109,9 @@ export function ResourcesPane({ apiId }: { apiId: string }) {
       </nav>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto">
-        {selected ? <ResourceDetail resource={selected} /> : null}
+        {selected ? (
+          <ResourceDetail apiId={apiId} resource={selected} authorizerNames={authorizerNames} />
+        ) : null}
       </div>
     </div>
   );
@@ -134,7 +152,16 @@ function TreeRow({
   );
 }
 
-function ResourceDetail({ resource }: { resource: RestApiResource }) {
+function ResourceDetail({
+  apiId,
+  resource,
+  authorizerNames,
+}: {
+  apiId: string;
+  resource: RestApiResource;
+  /** Authorizer id to name, for the authorizers the API's methods reference. */
+  authorizerNames: ReadonlyMap<string, string>;
+}) {
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2 border-b border-border px-3.5 py-2">
@@ -151,13 +178,31 @@ function ResourceDetail({ resource }: { resource: RestApiResource }) {
           hint="It exists to hold the paths under it."
         />
       ) : (
-        resource.methods.map((method) => <MethodDetail key={method.httpMethod} method={method} />)
+        resource.methods.map((method) => (
+          <MethodDetail
+            key={method.httpMethod}
+            apiId={apiId}
+            method={method}
+            authorizerName={
+              method.authorizerId ? (authorizerNames.get(method.authorizerId) ?? null) : null
+            }
+          />
+        ))
       )}
     </div>
   );
 }
 
-function MethodDetail({ method }: { method: RestApiMethod }) {
+function MethodDetail({
+  apiId,
+  method,
+  authorizerName,
+}: {
+  apiId: string;
+  method: RestApiMethod;
+  /** `null` until the authorizers load, or when the id names none of them. */
+  authorizerName: string | null;
+}) {
   const parameters = Object.entries(method.requestParameters).toSorted(([a], [b]) =>
     a.localeCompare(b),
   );
@@ -175,7 +220,21 @@ function MethodDetail({ method }: { method: RestApiMethod }) {
 
       <KeyValueGrid>
         <KeyValue label="Authorization">{method.authorizationType ?? "-"}</KeyValue>
-        <KeyValue label="Authorizer">{method.authorizerId ?? "-"}</KeyValue>
+        <KeyValue label="Authorizer">
+          {method.authorizerId ? (
+            <Link
+              to="/api-gateway/rest-apis/$apiId"
+              params={{ apiId }}
+              search={(prev) => ({ ...prev, tab: "authorizers" })}
+              title={`Authorizer ${method.authorizerId}`}
+              className="underline decoration-border underline-offset-2 hover:text-primary"
+            >
+              {authorizerName ?? method.authorizerId}
+            </Link>
+          ) : (
+            "-"
+          )}
+        </KeyValue>
         <KeyValue label="API key">{method.apiKeyRequired ? "required" : "not required"}</KeyValue>
         <KeyValue label="Operation">{method.operationName ?? "-"}</KeyValue>
       </KeyValueGrid>

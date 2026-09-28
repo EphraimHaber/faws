@@ -12,7 +12,9 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { AuthorizersPane } from "~/features/api-gateway/components/AuthorizersPane";
 import { DeploymentsPane } from "~/features/api-gateway/components/DeploymentsPane";
+import { ExportPane } from "~/features/api-gateway/components/ExportPane";
 import { ResourcesPane } from "~/features/api-gateway/components/ResourcesPane";
 import { RestApiOverview } from "~/features/api-gateway/components/RestApiOverview";
 import { StagesPane } from "~/features/api-gateway/components/StagesPane";
@@ -22,7 +24,14 @@ import { trpc } from "~/lib/trpc";
 import { useRecordVisit } from "~/stores/recents";
 
 /** The tabs, in the order they are shown; the first is the default. */
-export const REST_API_TABS = ["overview", "resources", "stages", "deployments"] as const;
+export const REST_API_TABS = [
+  "overview",
+  "resources",
+  "stages",
+  "deployments",
+  "authorizers",
+  "export",
+] as const;
 
 type Tab = (typeof REST_API_TABS)[number];
 
@@ -42,11 +51,15 @@ export function RestApiPage({ apiId }: { apiId: string }) {
   });
   const stages = useQuery({
     ...trpc.apiGateway.stages.queryOptions({ ...scope, apiId }),
-    enabled: tab === "stages" || tab === "deployments",
+    enabled: tab === "stages" || tab === "deployments" || tab === "export",
   });
   const deployments = useQuery({
     ...trpc.apiGateway.deployments.queryOptions({ ...scope, apiId }),
     enabled: tab === "deployments",
+  });
+  const authorizers = useQuery({
+    ...trpc.apiGateway.authorizers.queryOptions({ ...scope, apiId }),
+    enabled: tab === "authorizers",
   });
 
   // Recorded from the route, so an API that fails to load still counts as
@@ -124,11 +137,19 @@ export function RestApiPage({ apiId }: { apiId: string }) {
                 label: "Deployments",
                 count: deployments.data?.deployments.length,
               },
+              {
+                value: "authorizers",
+                label: "Authorizers",
+                count: authorizers.data?.authorizers.length,
+              },
+              { value: "export", label: "Export" },
             ]}
           />
           {(tab === "resources" && resources.isFetching) ||
           (tab === "stages" && stages.isFetching) ||
-          (tab === "deployments" && (deployments.isFetching || stages.isFetching)) ? (
+          (tab === "deployments" && (deployments.isFetching || stages.isFetching)) ||
+          (tab === "authorizers" && authorizers.isFetching) ||
+          (tab === "export" && stages.isFetching) ? (
             <Spinner />
           ) : null}
         </PanelHeader>
@@ -137,6 +158,8 @@ export function RestApiPage({ apiId }: { apiId: string }) {
         {tab === "resources" ? <ResourcesPane apiId={api.id} /> : null}
         {tab === "stages" ? <StagesPane api={api} /> : null}
         {tab === "deployments" ? <DeploymentsPane apiId={api.id} /> : null}
+        {tab === "authorizers" ? <AuthorizersPane apiId={api.id} /> : null}
+        {tab === "export" ? <ExportPane apiId={api.id} /> : null}
       </Panel>
     </div>
   );

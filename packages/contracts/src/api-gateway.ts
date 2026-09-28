@@ -144,3 +144,43 @@ export interface RestApiDeploymentListing {
   readonly deployments: ReadonlyArray<RestApiDeployment>;
   readonly truncated: boolean;
 }
+
+/** What checks a caller before a method runs: a Lambda function or a Cognito user pool. */
+export interface RestApiAuthorizer {
+  readonly id: string;
+  readonly name: string;
+  /** TOKEN, REQUEST or COGNITO_USER_POOLS. */
+  readonly type: string | null;
+  /** Where the caller's identity is read from, e.g. `method.request.header.Authorization`. */
+  readonly identitySource: string | null;
+  /** A pattern a TOKEN authorizer's token must match before the authorizer is called. */
+  readonly identityValidationExpression: string | null;
+  /** The Lambda invocation URI of a TOKEN or REQUEST authorizer. */
+  readonly authorizerUri: string | null;
+  /** The role API Gateway assumes to call the authorizer. */
+  readonly credentials: string | null;
+  /** How long a decision is cached; 0 turns caching off. */
+  readonly resultTtlSeconds: number | null;
+  /** The user pools a COGNITO_USER_POOLS authorizer accepts tokens from. */
+  readonly providerArns: ReadonlyArray<string>;
+}
+
+/** The authorizers a listing reached, by name; `truncated` when the API has more. */
+export interface RestApiAuthorizerListing {
+  readonly authorizers: ReadonlyArray<RestApiAuthorizer>;
+  readonly truncated: boolean;
+}
+
+/** The definition formats GetExport writes: OpenAPI 3.0 or Swagger 2.0. */
+export const REST_API_EXPORT_FORMATS = ["oas30", "swagger"] as const;
+export type RestApiExportFormat = (typeof REST_API_EXPORT_FORMATS)[number];
+
+/** A stage's API definition, as GetExport writes it. */
+export interface RestApiExport {
+  readonly stageName: string;
+  readonly format: RestApiExportFormat;
+  /** The size of the definition as AWS sent it. */
+  readonly bytes: number;
+  /** The definition as JSON text, or `null` when it is too large to send on. */
+  readonly body: string | null;
+}
