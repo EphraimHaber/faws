@@ -6,6 +6,7 @@ import {
   executionLoggingOn,
   invokeUrl,
   logGroupFromArn,
+  stageLogSources,
   stagesByDeployment,
 } from "./stages.ts";
 
@@ -73,12 +74,13 @@ describe("logGroupFromArn", () => {
   it("reads a log group ARN", () => {
     expect(
       logGroupFromArn("arn:aws:logs:eu-west-1:123456789012:log-group:/aws/api/access"),
-    ).toEqual({ region: "eu-west-1", name: "/aws/api/access" });
+    ).toEqual({ region: "eu-west-1", account: "123456789012", name: "/aws/api/access" });
   });
 
   it("drops a trailing wildcard", () => {
     expect(logGroupFromArn("arn:aws:logs:eu-west-1:123456789012:log-group:access:*")).toEqual({
       region: "eu-west-1",
+      account: "123456789012",
       name: "access",
     });
   });
@@ -117,6 +119,67 @@ describe("executionLoggingOn", () => {
   });
 });
 
+describe("stageLogSources", () => {
+  it("reads both kinds as off when the stage logs nothing", () => {
+    expect(stageLogSources(stage("prod"), "a1", "eu-west-1", "123456789012")).toEqual({
+      access: { kind: "off" },
+      execution: { kind: "off", name: "API-Gateway-Execution-Logs_a1/prod" },
+    });
+  });
+
+  it("names the execution log group when any method logs", () => {
+    expect(
+      stageLogSources(stage("prod", { methodSettings: [setting("INFO")] }), "a1", "eu-west-1", null)
+        .execution,
+    ).toEqual({ kind: "group", name: "API-Gateway-Execution-Logs_a1/prod" });
+  });
+
+  it("reads an access log group in the scoped region and account", () => {
+    const arn = groupArn("eu-west-1", "123456789012");
+    expect(stageLogSources(accessTo(arn), "a1", "eu-west-1", "123456789012").access).toEqual({
+      kind: "group",
+      name: "/aws/api/access",
+      arn,
+    });
+  });
+
+  it("trusts the region alone while the account is unknown", () => {
+    expect(
+      stageLogSources(accessTo(groupArn("eu-west-1", "210987654321")), "a1", "eu-west-1", null)
+        .access.kind,
+    ).toBe("group");
+  });
+
+  it("says where an access log group in another region or account is", () => {
+    const otherRegion = groupArn("us-east-1", "123456789012");
+    expect(
+      stageLogSources(accessTo(otherRegion), "a1", "eu-west-1", "123456789012").access,
+    ).toEqual({
+      kind: "elsewhere",
+      name: "/aws/api/access",
+      region: "us-east-1",
+      account: "123456789012",
+      arn: otherRegion,
+    });
+    expect(
+      stageLogSources(
+        accessTo(groupArn("eu-west-1", "210987654321")),
+        "a1",
+        "eu-west-1",
+        "123456789012",
+      ).access,
+    ).toMatchObject({ kind: "elsewhere", region: "eu-west-1", account: "210987654321" });
+  });
+
+  it("keeps a destination that is not a log group as its ARN", () => {
+    const arn = "arn:aws:firehose:eu-west-1:123456789012:deliverystream/amazon-apigateway-access";
+    expect(stageLogSources(accessTo(arn), "a1", "eu-west-1", "123456789012").access).toEqual({
+      kind: "not-cloudwatch",
+      arn,
+    });
+  });
+});
+
 describe("stagesByDeployment", () => {
   it("lists each deployment's stages, canaries marked", () => {
     const uses = stagesByDeployment([
@@ -140,4 +203,12 @@ function canary(): NonNullable<RestApiStage["canary"]> {
     stageVariableOverrides: {},
     useStageCache: false,
   };
+}
+
+function groupArn(region: string, account: string): string {
+  return `arn:aws:logs:${region}:${account}:log-group:/aws/api/access:*`;
+}
+
+function accessTo(destinationArn: string): RestApiStage {
+  return stage("prod", { accessLog: { destinationArn, format: null } });
 }

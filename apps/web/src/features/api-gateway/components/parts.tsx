@@ -1,6 +1,59 @@
+import type { RestApiStage } from "@faws/contracts";
+import { useQuery } from "@tanstack/react-query";
+
 import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { SectionHeader } from "~/components/ui/section-header";
+import { useAwsScope } from "~/contexts/ScopeContext";
+import { type StageLogSources, stageLogSources } from "~/features/api-gateway/stages";
+import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
+
+/**
+ * What there is to read of a stage's logs in the scoped region and account.
+ * Until the account is known, or when it cannot be read, a log group is
+ * judged by its region alone.
+ */
+export function useStageLogSources(apiId: string, stage: RestApiStage): StageLogSources {
+  const scope = useAwsScope();
+  const whoami = useQuery({
+    ...trpc.aws.whoami.queryOptions(scope),
+    retry: false,
+    staleTime: 60_000,
+  });
+  return stageLogSources(stage, apiId, scope.region, whoami.data?.accountId || null);
+}
+
+/**
+ * Picks one of the API's stages in a tab's toolbar. With `allLabel`, the
+ * empty value is a first option standing for every stage.
+ */
+export function StageSelect({
+  value,
+  names,
+  onChange,
+  allLabel,
+}: {
+  value: string;
+  names: ReadonlyArray<string>;
+  onChange: (next: string) => void;
+  allLabel?: string;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      aria-label="Stage"
+      className="h-7 max-w-48 min-w-0 cursor-pointer truncate rounded-md border border-border bg-transparent px-2 font-mono text-[12px] focus:outline-none"
+    >
+      {allLabel !== undefined ? <option value="">{allLabel}</option> : null}
+      {names.map((name) => (
+        <option key={name} value={name}>
+          {name}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 /** An underlined link inside a detail, such as an id or ARN that opens its page. */
 export const linkClass =

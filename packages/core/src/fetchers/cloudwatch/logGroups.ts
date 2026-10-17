@@ -3,6 +3,7 @@ import {
   DescribeLogStreamsCommand,
   FilterLogEventsCommand,
   GetLogEventsCommand,
+  type LogGroup as AwsLogGroup,
 } from "@aws-sdk/client-cloudwatch-logs";
 import type {
   AwsScope,
@@ -18,6 +19,19 @@ import { callAws, logsClient, type Page } from "../../clients.ts";
 
 /** DescribeLogGroups returns at most 50 a page; this many pages is 5,000 groups. */
 const MAX_GROUP_PAGES = 100;
+
+/** A group as the pages show it, or `null` for one without a name. */
+export function logGroupEntry(group: AwsLogGroup): LogGroup | null {
+  if (!group.logGroupName) return null;
+  return {
+    name: group.logGroupName,
+    arn: group.logGroupArn ?? group.arn ?? null,
+    createdAt: toIso(group.creationTime),
+    retentionDays: group.retentionInDays ?? null,
+    storedBytes: group.storedBytes ?? null,
+    logClass: group.logGroupClass ?? null,
+  };
+}
 
 /**
  * Every log group in the region, up to a cap.
@@ -38,21 +52,35 @@ export async function listLogGroups(scope: AwsScope): Promise<LogGroupListing> {
       ),
     );
     for (const group of page.logGroups ?? []) {
-      if (!group.logGroupName) continue;
-      groups.push({
-        name: group.logGroupName,
-        arn: group.logGroupArn ?? group.arn ?? null,
-        createdAt: toIso(group.creationTime),
-        retentionDays: group.retentionInDays ?? null,
-        storedBytes: group.storedBytes ?? null,
-        logClass: group.logGroupClass ?? null,
-      });
+      const entry = logGroupEntry(group);
+      if (entry) groups.push(entry);
     }
     token = page.nextToken;
     pages += 1;
   } while (token && pages < MAX_GROUP_PAGES);
 
   return { groups, truncated: Boolean(token) };
+}
+
+/** The group named exactly `name` among those a prefix search found, if any. */
+export function exactLogGroup(groups: ReadonlyArray<AwsLogGroup>, name: string): LogGroup | null {
+  const match = groups.find((group) => group.logGroupName === name);
+  return match ? logGroupEntry(match) : null;
+}
+
+/**
+ * One log group by its exact name, or `null` when the region has none.
+ *
+ * DescribeLogGroups only searches by prefix, and lists names in order, so a
+ * group named exactly the prefix comes before every longer name sharing it
+ * and one page is enough to find it.
+ */
+export async function describeLogGroup(scope: AwsScope, name: string): Promise<LogGroup | null> {
+  const client = logsClient(scope);
+  const page = await callAws("logs", () =>
+    client.send(new DescribeLogGroupsCommand({ logGroupNamePrefix: name, limit: 50 })),
+  );
+  return exactLogGroup(page.logGroups ?? [], name);
 }
 
 /** One page of a group's streams, the most recently written first. */

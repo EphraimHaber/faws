@@ -21,6 +21,16 @@ export type LogOrder = "asc" | "desc";
 /** Tail cadence when the app-wide refresh is set to manual. */
 export const TAIL_INTERVAL_MS = 10_000;
 
+/**
+ * Query options that poll a log read while it is tailed. Tailing owns the
+ * polling: the app-wide interval is the floor, and manual still gets a live
+ * tail. Not tailing leaves the app-wide interval in charge.
+ */
+export function tailPolling(tail: boolean, refreshSeconds: number): { refetchInterval?: number } {
+  if (!tail) return {};
+  return { refetchInterval: refreshSeconds > 0 ? refreshSeconds * 1000 : TAIL_INTERVAL_MS };
+}
+
 /** The body's padding and the gap between its columns, in px - the drag
  *  handles sit on top of the lines, so they need both. */
 const LOG_PANE_PADDING = 12;

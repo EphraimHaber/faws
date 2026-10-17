@@ -29,7 +29,7 @@ import {
   type LogOrder,
   LogViewControls,
   type ShownEvent,
-  TAIL_INTERVAL_MS,
+  tailPolling,
   useFollowNewest,
   useShownSearch,
 } from "~/features/cloudwatch/components/LogLines";
@@ -126,9 +126,7 @@ export function TailPage() {
         ...(appliedFilter ? { filterPattern: appliedFilter } : {}),
         limit: 500,
       }),
-      ...(tail
-        ? { refetchInterval: refreshSeconds > 0 ? refreshSeconds * 1000 : TAIL_INTERVAL_MS }
-        : {}),
+      ...tailPolling(tail, refreshSeconds),
     })),
     combine: combineResults,
   });

@@ -17,6 +17,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { TextAction } from "~/components/ui/text-action";
 import { useAwsScope } from "~/contexts/ScopeContext";
+import { StageSelect } from "~/features/api-gateway/components/parts";
 import {
   API_GATEWAY_NAMESPACE,
   periodLabel,
@@ -62,19 +63,12 @@ export function MetricsPane({ apiId, apiName }: { apiId: string; apiName: string
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3.5 py-2">
-        <select
+        <StageSelect
           value={stageName ?? ""}
-          onChange={(event) => setPicked(event.target.value)}
-          aria-label="Stage"
-          className="h-7 max-w-48 min-w-0 cursor-pointer truncate rounded-md border border-border bg-transparent px-2 font-mono text-[12px] focus:outline-none"
-        >
-          <option value="">All stages</option>
-          {stageNames.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
+          names={stageNames}
+          onChange={setPicked}
+          allLabel="All stages"
+        />
         {stages.isError ? (
           <span className="flex items-center gap-1.5 font-mono text-[10.5px] text-danger">
             <span title={stages.error.message}>stages could not be read</span>

@@ -31,6 +31,7 @@ import { DomainsPage } from "~/features/api-gateway/pages/DomainsPage";
 import { REST_API_TABS, RestApiPage } from "~/features/api-gateway/pages/RestApiPage";
 import { RestApisPage } from "~/features/api-gateway/pages/RestApisPage";
 import { USAGE_PLAN_TABS, UsagePlansPage } from "~/features/api-gateway/pages/UsagePlansPage";
+import { STAGE_LOG_KINDS } from "~/features/api-gateway/stages";
 import { CloudWatchIndexPage } from "~/features/cloudwatch/pages/CloudWatchIndexPage";
 import { LogGroupPage } from "~/features/cloudwatch/pages/LogGroupPage";
 import { LogGroupsPage } from "~/features/cloudwatch/pages/LogGroupsPage";
@@ -325,12 +326,14 @@ const restApiRoute = createRoute({
   validateSearch: tabSearch(REST_API_TABS).extend({
     /** The resource picked in the resources tab, by id. */
     resource: z.string().max(64).optional().catch(undefined),
-    /** The stage picked in the stages, export and metrics tabs, by name. */
+    /** The stage picked in the stages, export, metrics and logs tabs, by name. */
     stage: z.string().max(128).optional().catch(undefined),
     /** The definition format picked in the export tab. */
     format: z.enum(REST_API_EXPORT_FORMATS).optional().catch(undefined),
-    /** How far back the metrics tab reads. */
+    /** How far back the metrics and logs tabs read. */
     window: windowSearch,
+    /** Which of the stage's logs the logs tab reads. */
+    log: z.enum(STAGE_LOG_KINDS).optional().catch(undefined),
   }),
   component: RestApiRoute,
 });

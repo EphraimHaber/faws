@@ -8,6 +8,7 @@
  */
 import { CLOUDWATCH_WINDOWS, METRIC_STATISTICS } from "@faws/contracts";
 import {
+  describeLogGroup,
   fetchLogWindow,
   listLogGroups,
   listLogStreams,
@@ -26,6 +27,11 @@ export const cloudwatchRouter = router({
   logGroups: publicProcedure
     .input(scopeInput)
     .query(({ input }) => guard(() => listLogGroups(input))),
+
+  /** One group by its exact name, or `null` when the region has none. */
+  logGroup: publicProcedure
+    .input(logGroupInput)
+    .query(({ input }) => guard(() => describeLogGroup(input, input.logGroup))),
 
   logStreams: publicProcedure
     .input(logGroupInput.extend({ cursor: z.string().nullish() }))

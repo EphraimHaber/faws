@@ -3,20 +3,11 @@ import {
   type CloudWatchWindow,
   DEFAULT_CLOUDWATCH_WINDOW,
   type LogStream,
-  windowLabel,
 } from "@faws/contracts";
 import { byteSize, relativeTime } from "@faws/shared";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import {
-  ExternalLink,
-  FileWarning,
-  Layers,
-  PanelLeftClose,
-  PanelLeftOpen,
-  ScrollText,
-  X,
-} from "lucide-react";
+import { ExternalLink, FileWarning, Layers, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import * as React from "react";
 
 import { PinButton } from "~/components/PinButton";
@@ -29,14 +20,13 @@ import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useAwsScope, useScope } from "~/contexts/ScopeContext";
 import {
-  LogLines,
   type LogOrder,
   LogViewControls,
-  TAIL_INTERVAL_MS,
+  tailPolling,
   useFollowNewest,
   useShownSearch,
 } from "~/features/cloudwatch/components/LogLines";
-import { TruncatedNote, WindowPicker } from "~/features/cloudwatch/components/LogWindow";
+import { LogWindowView, WindowPicker } from "~/features/cloudwatch/components/LogWindow";
 import { retentionLabel } from "~/features/cloudwatch/metric-ref";
 import { logGroupRef } from "~/features/cloudwatch/refs";
 import { LogFilterBar } from "~/features/ecs/components/LogFilterBar";
@@ -91,11 +81,7 @@ export function LogGroupPage({ group }: { group: string }) {
       ...(appliedFilter ? { filterPattern: appliedFilter } : {}),
       limit: 500,
     }),
-    // Tailing owns the polling here, as it does on the ECS log pane: the
-    // app-wide interval is the floor, and manual still gets a live tail.
-    ...(tail
-      ? { refetchInterval: refreshSeconds > 0 ? refreshSeconds * 1000 : TAIL_INTERVAL_MS }
-      : {}),
+    ...tailPolling(tail, refreshSeconds),
   });
 
   const events = React.useMemo(() => logs.data?.events ?? [], [logs.data]);
@@ -224,27 +210,14 @@ export function LogGroupPage({ group }: { group: string }) {
             </div>
           </div>
 
-          {logs.data?.truncated ? (
-            <TruncatedNote
-              truncated={logs.data.truncated}
-              count={events.length}
-              windowMinutes={windowMinutes}
-            />
-          ) : null}
-
-          {logs.isPending ? (
-            <LoadingRows rows={10} />
-          ) : logs.isError ? (
-            <ErrorState error={logs.error} onRetry={() => void logs.refetch()} />
-          ) : events.length === 0 ? (
-            <EmptyState
-              icon={ScrollText}
-              title={`No log events in the last ${windowLabel(windowMinutes)}`}
-              hint={stream ? `Stream ${stream}` : "A longer window may reach something."}
-            />
-          ) : (
-            <LogLines lines={ordered} showStream={!stream && showStreamColumn} bodyRef={bodyRef} />
-          )}
+          <LogWindowView
+            logs={logs}
+            lines={ordered}
+            windowMinutes={windowMinutes}
+            showStream={!stream && showStreamColumn}
+            bodyRef={bodyRef}
+            {...(stream ? { emptyHint: `Stream ${stream}` } : {})}
+          />
         </div>
       </div>
     </Panel>

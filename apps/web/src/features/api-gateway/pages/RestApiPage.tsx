@@ -15,6 +15,7 @@ import { useAwsScope, useScope } from "~/contexts/ScopeContext";
 import { AuthorizersPane } from "~/features/api-gateway/components/AuthorizersPane";
 import { DeploymentsPane } from "~/features/api-gateway/components/DeploymentsPane";
 import { ExportPane } from "~/features/api-gateway/components/ExportPane";
+import { LogsPane } from "~/features/api-gateway/components/LogsPane";
 import { MetricsPane } from "~/features/api-gateway/components/MetricsPane";
 import { ResourcesPane } from "~/features/api-gateway/components/ResourcesPane";
 import { RestApiOverview } from "~/features/api-gateway/components/RestApiOverview";
@@ -33,6 +34,7 @@ export const REST_API_TABS = [
   "authorizers",
   "export",
   "metrics",
+  "logs",
 ] as const;
 
 type Tab = (typeof REST_API_TABS)[number];
@@ -53,7 +55,12 @@ export function RestApiPage({ apiId }: { apiId: string }) {
   });
   const stages = useQuery({
     ...trpc.apiGateway.stages.queryOptions({ ...scope, apiId }),
-    enabled: tab === "stages" || tab === "deployments" || tab === "export" || tab === "metrics",
+    enabled:
+      tab === "stages" ||
+      tab === "deployments" ||
+      tab === "export" ||
+      tab === "metrics" ||
+      tab === "logs",
   });
   const deployments = useQuery({
     ...trpc.apiGateway.deployments.queryOptions({ ...scope, apiId }),
@@ -146,13 +153,14 @@ export function RestApiPage({ apiId }: { apiId: string }) {
               },
               { value: "export", label: "Export" },
               { value: "metrics", label: "Metrics" },
+              { value: "logs", label: "Logs" },
             ]}
           />
           {(tab === "resources" && resources.isFetching) ||
           (tab === "stages" && stages.isFetching) ||
           (tab === "deployments" && (deployments.isFetching || stages.isFetching)) ||
           (tab === "authorizers" && authorizers.isFetching) ||
-          ((tab === "export" || tab === "metrics") && stages.isFetching) ? (
+          ((tab === "export" || tab === "metrics" || tab === "logs") && stages.isFetching) ? (
             <Spinner />
           ) : null}
         </PanelHeader>
@@ -164,6 +172,7 @@ export function RestApiPage({ apiId }: { apiId: string }) {
         {tab === "authorizers" ? <AuthorizersPane apiId={api.id} /> : null}
         {tab === "export" ? <ExportPane apiId={api.id} /> : null}
         {tab === "metrics" ? <MetricsPane apiId={api.id} apiName={api.name} /> : null}
+        {tab === "logs" ? <LogsPane apiId={api.id} /> : null}
       </Panel>
     </div>
   );

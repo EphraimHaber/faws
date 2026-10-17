@@ -6,6 +6,7 @@
 import { REST_API_EXPORT_FORMATS } from "@faws/contracts";
 import {
   exportApi,
+  getApiGatewayAccount,
   getRestApi,
   listApiKeys,
   listAuthorizers,
@@ -84,4 +85,8 @@ export const apiGatewayRouter = router({
     .query(({ input }) => guard(() => listUsagePlanKeys(input, input.usagePlanId))),
 
   apiKeys: publicProcedure.input(scopeInput).query(({ input }) => guard(() => listApiKeys(input))),
+
+  account: publicProcedure
+    .input(scopeInput)
+    .query(({ input }) => guard(() => getApiGatewayAccount(input))),
 });

@@ -12,15 +12,14 @@ import { ErrorState } from "~/components/ui/error-state";
 import { SectionHeader } from "~/components/ui/section-header";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useAwsScope, useScope } from "~/contexts/ScopeContext";
-import { linkClass, TagsSection } from "~/features/api-gateway/components/parts";
 import {
-  executionLogGroup,
-  executionLoggingOn,
-  invokeUrl,
-  logGroupFromArn,
-} from "~/features/api-gateway/stages";
+  linkClass,
+  TagsSection,
+  useStageLogSources,
+} from "~/features/api-gateway/components/parts";
+import { invokeUrl, type StageLogKind } from "~/features/api-gateway/stages";
 import { limitsLabel, plansForStage, quotaLabel } from "~/features/api-gateway/usage-plans";
-import { parseText, useSearchState } from "~/hooks/useSearchState";
+import { parseText, useSearchState, withoutListSearch } from "~/hooks/useSearchState";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
@@ -144,10 +143,10 @@ function StageDetail({ api, stage }: { api: RestApiDetail; stage: RestApiStage }
             <span className="break-all">{stage.webAclArn ?? "-"}</span>
           </KeyValue>
           <KeyValue label="Execution logs" className="col-span-full">
-            <ExecutionLogs apiId={api.id} stage={stage} />
+            <LogDestination apiId={api.id} stage={stage} kind="execution" />
           </KeyValue>
           <KeyValue label="Access logs" className="col-span-full">
-            <AccessLogDestination stage={stage} />
+            <LogDestination apiId={api.id} stage={stage} kind="access" />
           </KeyValue>
           {stage.accessLog?.format ? (
             <KeyValue label="Access log format" className="col-span-full">
@@ -245,36 +244,48 @@ function StageUsagePlans({ apiId, stageName }: { apiId: string; stageName: strin
   );
 }
 
-function ExecutionLogs({ apiId, stage }: { apiId: string; stage: RestApiStage }) {
-  if (!executionLoggingOn(stage)) return <>off</>;
-  const group = executionLogGroup(apiId, stage.name);
-  return (
-    <Link to="/cloudwatch/log-groups/$group" params={{ group }} className={linkClass}>
-      {group} <ArrowUpRight className="size-3 shrink-0" />
-    </Link>
-  );
-}
-
 /**
- * A log group in the scoped region links to its page; one elsewhere, or a
- * Firehose stream, is shown as its ARN.
+ * Where one of the stage's logs goes. A log group faws can read links to its
+ * CloudWatch page and to the logs tab; one elsewhere, or a Firehose stream,
+ * is shown as its ARN.
  */
-function AccessLogDestination({ stage }: { stage: RestApiStage }) {
-  const { region } = useScope();
-  if (!stage.accessLog) return <>off</>;
-  const group = logGroupFromArn(stage.accessLog.destinationArn);
-  if (!group || group.region !== region) {
-    return <span className="break-all">{stage.accessLog.destinationArn}</span>;
-  }
+function LogDestination({
+  apiId,
+  stage,
+  kind,
+}: {
+  apiId: string;
+  stage: RestApiStage;
+  kind: StageLogKind;
+}) {
+  const sources = useStageLogSources(apiId, stage);
+  const source = sources[kind];
+  if (source.kind === "off") return <>off</>;
+  if (source.kind !== "group") return <span className="break-all">{source.arn}</span>;
   return (
-    <Link
-      to="/cloudwatch/log-groups/$group"
-      params={{ group: group.name }}
-      className={linkClass}
-      title={stage.accessLog.destinationArn}
-    >
-      {group.name} <ArrowUpRight className="size-3 shrink-0" />
-    </Link>
+    <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+      <Link
+        to="/cloudwatch/log-groups/$group"
+        params={{ group: source.name }}
+        className={linkClass}
+        {...("arn" in source ? { title: source.arn } : {})}
+      >
+        {source.name} <ArrowUpRight className="size-3 shrink-0" />
+      </Link>
+      <Link
+        to="/api-gateway/rest-apis/$apiId"
+        params={{ apiId }}
+        search={(prev) => ({
+          ...withoutListSearch(prev),
+          tab: "logs",
+          stage: stage.name,
+          log: kind,
+        })}
+        className={linkClass}
+      >
+        read in Logs
+      </Link>
+    </span>
   );
 }
 

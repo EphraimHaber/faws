@@ -16,9 +16,10 @@ size. CloudWatch is the third: every log group with its streams and a tail of
 its events, and any metric the account publishes, listed by namespace and
 charted over a window. API Gateway is the fourth, read only: every REST API
 in the region with its resources and methods, stages and deployments,
-authorizers, an OpenAPI or Swagger export and its metrics; the custom domains
-APIs are called on; and the usage plans and API keys callers are metered by,
-though never a key's value. Lambda and SQS are next.
+authorizers, an OpenAPI or Swagger export, its metrics, and each stage's
+access and execution logs, read in place; the custom domains APIs are called
+on; and the usage plans and API keys callers are metered by, though never a
+key's value. Lambda and SQS are next.
 
 ## Running
 

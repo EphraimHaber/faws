@@ -330,3 +330,12 @@ export interface ApiKeyListing {
   readonly keys: ReadonlyArray<ApiKey>;
   readonly truncated: boolean;
 }
+
+/** API Gateway's settings for the whole account in one region. */
+export interface ApiGatewayAccount {
+  /**
+   * The IAM role API Gateway assumes to write logs to CloudWatch, or `null`
+   * when none is set, in which case no stage in the region can write any.
+   */
+  readonly cloudwatchRoleArn: string | null;
+}

@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type * as React from "react";
 
 export function EmptyState({
   icon: Icon,
@@ -7,7 +8,8 @@ export function EmptyState({
 }: {
   icon: LucideIcon;
   title: string;
-  hint?: string;
+  /** A sentence, or inline content such as a sentence with an ARN in it. */
+  hint?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-14 text-center">

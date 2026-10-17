@@ -10,6 +10,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { JsonText } from "~/features/api-gateway/components/JsonText";
+import { StageSelect } from "~/features/api-gateway/components/parts";
 import { parseText, useSearchState } from "~/hooks/useSearchState";
 import { trpc } from "~/lib/trpc";
 
@@ -62,18 +63,11 @@ export function ExportPane({ apiId }: { apiId: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3.5 py-2">
-        <select
+        <StageSelect
           value={stageName}
-          onChange={(event) => setPicked(event.target.value)}
-          aria-label="Stage"
-          className="h-7 max-w-48 min-w-0 cursor-pointer truncate rounded-md border border-border bg-transparent px-2 font-mono text-[12px] focus:outline-none"
-        >
-          {stages.data.map((stage) => (
-            <option key={stage.name} value={stage.name}>
-              {stage.name}
-            </option>
-          ))}
-        </select>
+          names={stages.data.map((stage) => stage.name)}
+          onChange={setPicked}
+        />
         <Segmented<RestApiExportFormat>
           value={format}
           onChange={setFormat}
