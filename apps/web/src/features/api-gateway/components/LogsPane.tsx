@@ -165,17 +165,23 @@ function StageLogs({
         <ErrorState error={described.error} onRetry={() => void described.refetch()} />
       ) : !found ? (
         loggingOn ? (
-          <EmptyState
-            icon={ScrollText}
-            title={`${kindLabel} logging is on for stage ${stage.name}, but its log group does not exist`}
-            hint={
-              noRole
-                ? noRoleSentence
-                : kind === "execution"
-                  ? `API Gateway makes ${group} with the first request it logs, so the stage may not have been called since logging was turned on.`
-                  : `Nothing may have been logged since logging was turned on, or ${group} was deleted.`
-            }
-          />
+          // Which reason the hint gives depends on the account read, so it
+          // waits for it rather than showing one reason and then the other.
+          account.isPending ? (
+            <LoadingRows rows={8} />
+          ) : (
+            <EmptyState
+              icon={ScrollText}
+              title={`${kindLabel} logging is on for stage ${stage.name}, but its log group does not exist`}
+              hint={
+                noRole
+                  ? noRoleSentence
+                  : kind === "execution"
+                    ? `API Gateway makes ${group} with the first request it logs, so the stage may not have been called since logging was turned on.`
+                    : `Nothing may have been logged since logging was turned on, or ${group} was deleted.`
+              }
+            />
+          )
         ) : (
           <EmptyState
             icon={ScrollText}
@@ -196,7 +202,13 @@ function StageLogs({
               {noRoleSentence}
             </p>
           ) : null}
-          <LogReader group={found.name} windowMinutes={windowMinutes} onWindow={setWindowMinutes} />
+          <LogReader
+            // A filter, tail or order chosen for one group does not carry to the next.
+            key={found.name}
+            group={found.name}
+            windowMinutes={windowMinutes}
+            onWindow={setWindowMinutes}
+          />
         </>
       )}
     </div>
