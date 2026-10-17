@@ -330,8 +330,13 @@ const restApiRoute = createRoute({
     stage: z.string().max(128).optional().catch(undefined),
     /** The definition format picked in the export tab. */
     format: z.enum(REST_API_EXPORT_FORMATS).optional().catch(undefined),
-    /** How far back the metrics and logs tabs read. */
+    /** How far back the metrics tab reads. */
     window: windowSearch,
+    /**
+     * How far back the logs tab reads. Its own param, so a day picked for the
+     * charts never turns into a day of log lines to read.
+     */
+    logWindow: windowSearch,
     /** Which of the stage's logs the logs tab reads. */
     log: z.enum(STAGE_LOG_KINDS).optional().catch(undefined),
   }),

@@ -103,7 +103,7 @@ function StageLogs({
 }) {
   const scope = useAwsScope();
   const [windowMinutes, setWindowMinutes] = useSearchState<CloudWatchWindow>({
-    key: "window",
+    key: "logWindow",
     fallback: DEFAULT_CLOUDWATCH_WINDOW,
     parse: (raw) =>
       CLOUDWATCH_WINDOWS.find((minutes) => minutes === Number(raw)) ?? DEFAULT_CLOUDWATCH_WINDOW,
