@@ -46,7 +46,7 @@ export function WorkloadsPage() {
   const [filter, setFilter] = useFilterSearch();
   const diagnostics = useKubeDiagnostics();
   const pods = useQuery({
-    ...trpc.kube.pods.queryOptions({ context, namespace }),
+    ...trpc.kubernetes.pods.queryOptions({ context, namespace }),
     enabled: ready,
     retry: false,
   });

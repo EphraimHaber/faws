@@ -86,7 +86,16 @@ export const ${camel}Manifest = defineProvider({
 });
 `,
   "src/server/index.ts": `/** ${label} on the server. */
-export { ${camel}Router } from "./${id}.router.ts";
+import { defineProviderServer } from "@faws/kit/server";
+
+import { ${camel}Manifest } from "../manifest.ts";
+import { ${camel}Router } from "./${id}.router.ts";
+
+/** Mounted by the host under the manifest id, so the client path is \`trpc["${id}"]\`. */
+export const ${camel}Server = defineProviderServer({
+  id: ${camel}Manifest.id,
+  router: ${camel}Router,
+});
 `,
   [`src/server/${id}.router.ts`]: `import { providerProcedure, router } from "@faws/kit/server";
 
@@ -121,7 +130,7 @@ console.log(`Created packages/providers/${id}. Now register it:
   2. packages/contracts/src/settings.ts: give it a section in providerSections and
      providersPatchSchema; both are typed against every provider id, so the
      build fails until it has one.
-  3. apps/server/src/router.ts: mount ${camel}Router under "${id}"
+  3. apps/server/src/router.ts: add ${camel}Server to mountProviders([...])
      (and add the package to apps/server's dependencies).
   4. apps/web/src/services/registry.ts: add ${camel}Manifest to MANIFESTS, and
      apps/web/src/features/overview/ProviderHealth.tsx: give it a tile.

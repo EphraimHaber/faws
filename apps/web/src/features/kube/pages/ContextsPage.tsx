@@ -33,7 +33,7 @@ export function ContextsPage() {
   const { context: active, setContext } = useKubeScope();
   const [filter, setFilter] = useFilterSearch();
   const diagnostics = useKubeDiagnostics();
-  const contexts = useQuery({ ...trpc.kube.contexts.queryOptions(), retry: false });
+  const contexts = useQuery({ ...trpc.kubernetes.contexts.queryOptions(), retry: false });
   const rows = contexts.data ?? [];
 
   const columns = React.useMemo<Column<KubeContextInfo>[]>(

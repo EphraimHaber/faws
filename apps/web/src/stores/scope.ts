@@ -144,7 +144,7 @@ export function useKubeScope(): KubeScopeValue {
   const stored = useSettings((state) => state.settings.providers.kubernetes.scope);
   const enabled = useProviderEnabled("kubernetes");
   const contexts = useQuery({
-    ...trpc.kube.contexts.queryOptions(),
+    ...trpc.kubernetes.contexts.queryOptions(),
     enabled,
     staleTime: 30_000,
     retry: false,

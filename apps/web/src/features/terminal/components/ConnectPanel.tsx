@@ -61,7 +61,7 @@ export function ConnectPanel() {
   const instances = useQuery(trpc.exec.targets.queryOptions(aws));
   const hosts = useQuery(trpc.exec.sshHosts.queryOptions());
   const pods = useQuery({
-    ...trpc.kube.pods.queryOptions({ context: kube.context, namespace: kube.namespace }),
+    ...trpc.kubernetes.pods.queryOptions({ context: kube.context, namespace: kube.namespace }),
     enabled: kube.ready && !noKubeCli,
     retry: false,
   });
