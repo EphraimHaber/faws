@@ -31,5 +31,6 @@ Desktop operations console for AWS, Kubernetes and S3-compatible storage. Read `
 - "cluster" means an ECS cluster and nothing else. Kubernetes UI says context, namespace and workload.
 
 ## Commits and changes
+- A change a user would notice also gets a changeset: `pnpm change "one plain sentence" [patch|minor|major]`. That note becomes the release notes and the in-app "What's new".
 - Commit subjects are one plain sentence about the user-visible outcome, in the imperative. No `feat:`/`fix:` prefixes.
 - Before calling work done, run `pnpm check:catalog`, `pnpm fmt:check`, `pnpm lint`, `pnpm check:deps`, `pnpm typecheck` and `pnpm test`. CI runs the same list.

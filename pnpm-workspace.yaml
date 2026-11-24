@@ -55,6 +55,9 @@ catalog:
   zustand: ^5.0.12
 
 catalogs:
+  release:
+    "@changesets/changelog-github": ^1.0.1
+    "@changesets/cli": ^3.0.3
   react:
     "@types/react": ^19.0.0
     "@types/react-dom": ^19.0.0
@@ -88,6 +91,7 @@ catalogs:
   electron:
     electron: ^44.0.0
     electron-builder: ^26.15.3
+    electron-updater: ^6.8.11
   build:
     "@tailwindcss/vite": ^4.0.0
     "@types/node": ^24.10.13

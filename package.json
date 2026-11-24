@@ -11,6 +11,7 @@
     "dev:stop": "lsof -ti tcp:${FAWS_DEV_SERVER_PORT:-4741} -i tcp:${FAWS_DEV_WEB_PORT:-5741} | xargs -r kill",
     "build": "turbo run build",
     "build:desktop": "turbo run build --filter=@faws/desktop",
+    "dist": "turbo run build && pnpm --filter @faws/desktop dist",
     "start:desktop": "turbo run start --filter=@faws/desktop",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
@@ -19,9 +20,13 @@
     "check:deps": "depcruise apps packages --output-type err",
     "fmt": "oxfmt '**/*.{ts,tsx,css}'",
     "fmt:check": "oxfmt --check '**/*.{ts,tsx,css}'",
-    "clean:manual": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist apps/*/dist-electron packages/*/dist .turbo apps/*/.turbo packages/*/.turbo"
+    "clean:manual": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist apps/*/dist-electron packages/*/dist .turbo apps/*/.turbo packages/*/.turbo",
+    "change": "node scripts/change.mjs",
+    "version-packages": "changeset version && pnpm install --lockfile-only"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "catalog:release",
+    "@changesets/cli": "catalog:release",
     "@swc/core": "catalog:build",
     "@types/node": "catalog:build",
     "dependency-cruiser": "catalog:build",

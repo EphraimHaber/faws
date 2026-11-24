@@ -1,0 +1,81 @@
+# Builds the app for every platform from a version tag and publishes it as a
+# GitHub release, which is where the in-app update check looks.
+#
+# Builds are unsigned: macOS users open the first download with right-click >
+# Open, and Windows SmartScreen asks once. The app never installs an update on
+# macOS by itself for the same reason; it points at the release instead.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to release, e.g. v0.2.0
+        required: true
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # One runner per macOS architecture: node-pty is staged as a native
+          # binary for the machine that builds it.
+          - os: macos-14
+            args: --mac --arm64
+          - os: macos-13
+            args: --mac --x64
+          - os: windows-latest
+            args: --win --x64
+          - os: ubuntu-latest
+            args: --linux --x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: jdx/mise-action@v3
+        with:
+          cache: true
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      # electron-builder uploads into a draft release named after the version,
+      # creating it on the first runner to get there.
+      - name: Package and upload
+        working-directory: apps/desktop
+        run: pnpm exec electron-builder ${{ matrix.args }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Write the release notes from the changelog and publish
+        run: |
+          node scripts/release-notes.mjs "$TAG" > notes.md
+          gh release edit "$TAG" --title "faws ${TAG#v}" --notes-file notes.md --draft=false --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -9,20 +9,26 @@
     "build": "tsdown",
     "start": "node scripts/start-electron.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
-  },
-  "dependencies": {
-    "@trpc/client": "catalog:trpc",
-    "superjson": "catalog:trpc"
+    "test": "vitest run --passWithNoTests",
+    "dist": "electron-builder --publish never"
   },
   "devDependencies": {
     "@faws/server": "workspace:*",
+    "@trpc/client": "catalog:trpc",
     "@types/node": "catalog:build",
     "electron": "catalog:electron",
     "electron-builder": "catalog:electron",
+    "electron-updater": "catalog:electron",
+    "superjson": "catalog:trpc",
     "tsdown": "catalog:build",
     "typescript": "catalog:build",
     "vitest": "catalog:build"
   },
-  "productName": "faws"
+  "productName": "faws",
+  "description": "faws: an operations console for AWS, Kubernetes and S3-compatible storage",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EphraimHaber/faws.git"
+  },
+  "author": "Ephraim Haber"
 }

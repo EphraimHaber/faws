@@ -24,10 +24,22 @@ extraResources:
     to: web
     filter: ["**/*", "!**/*.map"]
 
+# Where releases are published and where the in-app update check looks.
+publish:
+  provider: github
+  owner: EphraimHaber
+  repo: faws
+  releaseType: draft
+
 mac:
   category: public.app-category.developer-tools
+  # The zip is what the update check reads its metadata beside; the dmg is
+  # what people download. Unsigned, so the arm64 build is ad-hoc signed by
+  # default and the first launch needs right-click > Open.
   target:
     - target: dmg
+      arch: [arm64, x64]
+    - target: zip
       arch: [arm64, x64]
   artifactName: "${productName}-${version}-${arch}.${ext}"
 
@@ -46,6 +58,8 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 
-# The server is pre-bundled and we ship no native modules, so electron-builder
-# has nothing to rebuild.
+# The server is pre-bundled, and its one native module (node-pty) is staged
+# prebuilt by apps/server/scripts/stage-native.mjs into the server's own
+# folder, which ships as an extra resource; electron-builder has nothing to
+# rebuild.
 nodeGypRebuild: false
