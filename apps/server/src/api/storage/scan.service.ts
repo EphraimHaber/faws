@@ -1,5 +1,5 @@
 /**
- * `/s3-scan` namespace - recursive key walks.
+ * `/storage-scan` namespace - recursive key walks.
  *
  * A scan is a stream rather than a request: a prefix can hold millions of
  * keys, and the matches that arrive first are worth showing while the rest are
@@ -10,30 +10,27 @@
  * The middle one matters most - navigating away has to stop the work rather
  * than leave it running unobserved against someone's bucket.
  */
-import type { S3ObjectSummary } from "@faws/contracts";
-import { toS3Scope } from "@faws/contracts";
-import { scanPrefix } from "@faws/core";
+import { connectionRefSchema, type StorageObjectSummary } from "@faws/kit";
+import { assertProviderEnabled, objectStorageFor } from "@faws/kit/server";
 import type {
-  S3ScanClientToServerEvents,
-  S3ScanHandshakeAuth,
-  S3ScanInterServerEvents,
-  S3ScanServerToClientEvents,
-  S3ScanSocketData,
+  StorageScanClientToServerEvents,
+  StorageScanHandshakeAuth,
+  StorageScanInterServerEvents,
+  StorageScanServerToClientEvents,
+  StorageScanSocketData,
 } from "@faws/socket-io-events";
 import type { Socket } from "socket.io";
 import { z } from "zod";
 
 import { createLogger } from "../../shared/logger.ts";
-import type { S3ScanNamespace } from "../../shared/socket-io.ts";
+import type { StorageScanNamespace } from "../../shared/socket-io.ts";
 import { toTrpcError } from "../../trpc/index.ts";
 
-const log = createLogger("s3-scan");
+const log = createLogger("storage-scan");
 
 const handshake = z.object({
   scanId: z.string().min(1),
-  profile: z.string(),
-  region: z.string().min(1),
-  connectionId: z.string().min(1).optional(),
+  ref: connectionRefSchema,
   bucket: z.string().min(1),
   prefix: z.string().max(1024).default(""),
   pattern: z.string().max(256).optional(),
@@ -46,17 +43,17 @@ const FLUSH_EVERY_MS = 250;
 const FLUSH_EVERY_HITS = 500;
 
 type ScanSocket = Socket<
-  S3ScanClientToServerEvents,
-  S3ScanServerToClientEvents,
-  S3ScanInterServerEvents,
-  S3ScanSocketData
+  StorageScanClientToServerEvents,
+  StorageScanServerToClientEvents,
+  StorageScanInterServerEvents,
+  StorageScanSocketData
 >;
 
-export function attachS3ScanNamespace(namespace: S3ScanNamespace): void {
+export function attachStorageScanNamespace(namespace: StorageScanNamespace): void {
   namespace.on("connection", (socket) => {
     const parsed = handshake.safeParse(socket.handshake.auth);
     if (!parsed.success) {
-      socket.emit("s3scan:error", {
+      socket.emit("scan:error", {
         code: "BAD_HANDSHAKE",
         userMessage: "The scan request was malformed.",
       });
@@ -65,9 +62,9 @@ export function attachS3ScanNamespace(namespace: S3ScanNamespace): void {
     }
 
     const input = parsed.data;
-    const auth: S3ScanHandshakeAuth = {
+    const auth: StorageScanHandshakeAuth = {
       scanId: input.scanId,
-      ...toS3Scope(input),
+      ref: input.ref,
       bucket: input.bucket,
       prefix: input.prefix,
       ...(input.pattern ? { pattern: input.pattern } : {}),
@@ -76,7 +73,7 @@ export function attachS3ScanNamespace(namespace: S3ScanNamespace): void {
     };
 
     const controller = new AbortController();
-    socket.on("s3scan:cancel", () => controller.abort());
+    socket.on("scan:cancel", () => controller.abort());
     socket.on("disconnect", () => controller.abort());
 
     void run(socket, auth, controller);
@@ -85,16 +82,16 @@ export function attachS3ScanNamespace(namespace: S3ScanNamespace): void {
 
 async function run(
   socket: ScanSocket,
-  auth: S3ScanHandshakeAuth,
+  auth: StorageScanHandshakeAuth,
   controller: AbortController,
 ): Promise<void> {
-  const scope = toS3Scope(auth);
-  let buffer: S3ObjectSummary[] = [];
+  let buffer: StorageObjectSummary[] = [];
   let lastFlush = Date.now();
 
   try {
-    for await (const chunk of scanPrefix(
-      scope,
+    assertProviderEnabled(auth.ref.provider);
+    for await (const chunk of objectStorageFor(auth.ref).scan(
+      auth.ref,
       {
         bucket: auth.bucket,
         prefix: auth.prefix,
@@ -112,15 +109,15 @@ async function run(
 
       if (chunk.progress.done || due) {
         if (buffer.length > 0) {
-          socket.emit("s3scan:chunk", { objects: buffer });
+          socket.emit("scan:chunk", { objects: buffer });
           buffer = [];
         }
-        socket.emit("s3scan:progress", chunk.progress);
+        socket.emit("scan:progress", chunk.progress);
         lastFlush = Date.now();
       }
 
       if (chunk.progress.done) {
-        socket.emit("s3scan:done", { progress: chunk.progress, rollup: chunk.rollup });
+        socket.emit("scan:done", { progress: chunk.progress, rollup: chunk.rollup });
       }
     }
   } catch (err) {
@@ -128,7 +125,7 @@ async function run(
     if (!controller.signal.aborted) {
       const mapped = toTrpcError(err);
       log.warn({ err, bucket: auth.bucket, prefix: auth.prefix }, "scan failed");
-      socket.emit("s3scan:error", { code: mapped.code, userMessage: mapped.message });
+      socket.emit("scan:error", { code: mapped.code, userMessage: mapped.message });
     }
   } finally {
     if (socket.connected) socket.disconnect(true);

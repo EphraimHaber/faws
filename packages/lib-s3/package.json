@@ -1,0 +1,31 @@
+{
+  "name": "@faws/lib-s3",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "catalog:aws",
+    "@aws-sdk/credential-providers": "catalog:aws",
+    "@aws-sdk/s3-request-presigner": "catalog:aws",
+    "@faws/contracts": "workspace:*",
+    "@faws/kit": "workspace:*",
+    "@faws/shared": "workspace:*",
+    "@smithy/node-http-handler": "catalog:aws"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:build",
+    "aws-sdk-client-mock": "catalog:aws",
+    "typescript": "catalog:build",
+    "vitest": "catalog:build"
+  }
+}

@@ -6,11 +6,11 @@ import {
   GetBucketTaggingCommand,
   GetBucketVersioningCommand,
   GetPublicAccessBlockCommand,
+  type S3Client,
 } from "@aws-sdk/client-s3";
-import type { S3Scope, S3BucketConfig, S3BucketConfigField } from "@faws/contracts";
+import type { StorageBucketConfig, StorageBucketConfigField } from "@faws/kit";
 
-import { callAws } from "../../clients.ts";
-import { s3ClientForBucket } from "./buckets.ts";
+import { callS3 } from "../call.ts";
 
 /**
  * Everything the properties pane shows, read field by field.
@@ -22,11 +22,13 @@ import { s3ClientForBucket } from "./buckets.ts";
  * reported as such, because "you cannot see this" and "this is not set" are
  * different answers and both are useful.
  */
-export async function bucketConfig(scope: S3Scope, bucket: string): Promise<S3BucketConfig> {
-  const client = await s3ClientForBucket(scope, bucket);
-  const denied: S3BucketConfigField[] = [];
+export async function bucketConfig(client: S3Client, bucket: string): Promise<StorageBucketConfig> {
+  const denied: StorageBucketConfigField[] = [];
 
-  const read = async <T>(field: S3BucketConfigField, run: () => Promise<T>): Promise<T | null> => {
+  const read = async <T>(
+    field: StorageBucketConfigField,
+    run: () => Promise<T>,
+  ): Promise<T | null> => {
     try {
       return await run();
     } catch (err) {
@@ -39,28 +41,20 @@ export async function bucketConfig(scope: S3Scope, bucket: string): Promise<S3Bu
 
   const [versioning, encryption, publicAccess, policy, lifecycle, tags, owner] = await Promise.all([
     read("versioning", () =>
-      callAws("s3", () => client.send(new GetBucketVersioningCommand({ Bucket: bucket }))),
+      callS3(() => client.send(new GetBucketVersioningCommand({ Bucket: bucket }))),
     ),
     read("encryption", () =>
-      callAws("s3", () => client.send(new GetBucketEncryptionCommand({ Bucket: bucket }))),
+      callS3(() => client.send(new GetBucketEncryptionCommand({ Bucket: bucket }))),
     ),
     read("publicAccessBlock", () =>
-      callAws("s3", () => client.send(new GetPublicAccessBlockCommand({ Bucket: bucket }))),
+      callS3(() => client.send(new GetPublicAccessBlockCommand({ Bucket: bucket }))),
     ),
-    read("policy", () =>
-      callAws("s3", () => client.send(new GetBucketPolicyCommand({ Bucket: bucket }))),
-    ),
+    read("policy", () => callS3(() => client.send(new GetBucketPolicyCommand({ Bucket: bucket })))),
     read("lifecycle", () =>
-      callAws("s3", () =>
-        client.send(new GetBucketLifecycleConfigurationCommand({ Bucket: bucket })),
-      ),
+      callS3(() => client.send(new GetBucketLifecycleConfigurationCommand({ Bucket: bucket }))),
     ),
-    read("tags", () =>
-      callAws("s3", () => client.send(new GetBucketTaggingCommand({ Bucket: bucket }))),
-    ),
-    read("owner", () =>
-      callAws("s3", () => client.send(new GetBucketAclCommand({ Bucket: bucket }))),
-    ),
+    read("tags", () => callS3(() => client.send(new GetBucketTaggingCommand({ Bucket: bucket })))),
+    read("owner", () => callS3(() => client.send(new GetBucketAclCommand({ Bucket: bucket })))),
   ]);
 
   const rule =

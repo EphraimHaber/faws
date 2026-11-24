@@ -1,4 +1,4 @@
-import { type S3PrefixRollup, toS3Scope } from "@faws/contracts";
+import type { StoragePrefixRollup } from "@faws/kit";
 import { byteSize } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Ruler, Square } from "lucide-react";
@@ -10,9 +10,9 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Spinner } from "~/components/ui/spinner";
-import { useS3Scope } from "~/stores/scope";
-import { useS3Capabilities } from "~/features/s3/useS3Capabilities";
-import { startScan, type RunningScan } from "~/lib/s3-scan";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
+import { useStorageFeatures } from "~/capabilities/object-storage/useStorageFeatures";
+import { startScan, type RunningScan } from "~/capabilities/object-storage/scan";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
 
@@ -29,13 +29,13 @@ const MAX_SECONDS = 120;
  * happens on open.
  */
 export function AnalyticsPane({ bucket, prefix }: { bucket: string; prefix: string }) {
-  const scope = useS3Scope();
-  const capabilities = useS3Capabilities();
+  const connection = useStorageConnection();
+  const features = useStorageFeatures(connection);
 
   const metrics = useQuery({
-    ...trpc.s3.storageMetrics.queryOptions({ ...scope, bucket, days: 30 }),
+    ...trpc.storage.storageMetrics.queryOptions({ ref: connection, bucket, days: 30 }),
     staleTime: 60 * 60_000,
-    enabled: capabilities.storageMetrics,
+    enabled: features.storageMetrics,
   });
 
   return (
@@ -44,7 +44,7 @@ export function AnalyticsPane({ bucket, prefix }: { bucket: string; prefix: stri
 
       <Panel className="shrink-0">
         <PanelHeader
-          {...(capabilities.storageMetrics
+          {...(features.storageMetrics
             ? { refresh: metrics, refreshLabel: "Refresh storage metrics" }
             : {})}
         >
@@ -54,9 +54,9 @@ export function AnalyticsPane({ bucket, prefix }: { bucket: string; prefix: stri
           </span>
         </PanelHeader>
 
-        {!capabilities.storageMetrics ? (
+        {!features.storageMetrics ? (
           <p className="px-3.5 py-4 text-[12.5px] text-muted-foreground">
-            This endpoint publishes no daily metrics. Measuring the prefix above is the way to a
+            This connection publishes no daily metrics. Measuring the prefix above is the way to a
             size here.
           </p>
         ) : metrics.isPending ? (
@@ -95,8 +95,8 @@ export function AnalyticsPane({ bucket, prefix }: { bucket: string; prefix: stri
  * as it goes and can be stopped.
  */
 function PrefixSize({ bucket, prefix }: { bucket: string; prefix: string }) {
-  const scope = useS3Scope();
-  const [rollup, setRollup] = React.useState<S3PrefixRollup | null>(null);
+  const connection = useStorageConnection();
+  const [rollup, setRollup] = React.useState<StoragePrefixRollup | null>(null);
   const [scanned, setScanned] = React.useState<{ objects: number; bytes: number } | null>(null);
   const [running, setRunning] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -116,7 +116,7 @@ function PrefixSize({ bucket, prefix }: { bucket: string; prefix: string }) {
     handle.current = startScan(
       {
         scanId: crypto.randomUUID(),
-        ...toS3Scope(scope),
+        ref: connection,
         bucket,
         prefix,
         maxObjects: MAX_OBJECTS,

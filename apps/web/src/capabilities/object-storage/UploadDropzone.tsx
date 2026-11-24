@@ -5,10 +5,14 @@ import * as React from "react";
 
 import { Segmented } from "~/components/segmented";
 import { Button } from "~/components/ui/button";
-import { useS3Scope } from "~/stores/scope";
-import { useS3Capabilities } from "~/features/s3/useS3Capabilities";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
+import { useStorageFeatures } from "~/capabilities/object-storage/useStorageFeatures";
 import { trpcClient } from "~/lib/trpc";
-import { uploadFile, type UploadHandle, type UploadTransport } from "~/lib/s3-upload";
+import {
+  uploadFile,
+  type UploadHandle,
+  type UploadTransport,
+} from "~/capabilities/object-storage/upload";
 import { cn } from "~/lib/utils";
 
 interface Transfer {
@@ -36,8 +40,8 @@ export function UploadDropzone({
   /** Handed the picker and the transport switch, for its own toolbar. */
   children: (controls: { pickFiles: () => void; transport: React.ReactNode }) => React.ReactNode;
 }) {
-  const scope = useS3Scope();
-  const capabilities = useS3Capabilities();
+  const connection = useStorageConnection();
+  const features = useStorageFeatures(connection);
   const queryClient = useQueryClient();
   const [over, setOver] = React.useState(false);
   const [transport, setTransport] = React.useState<UploadTransport>("proxy");
@@ -64,14 +68,14 @@ export function UploadDropzone({
           );
 
         try {
-          const opened = await trpcClient.s3Actions.createUpload.mutate({
-            ...scope,
+          const opened = await trpcClient.storage.createUpload.mutate({
+            ref: connection,
             bucket,
             key: joinKey(prefix, file.name),
             size: file.size,
             contentType: file.type || "application/octet-stream",
             overwrite: false,
-            transport: capabilities.presign ? transport : "proxy",
+            transport: features.presign ? transport : "proxy",
           });
 
           const handle = uploadFile({
@@ -92,7 +96,7 @@ export function UploadDropzone({
         }
       }
     },
-    [scope, bucket, prefix, queryClient, transport, capabilities.presign],
+    [connection, bucket, prefix, queryClient, transport, features.presign],
   );
 
   // Handed to the toolbar rather than read here: the ref is only touched when
@@ -141,7 +145,7 @@ export function UploadDropzone({
       {/* oxlint-disable-next-line react/refs */}
       {children({
         pickFiles: openPicker,
-        transport: capabilities.presign ? (
+        transport: features.presign ? (
           <TransportChoice value={transport} onChange={setTransport} />
         ) : null,
       })}

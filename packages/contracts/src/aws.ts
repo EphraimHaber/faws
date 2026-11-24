@@ -1,3 +1,5 @@
+import type { ConnectionRef } from "@faws/kit";
+
 /** A profile entry parsed out of ~/.aws/config and ~/.aws/credentials. */
 export interface AwsProfile {
   readonly name: string;
@@ -18,6 +20,24 @@ export interface Whoami {
 export interface AwsScope {
   readonly profile: string;
   readonly region: string;
+}
+
+/**
+ * An AWS scope as a connection: `profile@region`.
+ *
+ * Split at the last `@`, because a region never contains one and a profile
+ * name may.
+ */
+export function awsConnectionRef(scope: AwsScope): ConnectionRef {
+  return { provider: "aws", id: `${scope.profile}@${scope.region}` };
+}
+
+/** The scope an AWS connection names, or null when the id is not one. */
+export function awsScopeOf(ref: ConnectionRef): AwsScope | null {
+  if (ref.provider !== "aws") return null;
+  const at = ref.id.lastIndexOf("@");
+  if (at < 0 || at === ref.id.length - 1) return null;
+  return { profile: ref.id.slice(0, at), region: ref.id.slice(at + 1) };
 }
 
 /**

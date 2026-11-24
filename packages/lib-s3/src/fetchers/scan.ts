@@ -1,24 +1,9 @@
-import { ListObjectsV2Command } from "@aws-sdk/client-s3";
-import type { S3Scope, S3ObjectSummary, S3PrefixRollup, S3ScanProgress } from "@faws/contracts";
+import { ListObjectsV2Command, type S3Client } from "@aws-sdk/client-s3";
+import type { StorageObjectSummary } from "@faws/kit";
+import type { StorageScanChunk, StorageScanInput } from "@faws/kit/server";
 import { compileMatcher, toIso } from "@faws/shared";
 
-import { callAws } from "../../clients.ts";
-import { s3ClientForBucket } from "./buckets.ts";
-
-export interface ScanInput {
-  readonly bucket: string;
-  readonly prefix: string;
-  /** Absent means every key, which is what a size rollup wants. */
-  readonly pattern?: string;
-  readonly maxObjects: number;
-  readonly maxSeconds: number;
-}
-
-export interface ScanChunk {
-  readonly objects: ReadonlyArray<S3ObjectSummary>;
-  readonly progress: S3ScanProgress;
-  readonly rollup: S3PrefixRollup;
-}
+import { callS3 } from "../call.ts";
 
 /** Keys per request; the API's own ceiling, since nothing here is rendered. */
 const PAGE_SIZE = 1000;
@@ -36,11 +21,10 @@ const PAGE_SIZE = 1000;
  * completion unobserved.
  */
 export async function* scanPrefix(
-  scope: S3Scope,
-  input: ScanInput,
+  client: S3Client,
+  input: StorageScanInput,
   signal: AbortSignal,
-): AsyncGenerator<ScanChunk> {
-  const client = await s3ClientForBucket(scope, input.bucket);
+): AsyncGenerator<StorageScanChunk> {
   const matches = compileMatcher(input.pattern ?? "");
   const deadline = Date.now() + input.maxSeconds * 1000;
 
@@ -55,7 +39,7 @@ export async function* scanPrefix(
   do {
     if (signal.aborted) return;
 
-    const page = await callAws("s3", () =>
+    const page = await callS3(() =>
       client.send(
         new ListObjectsV2Command({
           Bucket: input.bucket,
@@ -67,7 +51,7 @@ export async function* scanPrefix(
       ),
     );
 
-    const hits: S3ObjectSummary[] = [];
+    const hits: StorageObjectSummary[] = [];
     let lastKey = input.prefix;
 
     for (const object of page.Contents ?? []) {

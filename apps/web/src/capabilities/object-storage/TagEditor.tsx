@@ -14,7 +14,7 @@ import {
 } from "~/components/form";
 import { Dialog } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
-import { useS3Scope } from "~/stores/scope";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -43,13 +43,13 @@ export function TagEditor({
   tags: Readonly<Record<string, string>>;
   onClose: () => void;
 }) {
-  const scope = useS3Scope();
+  const connection = useStorageConnection();
   const queryClient = useQueryClient();
 
   const form = useZodForm(tagRowsSchema, { defaultValues: { rows: recordToPairs(tags) } });
 
   const save = useMutation(
-    trpc.s3Actions.putTags.mutationOptions({
+    trpc.storage.putTags.mutationOptions({
       onSuccess: () => {
         void queryClient.invalidateQueries();
         onClose();
@@ -73,7 +73,7 @@ export function TagEditor({
             form.setError("rows", { message: input.error.issues[0]?.message ?? "Invalid tags." });
             return;
           }
-          save.mutate({ ...scope, ...input.data });
+          save.mutate({ ref: connection, ...input.data });
         }}
       >
         <p className="truncate font-mono text-[11.5px] text-muted-foreground" title={objectKey}>

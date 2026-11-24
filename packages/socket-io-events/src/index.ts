@@ -4,19 +4,22 @@
  * Three namespaces:
  *   - default (`/`)      - server log fan-out and renderer navigation.
  *   - `/exec`            - interactive SSH / SSM / ECS Exec terminal streams.
- *   - `/s3-scan`         - recursive key walks, streamed and cancellable.
+ *   - `/storage-scan`    - recursive key walks, streamed and cancellable.
  */
 import type {
   ExecHandshakeAuth,
   ExecPrompt,
   ExecPromptResponse,
   LogEvent,
-  S3ObjectSummary,
-  S3PrefixRollup,
-  S3ScanProgress,
   SettingsChangedPayload,
   WriteMode,
 } from "@faws/contracts";
+import type {
+  ConnectionRef,
+  StorageObjectSummary,
+  StoragePrefixRollup,
+  StorageScanProgress,
+} from "@faws/kit";
 
 export interface ServerToClientEvents {
   "log:line": (payload: { json: string }) => void;
@@ -114,18 +117,16 @@ export interface ExecSocketData {
 }
 
 /**
- * Handshake `auth` for an `/s3-scan` connection.
+ * Handshake `auth` for a `/storage-scan` connection.
  *
  * A scan belongs to its connection rather than to a message, so closing the
  * socket is one of the ways to cancel it: leaving the page cannot leave a walk
  * running against someone's bucket.
  */
-export interface S3ScanHandshakeAuth {
+export interface StorageScanHandshakeAuth {
   readonly scanId: string;
-  readonly profile: string;
-  readonly region: string;
-  /** Absent scans AWS; present scans that saved endpoint. */
-  readonly connectionId?: string;
+  /** Which provider and connection the bucket is reached through. */
+  readonly ref: ConnectionRef;
   readonly bucket: string;
   readonly prefix: string;
   /** Absent walks every key, which is what a size rollup asks for. */
@@ -134,21 +135,21 @@ export interface S3ScanHandshakeAuth {
   readonly maxSeconds: number;
 }
 
-export interface S3ScanServerToClientEvents {
-  "s3scan:chunk": (payload: { objects: ReadonlyArray<S3ObjectSummary> }) => void;
-  "s3scan:progress": (payload: S3ScanProgress) => void;
-  "s3scan:done": (payload: { progress: S3ScanProgress; rollup: S3PrefixRollup }) => void;
-  "s3scan:error": (payload: { code: string; userMessage: string }) => void;
+export interface StorageScanServerToClientEvents {
+  "scan:chunk": (payload: { objects: ReadonlyArray<StorageObjectSummary> }) => void;
+  "scan:progress": (payload: StorageScanProgress) => void;
+  "scan:done": (payload: { progress: StorageScanProgress; rollup: StoragePrefixRollup }) => void;
+  "scan:error": (payload: { code: string; userMessage: string }) => void;
 }
 
-export interface S3ScanClientToServerEvents {
-  "s3scan:cancel": () => void;
+export interface StorageScanClientToServerEvents {
+  "scan:cancel": () => void;
 }
 
-export interface S3ScanInterServerEvents {
+export interface StorageScanInterServerEvents {
   ping: () => void;
 }
 
-export interface S3ScanSocketData {
-  readonly auth: S3ScanHandshakeAuth;
+export interface StorageScanSocketData {
+  readonly auth: StorageScanHandshakeAuth;
 }

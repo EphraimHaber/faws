@@ -1,9 +1,11 @@
-import type { S3ObjectHead, S3OpenAs } from "@faws/contracts";
+import type { StorageObjectHead, StorageOpenAs } from "@faws/kit";
 import { describe, expect, it } from "vitest";
 
 import { HEAD_SLICE, planFor, REFUSE_LIMIT, WHOLE_LIMIT } from "./plan.ts";
 
-function head(overrides: Partial<S3ObjectHead> & { openAs: S3OpenAs; size: number }): S3ObjectHead {
+function head(
+  overrides: Partial<StorageObjectHead> & { openAs: StorageOpenAs; size: number },
+): StorageObjectHead {
   return {
     bucket: "b",
     key: "k",

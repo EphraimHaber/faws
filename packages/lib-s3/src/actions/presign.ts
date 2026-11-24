@@ -5,13 +5,12 @@ import {
   type S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import type { S3Scope } from "@faws/contracts";
 import { AwsRequestError } from "@faws/contracts";
+import type { StorageFeatures } from "@faws/kit";
 
-import { callAws } from "../../clients.ts";
-import { s3ClientForBucket } from "../../fetchers/s3/buckets.ts";
-import { connectionFor } from "../../s3/connections.ts";
 import { assertDestructive, assertMutable } from "@faws/kit/guard";
+
+import { callS3 } from "../call.ts";
 
 /**
  * How long a signed URL stays usable.
@@ -30,11 +29,10 @@ export const PRESIGN_TTL_SECONDS = 15 * 60;
  * question from whether this process can. The connection says which it is, and
  * the proxy is the path that always works.
  */
-async function assertPresignable(scope: S3Scope): Promise<void> {
-  const connection = await connectionFor(scope);
-  if (connection && !connection.features.presign) {
+export function assertPresignable(features: StorageFeatures): void {
+  if (!features.presign) {
     throw new AwsRequestError(
-      `Signed URLs are turned off for "${connection.name}"; uploads and downloads go through the proxy.`,
+      "Signed URLs are turned off for this connection; uploads and downloads go through the proxy.",
       { code: "PresignDisabled", service: "s3" },
     );
   }
@@ -50,14 +48,11 @@ async function assertPresignable(scope: S3Scope): Promise<void> {
  * origin, which most buckets do not, so it is offered rather than assumed.
  */
 export async function presignPutUrl(
-  scope: S3Scope,
-  input: { bucket: string; key: string; contentType?: string; overwrite: boolean },
+  client: S3Client,
+  input: { bucket: string; key: string; contentType?: string | undefined; overwrite: boolean },
 ): Promise<string> {
-  await assertPresignable(scope);
   if (input.overwrite) assertDestructive("s3:PutObject (presigned overwrite)");
   else assertMutable("s3:PutObject (presigned)");
-
-  const client = await s3ClientForBucket(scope, input.bucket);
   return sign(
     client,
     new PutObjectCommand({
@@ -73,13 +68,10 @@ export async function presignPutUrl(
 
 /** One part of a multipart upload, signed the same way. */
 export async function presignUploadPartUrl(
-  scope: S3Scope,
+  client: S3Client,
   input: { bucket: string; key: string; uploadId: string; partNumber: number },
 ): Promise<string> {
-  await assertPresignable(scope);
   assertMutable("s3:UploadPart (presigned)");
-
-  const client = await s3ClientForBucket(scope, input.bucket);
   return sign(
     client,
     new UploadPartCommand({
@@ -99,12 +91,9 @@ export async function presignUploadPartUrl(
  * that is not this app.
  */
 export async function presignGetUrl(
-  scope: S3Scope,
+  client: S3Client,
   input: { bucket: string; key: string; versionId?: string | undefined },
 ): Promise<string> {
-  await assertPresignable(scope);
-
-  const client = await s3ClientForBucket(scope, input.bucket);
   return sign(
     client,
     new GetObjectCommand({
@@ -127,10 +116,11 @@ type SignableCommand = PutObjectCommand | UploadPartCommand | GetObjectCommand;
  * checksum of nothing and refuses every upload.
  */
 function sign(client: S3Client, command: SignableCommand): Promise<string> {
-  return callAws("s3", () =>
-    // The presigner's parameter declares its optional fields without
-    // `undefined`, which this workspace's stricter optionality does not
-    // consider assignable; the commands themselves are what it wants.
-    getSignedUrl(client, command as never, { expiresIn: PRESIGN_TTL_SECONDS }),
+  return callS3(() =>
+    // The presigner declares its optional fields without `undefined`, which
+    // this workspace's stricter optionality does not consider assignable, and
+    // it can resolve a different copy of the smithy client types than the
+    // client itself; the values are exactly what it wants.
+    getSignedUrl(client as never, command as never, { expiresIn: PRESIGN_TTL_SECONDS }),
   );
 }

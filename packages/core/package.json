@@ -29,11 +29,9 @@
     "@aws-sdk/client-ssm": "catalog:aws",
     "@aws-sdk/client-sts": "catalog:aws",
     "@aws-sdk/credential-providers": "catalog:aws",
-    "@aws-sdk/s3-request-presigner": "catalog:aws",
     "@faws/contracts": "workspace:*",
     "@faws/kit": "workspace:*",
     "@faws/shared": "workspace:*",
-    "@smithy/node-http-handler": "catalog:aws",
     "@smithy/shared-ini-file-loader": "catalog:aws",
     "ssh-config": "catalog:"
   },

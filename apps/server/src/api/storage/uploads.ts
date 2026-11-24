@@ -9,16 +9,17 @@
  * Sessions live in memory because they are meaningless across a restart: the
  * client would have to start the upload again anyway.
  */
-import type { S3Scope } from "@faws/contracts";
-import { abortMultipartUpload } from "@faws/core";
+import type { ConnectionRef } from "@faws/kit";
+import { objectStorageFor } from "@faws/kit/server";
 
 import { createLogger } from "../../shared/logger.ts";
 
-const log = createLogger("s3-upload");
+const log = createLogger("storage-upload");
 
 export interface UploadSession {
   readonly token: string;
-  readonly scope: S3Scope;
+  /** The connection the upload was opened against. */
+  readonly ref: ConnectionRef;
   readonly bucket: string;
   readonly key: string;
   /** Absent for an upload small enough to go in one request. */
@@ -67,7 +68,7 @@ export async function discardUpload(token: string): Promise<void> {
   if (!session?.uploadId) return;
 
   try {
-    await abortMultipartUpload(session.scope, {
+    await objectStorageFor(session.ref).abortUpload(session.ref, {
       bucket: session.bucket,
       key: session.key,
       uploadId: session.uploadId,

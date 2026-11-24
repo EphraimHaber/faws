@@ -14,7 +14,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@faws/contracts": "workspace:*"
+    "@faws/contracts": "workspace:*",
+    "@faws/kit": "workspace:*"
   },
   "devDependencies": {
     "typescript": "catalog:build",

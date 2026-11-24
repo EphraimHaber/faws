@@ -1,9 +1,8 @@
-import { ListObjectVersionsCommand } from "@aws-sdk/client-s3";
-import type { S3Scope, S3VersionEntry, S3VersionPage } from "@faws/contracts";
+import { ListObjectVersionsCommand, type S3Client } from "@aws-sdk/client-s3";
+import type { StorageVersionEntry, StorageVersionPage } from "@faws/kit";
 import { toIso } from "@faws/shared";
 
-import { callAws } from "../../clients.ts";
-import { s3ClientForBucket } from "./buckets.ts";
+import { callS3 } from "../call.ts";
 
 /**
  * Versions and delete markers under a prefix, newest first per key.
@@ -17,18 +16,16 @@ import { s3ClientForBucket } from "./buckets.ts";
  * indistinguishable from a real one.
  */
 export async function listObjectVersions(
-  scope: S3Scope,
+  client: S3Client,
   input: {
     bucket: string;
     prefix: string;
-    keyMarker?: string;
-    versionIdMarker?: string;
-    maxKeys?: number;
+    keyMarker?: string | undefined;
+    versionIdMarker?: string | undefined;
+    maxKeys?: number | undefined;
   },
-): Promise<S3VersionPage> {
-  const client = await s3ClientForBucket(scope, input.bucket);
-
-  const page = await callAws("s3", () =>
+): Promise<StorageVersionPage> {
+  const page = await callS3(() =>
     client.send(
       new ListObjectVersionsCommand({
         Bucket: input.bucket,
@@ -40,7 +37,7 @@ export async function listObjectVersions(
     ),
   );
 
-  const versions: S3VersionEntry[] = [
+  const versions: StorageVersionEntry[] = [
     ...(page.Versions ?? []).map((entry) => ({
       key: entry.Key ?? "",
       versionId: entry.VersionId ?? "null",

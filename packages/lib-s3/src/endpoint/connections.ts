@@ -13,7 +13,6 @@ import type {
   S3ConnectionInput,
   S3ConnectionTls,
   S3Credential,
-  S3Scope,
 } from "@faws/contracts";
 import { AwsRequestError, ConnectionNotFoundError } from "@faws/contracts";
 
@@ -23,12 +22,6 @@ export async function getConnection(id: string): Promise<S3Connection> {
   const stored = await connectionStore().get(id);
   if (!stored) throw new ConnectionNotFoundError(id);
   return stored;
-}
-
-/** The connection a scope points at, or null when it points at AWS. */
-export async function connectionFor(scope: S3Scope): Promise<S3Connection | null> {
-  if (!scope.connectionId) return null;
-  return getConnection(scope.connectionId);
 }
 
 /** The credential an endpoint names, if it names one that is still there. */

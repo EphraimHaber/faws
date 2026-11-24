@@ -12,7 +12,7 @@ import {
 } from "~/components/form";
 import { Dialog } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
-import { useS3Scope } from "~/stores/scope";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -31,7 +31,7 @@ export function CreatePrefixDialog({
   parentPrefix: string;
   onClose: () => void;
 }) {
-  const scope = useS3Scope();
+  const connection = useStorageConnection();
   const queryClient = useQueryClient();
 
   const form = useZodForm(s3CreatePrefixSchema, {
@@ -39,7 +39,7 @@ export function CreatePrefixDialog({
   });
 
   const create = useMutation(
-    trpc.s3Actions.createPrefix.mutationOptions({
+    trpc.storage.createPrefix.mutationOptions({
       onSuccess: () => {
         void queryClient.invalidateQueries();
         onClose();
@@ -53,7 +53,7 @@ export function CreatePrefixDialog({
         form={form}
         onSubmit={(values) =>
           create.mutate({
-            ...scope,
+            ref: connection,
             bucket: values.bucket,
             // Typed as a name inside the prefix that is open, which is what
             // the field shows, so the parent is put back on here.

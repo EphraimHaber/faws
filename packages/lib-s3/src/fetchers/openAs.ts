@@ -1,4 +1,4 @@
-import type { S3OpenAs } from "@faws/contracts";
+import type { StorageOpenAs } from "@faws/kit";
 
 /** Storage classes whose bytes are not readable without a restore first. */
 const ARCHIVED = new Set(["GLACIER", "DEEP_ARCHIVE", "GLACIER_IR"]);
@@ -6,7 +6,7 @@ const ARCHIVED = new Set(["GLACIER", "DEEP_ARCHIVE", "GLACIER_IR"]);
 /** `GLACIER_IR` reads immediately despite being an archive tier. */
 const ARCHIVED_BUT_INSTANT = new Set(["GLACIER_IR"]);
 
-const BY_EXTENSION: Readonly<Record<string, S3OpenAs>> = {
+const BY_EXTENSION: Readonly<Record<string, StorageOpenAs>> = {
   json: "json",
   jsonl: "jsonl",
   ndjson: "jsonl",
@@ -73,7 +73,7 @@ const VAGUE_TYPES = new Set([
  * most objects written by tooling arrive as `application/octet-stream`
  * regardless of what they hold.
  */
-export function classifyOpenAs(key: string, contentType: string | null): S3OpenAs {
+export function classifyOpenAs(key: string, contentType: string | null): StorageOpenAs {
   const type = (contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
 
   // An SVG is a document that can carry script, so it is never rendered as a
@@ -96,7 +96,7 @@ export function classifyOpenAs(key: string, contentType: string | null): S3OpenA
   return byExtension(key);
 }
 
-function byExtension(key: string): S3OpenAs {
+function byExtension(key: string): StorageOpenAs {
   const name = key.slice(key.lastIndexOf("/") + 1);
   // A compressed object is named for what it holds, so the extension that
   // decides the viewer is the one before `.gz`.

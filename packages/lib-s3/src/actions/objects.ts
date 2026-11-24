@@ -11,23 +11,20 @@ import {
   PutObjectTaggingCommand,
   UploadPartCommand,
   UploadPartCopyCommand,
+  type S3Client,
 } from "@aws-sdk/client-s3";
-import type { S3Scope } from "@faws/contracts";
 
-import { callAws } from "../../clients.ts";
-import { s3ClientForBucket } from "../../fetchers/s3/buckets.ts";
+import type { StorageDeleteOutcome, StoragePutResult } from "@faws/kit/server";
+
 import { assertDestructive, assertMutable } from "@faws/kit/guard";
+
+import { callS3 } from "../call.ts";
 
 /** `CopyObject` refuses anything larger, which then needs a multipart copy. */
 const COPY_LIMIT = 5 * 1024 * 1024 * 1024;
 
 /** Part size for a multipart copy. Large enough that 10,000 parts reach 5 TB. */
 const COPY_PART_SIZE = 1024 * 1024 * 1024;
-
-export interface PutResult {
-  readonly etag: string | null;
-  readonly versionId: string | null;
-}
 
 /**
  * Writes an object in one request.
@@ -37,22 +34,20 @@ export interface PutResult {
  * two people are uploading the same key.
  */
 export async function putObject(
-  scope: S3Scope,
+  client: S3Client,
   input: {
     bucket: string;
     key: string;
     body: Readable | Uint8Array;
     contentLength: number;
-    contentType?: string;
+    contentType?: string | undefined;
     overwrite: boolean;
   },
-): Promise<PutResult> {
+): Promise<StoragePutResult> {
   // Replacing an object destroys what was there; writing a new one does not.
   if (input.overwrite) assertDestructive("s3:PutObject (overwrite)");
   else assertMutable("s3:PutObject");
-
-  const client = await s3ClientForBucket(scope, input.bucket);
-  const result = await callAws("s3", () =>
+  const result = await callS3(() =>
     client.send(
       new PutObjectCommand({
         Bucket: input.bucket,
@@ -68,12 +63,11 @@ export async function putObject(
 }
 
 export async function createMultipartUpload(
-  scope: S3Scope,
-  input: { bucket: string; key: string; contentType?: string },
+  client: S3Client,
+  input: { bucket: string; key: string; contentType?: string | undefined },
 ): Promise<string> {
   assertMutable("s3:CreateMultipartUpload");
-  const client = await s3ClientForBucket(scope, input.bucket);
-  const result = await callAws("s3", () =>
+  const result = await callS3(() =>
     client.send(
       new CreateMultipartUploadCommand({
         Bucket: input.bucket,
@@ -87,7 +81,7 @@ export async function createMultipartUpload(
 }
 
 export async function uploadPart(
-  scope: S3Scope,
+  client: S3Client,
   input: {
     bucket: string;
     key: string;
@@ -98,8 +92,7 @@ export async function uploadPart(
   },
 ): Promise<string> {
   assertMutable("s3:UploadPart");
-  const client = await s3ClientForBucket(scope, input.bucket);
-  const result = await callAws("s3", () =>
+  const result = await callS3(() =>
     client.send(
       new UploadPartCommand({
         Bucket: input.bucket,
@@ -116,7 +109,7 @@ export async function uploadPart(
 }
 
 export async function completeMultipartUpload(
-  scope: S3Scope,
+  client: S3Client,
   input: {
     bucket: string;
     key: string;
@@ -124,12 +117,10 @@ export async function completeMultipartUpload(
     parts: ReadonlyArray<{ partNumber: number; etag: string }>;
     overwrite: boolean;
   },
-): Promise<PutResult> {
+): Promise<StoragePutResult> {
   if (input.overwrite) assertDestructive("s3:CompleteMultipartUpload (overwrite)");
   else assertMutable("s3:CompleteMultipartUpload");
-
-  const client = await s3ClientForBucket(scope, input.bucket);
-  const result = await callAws("s3", () =>
+  const result = await callS3(() =>
     client.send(
       new CompleteMultipartUploadCommand({
         Bucket: input.bucket,
@@ -151,11 +142,10 @@ export async function completeMultipartUpload(
 
 /** Abandoned uploads bill as storage until they are aborted. */
 export async function abortMultipartUpload(
-  scope: S3Scope,
+  client: S3Client,
   input: { bucket: string; key: string; uploadId: string },
 ): Promise<void> {
-  const client = await s3ClientForBucket(scope, input.bucket);
-  await callAws("s3", () =>
+  await callS3(() =>
     client.send(
       new AbortMultipartUploadCommand({
         Bucket: input.bucket,
@@ -166,12 +156,6 @@ export async function abortMultipartUpload(
   );
 }
 
-export interface DeleteOutcome {
-  readonly deleted: ReadonlyArray<{ key: string; versionId: string | null }>;
-  /** Per key failures, which this API reports inside a successful response. */
-  readonly errors: ReadonlyArray<{ key: string; code: string; message: string }>;
-}
-
 /**
  * Deletes up to a thousand keys.
  *
@@ -180,16 +164,14 @@ export interface DeleteOutcome {
  * happen. The failures are returned rather than raised.
  */
 export async function deleteObjects(
-  scope: S3Scope,
+  client: S3Client,
   input: {
     bucket: string;
     objects: ReadonlyArray<{ key: string; versionId?: string | undefined }>;
   },
-): Promise<DeleteOutcome> {
+): Promise<StorageDeleteOutcome> {
   assertDestructive("s3:DeleteObjects");
-
-  const client = await s3ClientForBucket(scope, input.bucket);
-  const result = await callAws("s3", () =>
+  const result = await callS3(() =>
     client.send(
       new DeleteObjectsCommand({
         Bucket: input.bucket,
@@ -225,7 +207,9 @@ export async function deleteObjects(
  * failure between them.
  */
 export async function copyObject(
-  scope: S3Scope,
+  client: S3Client,
+  // The source bucket can live in another region from the destination.
+  source: S3Client,
   input: {
     sourceBucket: string;
     sourceKey: string;
@@ -235,15 +219,12 @@ export async function copyObject(
     deleteSource: boolean;
     overwrite: boolean;
   },
-): Promise<PutResult> {
+): Promise<StoragePutResult> {
   if (input.deleteSource) assertDestructive("s3:CopyObject (move)");
   else if (input.overwrite) assertDestructive("s3:CopyObject (overwrite)");
   else assertMutable("s3:CopyObject");
 
-  const client = await s3ClientForBucket(scope, input.destBucket);
-  const source = await s3ClientForBucket(scope, input.sourceBucket);
-
-  const head = await callAws("s3", () =>
+  const head = await callS3(() =>
     source.send(
       new HeadObjectCommand({
         Bucket: input.sourceBucket,
@@ -263,7 +244,7 @@ export async function copyObject(
   const result =
     size > COPY_LIMIT
       ? await multipartCopy(client, input, copySource, size)
-      : await callAws("s3", () =>
+      : await callS3(() =>
           client
             .send(
               new CopyObjectCommand({
@@ -280,7 +261,7 @@ export async function copyObject(
         );
 
   if (input.deleteSource) {
-    await deleteObjects(scope, {
+    await deleteObjects(source, {
       bucket: input.sourceBucket,
       objects: [
         {
@@ -301,12 +282,12 @@ export async function copyObject(
  * copy, which is the failure most likely to be mistaken for success.
  */
 async function multipartCopy(
-  client: Awaited<ReturnType<typeof s3ClientForBucket>>,
+  client: S3Client,
   input: { destBucket: string; destKey: string },
   copySource: string,
   size: number,
-): Promise<PutResult> {
-  const created = await callAws("s3", () =>
+): Promise<StoragePutResult> {
+  const created = await callS3(() =>
     client.send(new CreateMultipartUploadCommand({ Bucket: input.destBucket, Key: input.destKey })),
   );
   const uploadId = created.UploadId;
@@ -317,7 +298,7 @@ async function multipartCopy(
     let partNumber = 1;
     for (let start = 0; start < size; start += COPY_PART_SIZE) {
       const end = Math.min(start + COPY_PART_SIZE, size) - 1;
-      const part = await callAws("s3", () =>
+      const part = await callS3(() =>
         client.send(
           new UploadPartCopyCommand({
             Bucket: input.destBucket,
@@ -333,7 +314,7 @@ async function multipartCopy(
       partNumber += 1;
     }
 
-    const done = await callAws("s3", () =>
+    const done = await callS3(() =>
       client.send(
         new CompleteMultipartUploadCommand({
           Bucket: input.destBucket,
@@ -346,7 +327,7 @@ async function multipartCopy(
     return { etag: unquote(done.ETag), versionId: done.VersionId ?? null };
   } catch (err) {
     // A half copied multipart bills as storage until it is abandoned.
-    await callAws("s3", () =>
+    await callS3(() =>
       client.send(
         new AbortMultipartUploadCommand({
           Bucket: input.destBucket,
@@ -361,13 +342,12 @@ async function multipartCopy(
 
 /** A folder, as S3 understands one: a zero byte object whose key ends in a slash. */
 export async function createPrefix(
-  scope: S3Scope,
+  client: S3Client,
   input: { bucket: string; prefix: string },
 ): Promise<void> {
   assertMutable("s3:PutObject (prefix)");
   const key = input.prefix.endsWith("/") ? input.prefix : `${input.prefix}/`;
-  const client = await s3ClientForBucket(scope, input.bucket);
-  await callAws("s3", () =>
+  await callS3(() =>
     client.send(
       new PutObjectCommand({ Bucket: input.bucket, Key: key, Body: "", ContentLength: 0 }),
     ),
@@ -376,12 +356,11 @@ export async function createPrefix(
 
 /** Replaces the object's tag set; an empty record clears it. */
 export async function putObjectTags(
-  scope: S3Scope,
+  client: S3Client,
   input: { bucket: string; key: string; tags: Readonly<Record<string, string>> },
 ): Promise<void> {
   assertMutable("s3:PutObjectTagging");
-  const client = await s3ClientForBucket(scope, input.bucket);
-  await callAws("s3", () =>
+  await callS3(() =>
     client.send(
       new PutObjectTaggingCommand({
         Bucket: input.bucket,

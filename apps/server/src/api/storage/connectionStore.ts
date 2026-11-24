@@ -18,7 +18,7 @@ import {
   registerConnectionStores,
   type S3ConnectionStore,
   type S3CredentialStore,
-} from "@faws/core";
+} from "@faws/provider-s3compat/server";
 import { s3CredentialsFile } from "@faws/shared/dataDir";
 
 import { createLogger } from "../../shared/logger.ts";

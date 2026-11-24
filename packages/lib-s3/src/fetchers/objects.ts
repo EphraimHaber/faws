@@ -6,19 +6,18 @@ import {
   ListObjectsV2Command,
   type _Object,
   type CommonPrefix,
+  type S3Client,
 } from "@aws-sdk/client-s3";
 import type {
-  S3Scope,
-  S3CommonPrefix,
-  S3ListPage,
-  S3ListObjectsInput,
-  S3ObjectHead,
-  S3ObjectSummary,
-} from "@faws/contracts";
+  StorageCommonPrefix,
+  StorageListPage,
+  StorageObjectHead,
+  StorageObjectSummary,
+} from "@faws/kit";
+import type { StorageListInput, StorageObjectRef, StorageObjectStream } from "@faws/kit/server";
 import { keyName, toIso } from "@faws/shared";
 
-import { callAws } from "../../clients.ts";
-import { s3ClientForBucket } from "./buckets.ts";
+import { callS3 } from "../call.ts";
 import { classifyOpenAs, isReadable } from "./openAs.ts";
 
 /**
@@ -29,12 +28,10 @@ import { classifyOpenAs, isReadable } from "./openAs.ts";
  * can hold. The caller decides whether to ask for more.
  */
 export async function listObjectsPage(
-  scope: S3Scope,
-  input: S3ListObjectsInput,
-): Promise<S3ListPage> {
-  const client = await s3ClientForBucket(scope, input.bucket);
-
-  const page = await callAws("s3", () =>
+  client: S3Client,
+  input: StorageListInput,
+): Promise<StorageListPage> {
+  const page = await callS3(() =>
     client.send(
       new ListObjectsV2Command({
         Bucket: input.bucket,
@@ -59,12 +56,12 @@ export async function listObjectsPage(
   };
 }
 
-function toCommonPrefix(prefix: CommonPrefix): S3CommonPrefix {
+function toCommonPrefix(prefix: CommonPrefix): StorageCommonPrefix {
   const value = prefix.Prefix ?? "";
   return { prefix: value, name: keyName(value) };
 }
 
-function toObject(object: _Object, listedPrefix: string): S3ObjectSummary {
+function toObject(object: _Object, listedPrefix: string): StorageObjectSummary {
   const key = object.Key ?? "";
   return {
     key,
@@ -86,12 +83,10 @@ function toObject(object: _Object, listedPrefix: string): S3ObjectSummary {
  * gigabyte object.
  */
 export async function headObject(
-  scope: S3Scope,
-  ref: { bucket: string; key: string; versionId?: string },
-): Promise<S3ObjectHead | null> {
-  const client = await s3ClientForBucket(scope, ref.bucket);
-
-  const head = await callAws("s3", async () => {
+  client: S3Client,
+  ref: StorageObjectRef,
+): Promise<StorageObjectHead | null> {
+  const head = await callS3(async () => {
     try {
       return await client.send(
         new HeadObjectCommand({
@@ -133,16 +128,6 @@ export async function headObject(
   };
 }
 
-/** A body, plus the headers a proxying response has to carry over. */
-export interface ObjectStream {
-  readonly body: Readable;
-  readonly contentLength: number | null;
-  readonly contentRange: string | null;
-  readonly contentType: string | null;
-  readonly contentEncoding: string | null;
-  readonly etag: string | null;
-}
-
 /**
  * The bytes, or a slice of them.
  *
@@ -151,13 +136,11 @@ export interface ObjectStream {
  * read down with it.
  */
 export async function getObjectStream(
-  scope: S3Scope,
-  ref: { bucket: string; key: string; versionId?: string },
+  client: S3Client,
+  ref: StorageObjectRef,
   options: { range?: string; signal?: AbortSignal } = {},
-): Promise<ObjectStream> {
-  const client = await s3ClientForBucket(scope, ref.bucket);
-
-  const result = await callAws("s3", () =>
+): Promise<StorageObjectStream> {
+  const result = await callS3(() =>
     client.send(
       new GetObjectCommand({
         Bucket: ref.bucket,

@@ -21,6 +21,7 @@
     "@faws/contracts": "workspace:*",
     "@faws/core": "workspace:*",
     "@faws/kit": "workspace:*",
+    "@faws/lib-s3": "workspace:*",
     "@trpc/server": "catalog:trpc",
     "zod": "catalog:"
   },

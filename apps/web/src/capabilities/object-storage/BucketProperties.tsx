@@ -1,4 +1,4 @@
-import type { S3BucketConfig } from "@faws/contracts";
+import type { StorageBucketConfig } from "@faws/kit";
 import { useQuery } from "@tanstack/react-query";
 import { Lock, LockOpen, ShieldAlert } from "lucide-react";
 import * as React from "react";
@@ -9,7 +9,7 @@ import { Badge } from "~/components/ui/badge";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Spinner } from "~/components/ui/spinner";
-import { useS3Scope } from "~/stores/scope";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -20,9 +20,9 @@ import { trpc } from "~/lib/trpc";
  * see the policy is a different fact from there being no policy.
  */
 export function BucketProperties({ bucket }: { bucket: string }) {
-  const scope = useS3Scope();
+  const connection = useStorageConnection();
   const config = useQuery({
-    ...trpc.s3.config.queryOptions({ ...scope, bucket }),
+    ...trpc.storage.config.queryOptions({ ref: connection, bucket }),
     staleTime: 5 * 60_000,
   });
 
@@ -160,7 +160,7 @@ function yesNo(value: boolean | undefined): string {
 }
 
 /** The one line answer to "could a stranger read this bucket?" */
-function PublicAccessSummary({ block }: { block: S3BucketConfig["publicAccessBlock"] }) {
+function PublicAccessSummary({ block }: { block: StorageBucketConfig["publicAccessBlock"] }) {
   if (!block) {
     return (
       <Badge tone="warning">

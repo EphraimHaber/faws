@@ -15,8 +15,7 @@
 import type { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
-import { toS3Scope } from "@faws/contracts";
-import { getObjectStream, putObject, uploadPart } from "@faws/core";
+import { assertProviderEnabled, objectStorageFor } from "@faws/kit/server";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 
@@ -24,10 +23,9 @@ import { toTrpcError } from "../../trpc/index.ts";
 import { closeUpload, findUpload } from "./uploads.ts";
 
 const objectQuery = z.object({
-  profile: z.string(),
-  region: z.string().min(1),
-  /** Absent reads from AWS; present reads from that saved endpoint. */
-  connectionId: z.string().min(1).optional(),
+  /** The provider and connection the object is read through. */
+  provider: z.string().min(1).max(64),
+  connection: z.string().min(1).max(512),
   bucket: z.string().min(1),
   key: z.string().min(1),
   versionId: z.string().optional(),
@@ -72,6 +70,20 @@ function downloadName(key: string): string {
   return name.replaceAll(/["\\\r\n]/g, "_");
 }
 
+/** The HTTP status for a failure the tRPC layer would have classified as `code`. */
+function httpStatusOf(code: string): number {
+  switch (code) {
+    case "NOT_FOUND":
+      return 404;
+    case "FORBIDDEN":
+      return 403;
+    case "PRECONDITION_FAILED":
+      return 412;
+    default:
+      return 400;
+  }
+}
+
 const uploadQuery = z.object({
   uploadToken: z.string().min(1),
   /** Absent for a single request upload, which has no parts. */
@@ -89,7 +101,7 @@ function passThroughBody(server: FastifyInstance): void {
   );
 }
 
-export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
+export async function storageBytesRoutes(server: FastifyInstance): Promise<void> {
   passThroughBody(server);
 
   /**
@@ -123,8 +135,10 @@ export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
     const body = request.body as Readable;
 
     try {
+      assertProviderEnabled(session.ref.provider);
+      const port = objectStorageFor(session.ref);
       if (session.uploadId === null) {
-        const result = await putObject(session.scope, {
+        const result = await port.putObject(session.ref, {
           bucket: session.bucket,
           key: session.key,
           body,
@@ -144,7 +158,7 @@ export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
         });
       }
 
-      const etag = await uploadPart(session.scope, {
+      const etag = await port.uploadPart(session.ref, {
         bucket: session.bucket,
         key: session.key,
         uploadId: session.uploadId,
@@ -157,8 +171,9 @@ export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
       return reply.send({ partNumber, etag });
     } catch (err) {
       const mapped = toTrpcError(err);
-      const status = mapped.code === "FORBIDDEN" ? 403 : 400;
-      return reply.status(status).send({ error: mapped.code, message: mapped.message });
+      return reply
+        .status(httpStatusOf(mapped.code))
+        .send({ error: mapped.code, message: mapped.message });
     }
   });
 
@@ -175,10 +190,12 @@ export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
 
     const range = request.headers.range;
 
+    const ref = { provider: query.provider, id: query.connection };
     let stream;
     try {
-      stream = await getObjectStream(
-        toS3Scope(query),
+      assertProviderEnabled(ref.provider);
+      stream = await objectStorageFor(ref).openRead(
+        ref,
         {
           bucket: query.bucket,
           key: query.key,
@@ -188,8 +205,9 @@ export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
       );
     } catch (err) {
       const mapped = toTrpcError(err);
-      const status = mapped.code === "NOT_FOUND" ? 404 : 400;
-      return reply.status(status).send({ error: mapped.code, message: mapped.message });
+      return reply
+        .status(httpStatusOf(mapped.code))
+        .send({ error: mapped.code, message: mapped.message });
     }
 
     const allowed = query.disposition === "inline" ? inlineType(stream.contentType) : null;

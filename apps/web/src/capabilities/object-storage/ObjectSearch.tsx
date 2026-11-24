@@ -1,4 +1,4 @@
-import { type S3ObjectSummary, type S3ScanProgress, toS3Scope } from "@faws/contracts";
+import type { StorageObjectSummary, StorageScanProgress } from "@faws/kit";
 import { byteSize } from "@faws/shared";
 import { Download, Square } from "lucide-react";
 import * as React from "react";
@@ -7,9 +7,9 @@ import { SearchField } from "~/components/SearchField";
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kbd";
 import { Spinner } from "~/components/ui/spinner";
-import { useS3Scope } from "~/stores/scope";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
 import { parseText, useSearchState } from "~/hooks/useSearchState";
-import { startScan, type RunningScan } from "~/lib/s3-scan";
+import { startScan, type RunningScan } from "~/capabilities/object-storage/scan";
 import { cn } from "~/lib/utils";
 
 /** Ceilings a single scan will not walk past, so one query cannot run for ever. */
@@ -21,8 +21,8 @@ const PATTERN_DEBOUNCE_MS = 200;
 
 export interface ScanState {
   readonly running: boolean;
-  readonly hits: ReadonlyArray<S3ObjectSummary>;
-  readonly progress: S3ScanProgress | null;
+  readonly hits: ReadonlyArray<StorageObjectSummary>;
+  readonly progress: StorageScanProgress | null;
   readonly error: string | null;
   /** The pattern these hits came from, which is not what the box now says. */
   readonly pattern: string;
@@ -59,7 +59,7 @@ export function ObjectSearch({
   state: ScanState;
   onState: (next: ScanState) => void;
 }) {
-  const scope = useS3Scope();
+  const connection = useStorageConnection();
   const [query, setQuery] = useSearchState<string>({
     key: "scan",
     fallback: "",
@@ -95,13 +95,13 @@ export function ObjectSearch({
     if (pattern.length === 0) return;
 
     running.current?.cancel();
-    let hits: S3ObjectSummary[] = [];
+    let hits: StorageObjectSummary[] = [];
     onState({ running: true, hits, progress: null, error: null, pattern });
 
     running.current = startScan(
       {
         scanId: crypto.randomUUID(),
-        ...toS3Scope(scope),
+        ref: connection,
         bucket,
         prefix,
         pattern,
@@ -124,7 +124,7 @@ export function ObjectSearch({
         },
       },
     );
-  }, [query, scope, bucket, prefix, onState]);
+  }, [query, connection, bucket, prefix, onState]);
 
   const exportKeys = React.useCallback(() => {
     const blob = new Blob([state.hits.map((hit) => hit.key).join("\n")], {

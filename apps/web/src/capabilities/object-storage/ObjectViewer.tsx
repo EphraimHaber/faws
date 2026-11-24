@@ -1,22 +1,22 @@
-import type { S3ObjectHead } from "@faws/contracts";
+import { connectionKey, type StorageObjectHead } from "@faws/kit";
 import { byteSize, relativeTime } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Archive, Binary, Copy, Download, FileQuestion, Tag, X } from "lucide-react";
 import * as React from "react";
 
 import { JsonViewer } from "~/components/JsonViewer";
-import { CopyMoveDialog } from "~/features/s3/components/CopyMoveDialog";
-import { TagEditor } from "~/features/s3/components/TagEditor";
-import { HexViewer } from "~/features/s3/viewers/HexViewer";
+import { CopyMoveDialog } from "~/capabilities/object-storage/CopyMoveDialog";
+import { TagEditor } from "~/capabilities/object-storage/TagEditor";
+import { HexViewer } from "~/capabilities/object-storage/viewers/HexViewer";
 import {
   AudioViewer,
   ImageViewer,
   PdfViewer,
   VideoViewer,
-} from "~/features/s3/viewers/MediaViewer";
-import { HEAD_SLICE, planFor } from "~/features/s3/viewers/plan";
-import { TableViewer } from "~/features/s3/viewers/TableViewer";
-import { TextViewer } from "~/features/s3/viewers/TextViewer";
+} from "~/capabilities/object-storage/viewers/MediaViewer";
+import { HEAD_SLICE, planFor } from "~/capabilities/object-storage/viewers/plan";
+import { TableViewer } from "~/capabilities/object-storage/viewers/TableViewer";
+import { TextViewer } from "~/capabilities/object-storage/viewers/TextViewer";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { CopyButton } from "~/components/ui/copy-button";
@@ -25,10 +25,14 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Spinner } from "~/components/ui/spinner";
 import { DisabledHint, useDisabledReason } from "~/components/WriteGuard";
-import { useS3Scope } from "~/stores/scope";
-import { scopeKey } from "~/features/s3/scopeKey";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
 import { fullTimestamp } from "~/lib/format";
-import { downloadObject, fetchRange, fetchText, objectUrl } from "~/lib/s3-bytes";
+import {
+  downloadObject,
+  fetchRange,
+  fetchText,
+  objectUrl,
+} from "~/capabilities/object-storage/bytes";
 import { trpc } from "~/lib/trpc";
 
 /** How much of a refused object the hex fallback shows. */
@@ -43,12 +47,12 @@ export function ObjectViewer({
   objectKey: string;
   onClose: () => void;
 }) {
-  const scope = useS3Scope();
+  const connection = useStorageConnection();
   const [dialog, setDialog] = React.useState<"copy" | "tags" | null>(null);
   const writeReason = useDisabledReason("write");
 
   const head = useQuery({
-    ...trpc.s3.head.queryOptions({ ...scope, bucket, key: objectKey }),
+    ...trpc.storage.head.queryOptions({ ref: connection, bucket, key: objectKey }),
     staleTime: 60_000,
   });
 
@@ -88,7 +92,7 @@ export function ObjectViewer({
             size="icon"
             variant="ghost"
             aria-label="Download"
-            onClick={() => downloadObject(scope, { bucket, key: objectKey })}
+            onClick={() => downloadObject(connection, { bucket, key: objectKey })}
           >
             <Download className="size-3" />
           </Button>
@@ -136,7 +140,7 @@ export function ObjectViewer({
   );
 }
 
-function ObjectFacts({ head }: { head: S3ObjectHead }) {
+function ObjectFacts({ head }: { head: StorageObjectHead }) {
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-3.5 py-1.5 font-mono text-[10.5px] text-muted-foreground">
       <span className="tabular">{byteSize(head.size)}</span>
@@ -160,7 +164,7 @@ function ObjectFacts({ head }: { head: S3ObjectHead }) {
   );
 }
 
-function ObjectBody({ head }: { head: S3ObjectHead }) {
+function ObjectBody({ head }: { head: StorageObjectHead }) {
   const plan = planFor(head);
 
   if (plan.kind === "refuse") {
@@ -185,11 +189,15 @@ function StreamedObject({
   head,
   openAs,
 }: {
-  head: S3ObjectHead;
+  head: StorageObjectHead;
   openAs: "image" | "audio" | "video" | "pdf";
 }) {
-  const scope = useS3Scope();
-  const url = objectUrl(scope, { bucket: head.bucket, key: head.key }, { disposition: "inline" });
+  const connection = useStorageConnection();
+  const url = objectUrl(
+    connection,
+    { bucket: head.bucket, key: head.key },
+    { disposition: "inline" },
+  );
 
   if (openAs === "image") return <ImageViewer url={url} alt={head.key} />;
   if (openAs === "audio") return <AudioViewer url={url} />;
@@ -208,18 +216,18 @@ function TextualObject({
   openAs,
   sliceBytes,
 }: {
-  head: S3ObjectHead;
+  head: StorageObjectHead;
   openAs: "text" | "json" | "jsonl" | "csv";
   sliceBytes?: number;
 }) {
-  const scope = useS3Scope();
+  const connection = useStorageConnection();
   const [wholeAnyway, setWholeAnyway] = React.useState(false);
   const sliced = sliceBytes !== undefined && !wholeAnyway;
 
   const content = useQuery({
     queryKey: [
       "s3:content",
-      ...scopeKey(scope),
+      connectionKey(connection),
       head.bucket,
       head.key,
       head.etag,
@@ -227,8 +235,8 @@ function TextualObject({
     ],
     queryFn: async ({ signal }) => {
       const ref = { bucket: head.bucket, key: head.key };
-      if (!sliced) return fetchText(scope, ref, { signal });
-      const range = await fetchRange(scope, ref, 0, sliceBytes ?? HEAD_SLICE, { signal });
+      if (!sliced) return fetchText(connection, ref, { signal });
+      const range = await fetchRange(connection, ref, 0, sliceBytes ?? HEAD_SLICE, { signal });
       return new TextDecoder().decode(range.bytes);
     },
     staleTime: 5 * 60_000,
@@ -299,8 +307,8 @@ function JsonBody({ text }: { text: string }) {
 }
 
 /** Too large, or archived: the object is described rather than opened. */
-function RefusedObject({ head, reason }: { head: S3ObjectHead; reason: "size" | "archived" }) {
-  const scope = useS3Scope();
+function RefusedObject({ head, reason }: { head: StorageObjectHead; reason: "size" | "archived" }) {
+  const connection = useStorageConnection();
   const [showHex, setShowHex] = React.useState(false);
 
   if (reason === "archived") {
@@ -326,7 +334,7 @@ function RefusedObject({ head, reason }: { head: S3ObjectHead; reason: "size" | 
         </Button>
         <Button
           size="sm"
-          onClick={() => downloadObject(scope, { bucket: head.bucket, key: head.key })}
+          onClick={() => downloadObject(connection, { bucket: head.bucket, key: head.key })}
         >
           <Download className="size-3" /> Download
         </Button>
@@ -336,7 +344,7 @@ function RefusedObject({ head, reason }: { head: S3ObjectHead; reason: "size" | 
   );
 }
 
-function BinaryObject({ head }: { head: S3ObjectHead }) {
+function BinaryObject({ head }: { head: StorageObjectHead }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <p className="shrink-0 border-b border-border px-3.5 py-1.5 text-[11.5px] text-muted-foreground">
@@ -348,13 +356,13 @@ function BinaryObject({ head }: { head: S3ObjectHead }) {
 }
 
 /** The leading bytes, read raw so a stored encoding is not inflated first. */
-function HeadBytes({ head }: { head: S3ObjectHead }) {
-  const scope = useS3Scope();
+function HeadBytes({ head }: { head: StorageObjectHead }) {
+  const connection = useStorageConnection();
   const slice = useQuery({
-    queryKey: ["s3:hex", ...scopeKey(scope), head.bucket, head.key, head.etag],
+    queryKey: ["s3:hex", connectionKey(connection), head.bucket, head.key, head.etag],
     queryFn: ({ signal }) =>
       fetchRange(
-        scope,
+        connection,
         { bucket: head.bucket, key: head.key },
         0,
         Math.min(HEX_BYTES, Math.max(head.size, 1)),

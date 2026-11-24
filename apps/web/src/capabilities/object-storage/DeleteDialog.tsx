@@ -14,7 +14,7 @@ import {
 import { Dialog } from "~/components/Dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { useS3Scope } from "~/stores/scope";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
 import { trpc } from "~/lib/trpc";
 
 /** Keys listed in full before the list is summarised instead. */
@@ -44,7 +44,7 @@ export function DeleteDialog({
   targets: ReadonlyArray<DeleteTarget>;
   onClose: () => void;
 }) {
-  const scope = useS3Scope();
+  const connection = useStorageConnection();
   const queryClient = useQueryClient();
   const [failures, setFailures] = React.useState<ReadonlyArray<{ key: string; message: string }>>(
     [],
@@ -59,7 +59,7 @@ export function DeleteDialog({
   });
 
   const remove = useMutation(
-    trpc.s3Actions.deleteObjects.mutationOptions({
+    trpc.storage.deleteObjects.mutationOptions({
       onSuccess: (outcome) => {
         setFailures(outcome.errors.map((error) => ({ key: error.key, message: error.message })));
         void queryClient.invalidateQueries();
@@ -77,7 +77,7 @@ export function DeleteDialog({
     <Dialog id="s3-delete" title={single ? "Delete object" : "Delete objects"} onClose={onClose}>
       <Form
         form={form}
-        onSubmit={(values) => remove.mutate({ ...scope, ...values })}
+        onSubmit={(values) => remove.mutate({ ref: connection, ...values })}
         className="gap-3"
       >
         <div className="flex flex-col gap-2">

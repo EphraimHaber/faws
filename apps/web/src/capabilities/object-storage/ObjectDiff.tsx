@@ -1,3 +1,4 @@
+import { connectionKey } from "@faws/kit";
 import { diffLines, diffStat, type DiffLine } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -6,9 +7,8 @@ import { Dialog } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
 import { ErrorState } from "~/components/ui/error-state";
 import { Spinner } from "~/components/ui/spinner";
-import { useS3Scope } from "~/stores/scope";
-import { scopeKey } from "~/features/s3/scopeKey";
-import { fetchRange } from "~/lib/s3-bytes";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
+import { fetchRange } from "~/capabilities/object-storage/bytes";
 import { cn } from "~/lib/utils";
 
 /** How much of each side is read; a diff is a reading tool, not a merge. */
@@ -38,12 +38,12 @@ export function ObjectDiff({
   right: DiffSide;
   onClose: () => void;
 }) {
-  const scope = useS3Scope();
+  const connection = useStorageConnection();
 
   const sides = useQuery({
     queryKey: [
       "s3:diff",
-      ...scopeKey(scope),
+      connectionKey(connection),
       bucket,
       left.key,
       left.versionId,
@@ -52,12 +52,24 @@ export function ObjectDiff({
     ],
     queryFn: async ({ signal }) => {
       const [a, b] = await Promise.all([
-        fetchRange(scope, { bucket, key: left.key, versionId: left.versionId }, 0, SIDE_BYTES, {
-          signal,
-        }),
-        fetchRange(scope, { bucket, key: right.key, versionId: right.versionId }, 0, SIDE_BYTES, {
-          signal,
-        }),
+        fetchRange(
+          connection,
+          { bucket, key: left.key, versionId: left.versionId },
+          0,
+          SIDE_BYTES,
+          {
+            signal,
+          },
+        ),
+        fetchRange(
+          connection,
+          { bucket, key: right.key, versionId: right.versionId },
+          0,
+          SIDE_BYTES,
+          {
+            signal,
+          },
+        ),
       ]);
       const decoder = new TextDecoder();
       return { before: decoder.decode(a.bytes), after: decoder.decode(b.bytes) };

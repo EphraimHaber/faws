@@ -1,4 +1,4 @@
-import type { S3ObjectHead, S3OpenAs } from "@faws/contracts";
+import type { StorageObjectHead, StorageOpenAs } from "@faws/kit";
 
 /** Read whole below this; the whole object becomes a string in the page. */
 export const WHOLE_LIMIT = 1024 * 1024;
@@ -15,7 +15,12 @@ export type StreamKind = "image" | "audio" | "video" | "pdf";
 /** Kinds that become a string in the page, so their size has to fit. */
 export type TextKind = "text" | "json" | "jsonl" | "csv";
 
-const STREAMED: ReadonlySet<S3OpenAs> = new Set<S3OpenAs>(["image", "audio", "video", "pdf"]);
+const STREAMED: ReadonlySet<StorageOpenAs> = new Set<StorageOpenAs>([
+  "image",
+  "audio",
+  "video",
+  "pdf",
+]);
 
 export type ViewPlan =
   /** Fetch the whole object and render it. */
@@ -38,7 +43,7 @@ export type ViewPlan =
  * viewer that pulls first and measures afterwards is one click away from
  * pulling a multi gigabyte object into a tab.
  */
-export function planFor(head: S3ObjectHead): ViewPlan {
+export function planFor(head: StorageObjectHead): ViewPlan {
   if (!head.readable) return { kind: "refuse", reason: "archived" };
 
   // Media and documents are handed to an element that ranges over them, so

@@ -1,4 +1,4 @@
-import type { S3CommonPrefix, S3ObjectSummary } from "@faws/contracts";
+import type { StorageCommonPrefix, StorageObjectSummary } from "@faws/kit";
 import { byteSize, parentPrefix, relativeTime } from "@faws/shared";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useHotkeys } from "@tanstack/react-hotkeys";
@@ -16,11 +16,15 @@ import * as React from "react";
 import { type Column, DataTable } from "~/components/data-table";
 import { FilterInput } from "~/components/toolbar";
 import { DisabledHint, useDisabledReason } from "~/components/WriteGuard";
-import { CreatePrefixDialog } from "~/features/s3/components/CreatePrefixDialog";
-import { DeleteDialog, type DeleteTarget } from "~/features/s3/components/DeleteDialog";
-import { IDLE_SCAN, ObjectSearch, type ScanState } from "~/features/s3/components/ObjectSearch";
-import { UploadButton, UploadDropzone } from "~/features/s3/components/UploadDropzone";
-import { PrefixTrail } from "~/features/s3/components/PrefixTrail";
+import { CreatePrefixDialog } from "~/capabilities/object-storage/CreatePrefixDialog";
+import { DeleteDialog, type DeleteTarget } from "~/capabilities/object-storage/DeleteDialog";
+import {
+  IDLE_SCAN,
+  ObjectSearch,
+  type ScanState,
+} from "~/capabilities/object-storage/ObjectSearch";
+import { UploadButton, UploadDropzone } from "~/capabilities/object-storage/UploadDropzone";
+import { PrefixTrail } from "~/capabilities/object-storage/PrefixTrail";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { CopyButton } from "~/components/ui/copy-button";
@@ -28,7 +32,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useS3Scope } from "~/stores/scope";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
 import { describe } from "~/lib/hotkeys";
 import { fullTimestamp } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
@@ -47,8 +51,8 @@ const EMPTY_SELECTION: ReadonlySet<string> = new Set();
  * lists, and the table shows them as one with the folders on top.
  */
 type Row =
-  | { kind: "prefix"; id: string; entry: S3CommonPrefix }
-  | { kind: "object"; id: string; entry: S3ObjectSummary };
+  | { kind: "prefix"; id: string; entry: StorageCommonPrefix }
+  | { kind: "object"; id: string; entry: StorageObjectSummary };
 
 export function ObjectBrowser({
   bucket,
@@ -64,7 +68,7 @@ export function ObjectBrowser({
   /** Whether a delete here is recoverable; null while it is still unknown. */
   versioned?: boolean | null;
 }) {
-  const scope = useS3Scope();
+  const connection = useStorageConnection();
   const overlayOpen = useOverlaysOpen();
   const [filter, setFilter] = useFilterSearch();
   // A selection belongs to the listing it was made in. Walking into another
@@ -103,8 +107,8 @@ export function ObjectBrowser({
   >(null);
 
   const listing = useInfiniteQuery({
-    ...trpc.s3.list.infiniteQueryOptions(
-      { ...scope, bucket, prefix, delimiter: "/", maxKeys: PAGE_SIZE },
+    ...trpc.storage.list.infiniteQueryOptions(
+      { ref: connection, bucket, prefix, delimiter: "/", maxKeys: PAGE_SIZE },
       { getNextPageParam: (last) => last.nextToken },
     ),
     // A long listing is many pages, and the app wide refresh would refetch

@@ -5,10 +5,10 @@ import type {
   ExecServerToClientEvents,
   ExecSocketData,
   InterServerEvents,
-  S3ScanClientToServerEvents,
-  S3ScanInterServerEvents,
-  S3ScanServerToClientEvents,
-  S3ScanSocketData,
+  StorageScanClientToServerEvents,
+  StorageScanInterServerEvents,
+  StorageScanServerToClientEvents,
+  StorageScanSocketData,
   ServerToClientEvents,
   SocketData,
 } from "@faws/socket-io-events";
@@ -27,18 +27,18 @@ export type ExecNamespace = Namespace<
   ExecSocketData
 >;
 
-export type S3ScanNamespace = Namespace<
-  S3ScanClientToServerEvents,
-  S3ScanServerToClientEvents,
-  S3ScanInterServerEvents,
-  S3ScanSocketData
+export type StorageScanNamespace = Namespace<
+  StorageScanClientToServerEvents,
+  StorageScanServerToClientEvents,
+  StorageScanInterServerEvents,
+  StorageScanSocketData
 >;
 
 const log = createLogger("socket-io");
 
 let ioInstance: IOServer | null = null;
 let execNs: ExecNamespace | null = null;
-let s3ScanNs: S3ScanNamespace | null = null;
+let storageScanNs: StorageScanNamespace | null = null;
 
 export function setupSocketIO(fastify: FastifyInstance): IOServer {
   ioInstance = new Server(fastify.server, {
@@ -63,7 +63,7 @@ export function setupSocketIO(fastify: FastifyInstance): IOServer {
   // Socket.IO has no `.of<T>()` overload for per-namespace event types yet,
   // so the cast is how we attach the `/exec` contract.
   execNs = ioInstance.of("/exec") as unknown as ExecNamespace;
-  s3ScanNs = ioInstance.of("/s3-scan") as unknown as S3ScanNamespace;
+  storageScanNs = ioInstance.of("/storage-scan") as unknown as StorageScanNamespace;
 
   log.info("Socket.IO attached (in-memory adapter)");
   return ioInstance;
@@ -73,8 +73,8 @@ export function getExecNamespace(): ExecNamespace | null {
   return execNs;
 }
 
-export function getS3ScanNamespace(): S3ScanNamespace | null {
-  return s3ScanNs;
+export function getStorageScanNamespace(): StorageScanNamespace | null {
+  return storageScanNs;
 }
 
 /**
@@ -91,7 +91,7 @@ export async function closeSocketIO(): Promise<void> {
   if (!io) return;
   ioInstance = null;
   execNs = null;
-  s3ScanNs = null;
+  storageScanNs = null;
   setLogBroadcaster(null);
   await new Promise<void>((resolve) => io.close(() => resolve()));
 }

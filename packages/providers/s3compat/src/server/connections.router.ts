@@ -8,19 +8,19 @@
  * out.
  */
 import { s3ConnectionInputSchema, s3ConnectionRefSchema } from "@faws/contracts";
+import { createLogger, guard, providerProcedure, router } from "@faws/kit/server";
 import {
   credentialStore,
   deleteConnection,
   invalidateConnection,
   probeConnection,
   saveConnection,
-} from "@faws/core";
-
-import { createLogger } from "../../shared/logger.ts";
-import { guard, router } from "../../trpc/index.ts";
-import { s3EndpointsProcedure } from "../../trpc/providers.ts";
+} from "@faws/lib-s3";
 
 const log = createLogger("s3-connections");
+
+/** Every procedure here answers only while saved endpoints are switched on. */
+const s3EndpointsProcedure = providerProcedure("s3");
 
 export const s3ConnectionsRouter = router({
   /**

@@ -1,7 +1,7 @@
 /**
  * S3 clients pointed at something other than AWS.
  *
- * Three things separate one of these from the scoped client: the endpoint and
+ * Three things separate one of these from a client built for an AWS profile: the endpoint and
  * addressing style, credentials that do not come from `~/.aws`, and a TLS
  * setup that has to be described rather than assumed, because an on prem
  * endpoint is routinely signed by a CA only its own network trusts.
@@ -14,12 +14,10 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 import type { S3Connection, S3Credential } from "@faws/contracts";
 import { AwsRequestError, EndpointTrustError } from "@faws/contracts";
+import { trustReason } from "@faws/shared";
 import { NodeHttpHandler } from "@smithy/node-http-handler";
 
 import { credentialFor } from "./connections.ts";
-import { trustReason } from "../trustReason.ts";
-
-export { trustReason };
 
 /**
  * The credential to use, when it is not the stored one.

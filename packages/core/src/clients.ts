@@ -18,8 +18,7 @@ import { STSClient } from "@aws-sdk/client-sts";
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 import type { AwsScope } from "@faws/contracts";
 import { AwsRequestError, EndpointTrustError, ProfileNotFoundError } from "@faws/contracts";
-
-import { trustReason } from "./trustReason.ts";
+import { trustReason } from "@faws/shared";
 
 type ClientBundle = {
   readonly ecs: ECSClient;

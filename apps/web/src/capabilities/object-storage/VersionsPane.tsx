@@ -1,4 +1,4 @@
-import type { S3VersionEntry } from "@faws/contracts";
+import { connectionKey, type ConnectionRef, type StorageVersionEntry } from "@faws/kit";
 import { byteSize, relativeTime } from "@faws/shared";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { GitCompare, History, Trash } from "lucide-react";
@@ -7,14 +7,13 @@ import * as React from "react";
 import { type Column, DataTable } from "~/components/data-table";
 import { RefreshControl } from "~/components/refresh";
 import { FilterInput } from "~/components/toolbar";
-import { ObjectDiff, type DiffSide } from "~/features/s3/components/ObjectDiff";
+import { ObjectDiff, type DiffSide } from "~/capabilities/object-storage/ObjectDiff";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useS3Scope } from "~/stores/scope";
-import { scopeKey } from "~/features/s3/scopeKey";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
 import { fullTimestamp } from "~/lib/format";
 import { trpcClient } from "~/lib/trpc";
 import { useFilterSearch } from "~/hooks/useSearchState";
@@ -25,7 +24,7 @@ import { useFilterSearch } from "~/hooks/useSearchState";
  * Defined once because the table hands these strings back as the selection,
  * and a second spelling of the same thing silently matches nothing.
  */
-function versionKey(row: S3VersionEntry): string {
+function versionKey(row: StorageVersionEntry): string {
   return `${row.key}@${row.versionId}`;
 }
 
@@ -46,7 +45,7 @@ export function VersionsPane({
   prefix: string;
   onOpenVersion: (key: string, versionId: string) => void;
 }) {
-  const scope = useS3Scope();
+  const connection = useStorageConnection();
   const [filter, setFilter] = useFilterSearch();
   const [selected, setSelected] = React.useState<ReadonlySet<string>>(() => new Set());
   const [comparing, setComparing] = React.useState<{ left: DiffSide; right: DiffSide } | null>(
@@ -54,12 +53,12 @@ export function VersionsPane({
   );
 
   const listing = useInfiniteQuery({
-    queryKey: ["s3:versions", ...scopeKey(scope), bucket, prefix],
+    queryKey: ["s3:versions", connectionKey(connection), bucket, prefix],
     initialPageParam: { keyMarker: undefined, versionIdMarker: undefined } as {
       keyMarker: string | undefined;
       versionIdMarker: string | undefined;
     },
-    queryFn: ({ pageParam }) => trpcClientVersions({ ...scope, bucket, prefix }, pageParam),
+    queryFn: ({ pageParam }) => trpcClientVersions({ ref: connection, bucket, prefix }, pageParam),
     // Two markers rather than one token, so the cursor is an object.
     getNextPageParam: (last) =>
       last.nextKeyMarker
@@ -76,7 +75,7 @@ export function VersionsPane({
     [listing.data],
   );
 
-  const columns = React.useMemo<Column<S3VersionEntry>[]>(
+  const columns = React.useMemo<Column<StorageVersionEntry>[]>(
     () => [
       {
         id: "key",
@@ -241,10 +240,10 @@ export function VersionsPane({
  * listing resumes from two markers instead.
  */
 function trpcClientVersions(
-  input: { profile: string; region: string; bucket: string; prefix: string },
+  input: { ref: ConnectionRef; bucket: string; prefix: string },
   cursor: { keyMarker: string | undefined; versionIdMarker: string | undefined },
 ) {
-  return trpcClient.s3.versions.query({
+  return trpcClient.storage.versions.query({
     ...input,
     ...(cursor.keyMarker ? { keyMarker: cursor.keyMarker } : {}),
     ...(cursor.versionIdMarker ? { versionIdMarker: cursor.versionIdMarker } : {}),

@@ -1,11 +1,8 @@
 import { GetMetricStatisticsCommand } from "@aws-sdk/client-cloudwatch";
-import type { MetricSeries, S3Scope } from "@faws/contracts";
-import { AwsRequestError } from "@faws/contracts";
+import type { MetricSeries } from "@faws/contracts";
 import { toIso } from "@faws/shared";
 
 import { callAws, cloudWatchClient } from "../../clients.ts";
-import { connectionFor } from "../../s3/connections.ts";
-import { bucketRegion } from "./buckets.ts";
 
 /** A day, which is the shortest period these are published at. */
 const PERIOD_SECONDS = 86_400;
@@ -16,27 +13,16 @@ const PERIOD_SECONDS = 86_400;
  * Walking a bucket to total it costs a request per thousand keys; these are
  * published daily for free. The catch is that they are daily: this answers
  * "how has it grown" rather than "what is in it right now".
+ *
+ * `region` is the bucket's own, which is where its metrics are published.
  */
 export async function bucketStorageMetrics(
-  scope: S3Scope,
+  profile: string,
+  region: string,
   bucket: string,
   options: { days?: number } = {},
 ): Promise<MetricSeries[]> {
-  // These come from CloudWatch, which most S3 compatible endpoints have no
-  // counterpart to - asking AWS about a bucket it does not have answers with
-  // an empty series that reads like a bucket of nothing. An endpoint fronting
-  // real AWS is the exception, and says so on the connection.
-  const connection = await connectionFor(scope);
-  if (connection && !connection.features.storageMetrics) {
-    throw new AwsRequestError("This endpoint does not publish storage metrics.", {
-      code: "NotImplemented",
-      service: "s3",
-    });
-  }
-
-  // The metrics live in the bucket's own region, not the one in scope.
-  const region = await bucketRegion(scope, bucket);
-  const client = cloudWatchClient({ profile: scope.profile, region });
+  const client = cloudWatchClient({ profile, region });
 
   const days = options.days ?? 30;
   const endTime = new Date();

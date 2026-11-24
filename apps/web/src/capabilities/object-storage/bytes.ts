@@ -1,6 +1,6 @@
-import type { S3Scope } from "@faws/contracts";
+import type { ConnectionRef } from "@faws/kit";
 
-import { resolveServerOrigin } from "./apiUrl.ts";
+import { resolveServerOrigin } from "~/lib/apiUrl";
 
 export interface ObjectRef {
   readonly bucket: string;
@@ -16,14 +16,13 @@ export interface ObjectRef {
  * holding anything that grants access to the bucket.
  */
 export function objectUrl(
-  scope: S3Scope,
+  connection: ConnectionRef,
   ref: ObjectRef,
   options: { disposition?: "inline" | "attachment"; raw?: boolean } = {},
 ): string {
   const url = new URL("/api/storage/object", resolveServerOrigin());
-  url.searchParams.set("profile", scope.profile);
-  url.searchParams.set("region", scope.region);
-  if (scope.connectionId) url.searchParams.set("connectionId", scope.connectionId);
+  url.searchParams.set("provider", connection.provider);
+  url.searchParams.set("connection", connection.id);
   url.searchParams.set("bucket", ref.bucket);
   url.searchParams.set("key", ref.key);
   if (ref.versionId) url.searchParams.set("versionId", ref.versionId);
@@ -46,14 +45,14 @@ export interface RangeResult {
  * rather than pulling gigabytes into a string to show the first screen.
  */
 export async function fetchRange(
-  scope: S3Scope,
+  connection: ConnectionRef,
   ref: ObjectRef,
   start: number,
   length: number,
   options: { raw?: boolean; signal?: AbortSignal } = {},
 ): Promise<RangeResult> {
   const end = start + length - 1;
-  const response = await fetch(objectUrl(scope, ref, options.raw ? { raw: true } : {}), {
+  const response = await fetch(objectUrl(connection, ref, options.raw ? { raw: true } : {}), {
     headers: { range: `bytes=${start}-${end}` },
     signal: options.signal ?? null,
   });
@@ -71,19 +70,19 @@ export async function fetchRange(
 
 /** The whole object as text, for the cases the size gate has allowed. */
 export async function fetchText(
-  scope: S3Scope,
+  connection: ConnectionRef,
   ref: ObjectRef,
   options: { signal?: AbortSignal } = {},
 ): Promise<string> {
-  const response = await fetch(objectUrl(scope, ref), { signal: options.signal ?? null });
+  const response = await fetch(objectUrl(connection, ref), { signal: options.signal ?? null });
   if (!response.ok) throw new Error(await errorMessage(response));
   return response.text();
 }
 
 /** Hands the object to the browser's own download machinery. */
-export function downloadObject(scope: S3Scope, ref: ObjectRef): void {
+export function downloadObject(connection: ConnectionRef, ref: ObjectRef): void {
   const anchor = document.createElement("a");
-  anchor.href = objectUrl(scope, ref, { disposition: "attachment" });
+  anchor.href = objectUrl(connection, ref, { disposition: "attachment" });
   anchor.rel = "noopener";
   anchor.download = ref.key.slice(ref.key.lastIndexOf("/") + 1);
   anchor.click();

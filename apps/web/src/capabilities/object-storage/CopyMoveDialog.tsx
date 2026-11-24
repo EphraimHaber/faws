@@ -14,7 +14,7 @@ import {
 import { Dialog } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
 import { useDisabledReason } from "~/components/WriteGuard";
-import { useS3Scope } from "~/stores/scope";
+import { useStorageConnection } from "~/capabilities/object-storage/connection";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -33,7 +33,7 @@ export function CopyMoveDialog({
   sourceKey: string;
   onClose: () => void;
 }) {
-  const scope = useS3Scope();
+  const connection = useStorageConnection();
   const queryClient = useQueryClient();
 
   const form = useZodForm(s3CopyObjectSchema, {
@@ -48,7 +48,7 @@ export function CopyMoveDialog({
   });
 
   const copy = useMutation(
-    trpc.s3Actions.copyObject.mutationOptions({
+    trpc.storage.copyObject.mutationOptions({
       onSuccess: () => {
         void queryClient.invalidateQueries();
         onClose();
@@ -69,7 +69,7 @@ export function CopyMoveDialog({
 
   return (
     <Dialog id="s3-copy" title={moving ? "Move object" : "Copy object"} onClose={onClose}>
-      <Form form={form} onSubmit={(values) => copy.mutate({ ...scope, ...values })}>
+      <Form form={form} onSubmit={(values) => copy.mutate({ ref: connection, ...values })}>
         <p className="truncate font-mono text-[11.5px] text-muted-foreground" title={sourceKey}>
           {sourceKey}
         </p>

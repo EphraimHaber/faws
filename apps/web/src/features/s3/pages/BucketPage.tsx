@@ -1,85 +1,53 @@
 import type { ResourceRef } from "@faws/contracts";
 import { normalizePrefix } from "@faws/shared";
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
+import { BUCKET_TABS, BucketBrowser } from "~/capabilities/object-storage/BucketBrowser";
+import { StorageConnectionProvider } from "~/capabilities/object-storage/connection";
 import { PinButton } from "~/components/PinButton";
-import { Segmented } from "~/components/segmented";
-import { AnalyticsPane } from "~/features/s3/components/AnalyticsPane";
-import { BucketProperties } from "~/features/s3/components/BucketProperties";
-import { ObjectBrowser } from "~/features/s3/components/ObjectBrowser";
-import { ObjectViewer } from "~/features/s3/components/ObjectViewer";
-import { VersionsPane } from "~/features/s3/components/VersionsPane";
-import { Badge } from "~/components/ui/badge";
-import { ErrorState } from "~/components/ui/error-state";
-import { Panel } from "~/components/ui/panel";
-import { useS3Scope, useScope } from "~/stores/scope";
 import { ConnectionPicker } from "~/features/s3/components/ConnectionPicker";
-import { useS3Capabilities } from "~/features/s3/useS3Capabilities";
+import { useS3Connection } from "~/features/s3/useS3Connection";
 import { useTabSearch } from "~/hooks/useTabSearch";
-import { trpc } from "~/lib/trpc";
+import { useAwsScope } from "~/stores/scope";
 import { useRecordVisit } from "~/stores/recents";
 
-/** The tabs, in the order they are shown; the first is the default. */
-export const BUCKET_TABS = ["objects", "properties", "versions", "analytics"] as const;
+export { BUCKET_TABS };
 
-type Tab = (typeof BUCKET_TABS)[number];
-
-/**
- * One bucket, opened at a prefix.
- *
- * The region is resolved here because this is the first point at which it is
- * needed: every call against the objects inside is addressed to the bucket's
- * own region, which is not always the one the rest of the app is scoped to.
- */
+/** One bucket on AWS or on a saved endpoint, opened at a prefix. */
 export function BucketPage({ bucket }: { bucket: string }) {
-  const scope = useS3Scope();
-  const { region: scopeRegion } = useScope();
-  const capabilities = useS3Capabilities();
+  const { connection, endpointId } = useS3Connection();
+  const { profile, region } = useAwsScope();
   const navigate = useNavigate();
   const { prefix = "", object } = useSearch({ from: "/s3/buckets/$bucket" });
   const [tab, setTab] = useTabSearch(BUCKET_TABS, "objects");
-
-  const region = useQuery({
-    ...trpc.s3.bucketRegion.queryOptions({ ...scope, bucket }),
-    // An endpoint outside AWS has one region for every bucket it serves, so
-    // there is nothing to resolve and nothing to report as unexpected.
-    enabled: capabilities.bucketRegions,
-    staleTime: Infinity,
-  });
-
-  // Whether a delete here can be undone is part of what a confirmation has to
-  // say, so it is read alongside the bucket rather than guessed at the dialog.
-  const versioning = useQuery({
-    ...trpc.s3.versioning.queryOptions({ ...scope, bucket }),
-    staleTime: 5 * 60_000,
-  });
 
   // The bucket root and a prefix inside it are two different destinations, so
   // they are two different kinds and two different keys - coming back to
   // `logs/2026/` is the useful thing to remember, not that the bucket exists.
   // The dwell in `useRecordVisit` is what keeps a walk down the tree from
   // leaving a row for every folder passed through on the way.
-  const target = React.useMemo<ResourceRef>(
-    () => ({
+  //
+  // A bucket on a saved endpoint is not reached through the AWS profile, so it
+  // is recorded without one and stays listed whatever the title bar says.
+  const target = React.useMemo<ResourceRef>(() => {
+    const search = new URLSearchParams();
+    if (endpointId) search.set("connection", endpointId);
+    if (prefix) search.set("prefix", prefix);
+    const query = search.toString();
+    return {
       kind: prefix ? "s3-prefix" : "s3-bucket",
       id: prefix ? `${bucket}/${prefix}` : bucket,
       label: prefix
         ? normalizePrefix(prefix).replace(/\/$/, "").split("/").pop() || bucket
         : bucket,
       detail: prefix ? `${bucket}/${prefix}` : "bucket",
-      scope: {
-        profile: scope.profile,
-        region: scopeRegion,
-        connectionId: scope.connectionId ?? "",
-      },
-      to: prefix
-        ? `/s3/buckets/${encodeURIComponent(bucket)}?prefix=${encodeURIComponent(prefix)}`
-        : `/s3/buckets/${encodeURIComponent(bucket)}`,
-    }),
-    [bucket, prefix, scope.profile, scope.connectionId, scopeRegion],
-  );
+      scope: endpointId
+        ? { profile: "", region: "", connectionId: endpointId }
+        : { profile, region, connectionId: "" },
+      to: `/s3/buckets/${encodeURIComponent(bucket)}${query ? `?${query}` : ""}`,
+    };
+  }, [bucket, prefix, endpointId, profile, region]);
   useRecordVisit(target);
 
   const goTo = (next: { prefix?: string; object?: string }) =>
@@ -96,88 +64,28 @@ export function BucketPage({ bucket }: { bucket: string }) {
       replace: true,
     });
 
-  if (region.isError) {
-    return (
-      <Panel className="flex-1">
-        <ErrorState error={region.error} onRetry={() => void region.refetch()} />
-      </Panel>
-    );
-  }
-
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <div className="flex shrink-0 flex-wrap items-center gap-3 px-0.5">
-        <Segmented
-          options={BUCKET_TABS.map((value) => ({ value, label: value }))}
-          value={tab}
-          onChange={(next: Tab) => setTab(next)}
-        />
-        <div className="ml-auto flex items-center gap-1.5">
-          <PinButton target={target} />
-          <ConnectionPicker />
-        </div>
-        {region.data && region.data !== scopeRegion ? (
-          <span className="flex items-center gap-2">
-            <Badge tone="info">{region.data}</Badge>
-            <span className="text-[11.5px] text-muted-foreground">
-              This bucket lives outside the region in scope; it is read from there.
-            </span>
-          </span>
-        ) : null}
-      </div>
-
-      {tab === "objects" ? (
-        // Side by side where there is room, and stacked where there is not:
-        // below about a thousand pixels two panes leave neither one wide
-        // enough to read a key in.
-        <div className="flex min-h-0 flex-1 flex-col gap-2 lg:flex-row">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <ObjectBrowser
-              bucket={bucket}
-              prefix={prefix}
-              versioned={versioning.data ?? null}
-              onNavigate={(next) => goTo({ prefix: normalizePrefix(next), object: "" })}
-              onOpenObject={(key) => goTo({ object: key })}
-            />
-          </div>
-
-          {object ? (
-            <div className="flex min-h-0 flex-1 flex-col lg:w-[46%] lg:min-w-[22rem] lg:flex-none">
-              <ObjectViewer
-                bucket={bucket}
-                objectKey={object}
-                onClose={() => goTo({ object: "" })}
-              />
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {tab === "properties" ? (
-        <Panel className="min-h-0 flex-1">
-          <BucketProperties bucket={bucket} />
-        </Panel>
-      ) : null}
-
-      {tab === "versions" ? (
-        <Panel className="min-h-0 flex-1">
-          <VersionsPane
-            bucket={bucket}
-            prefix={prefix}
-            onOpenVersion={(key) => {
-              // Opening a version means leaving for the pane that can show it.
-              setTab("objects");
-              goTo({ object: key });
-            }}
-          />
-        </Panel>
-      ) : null}
-
-      {tab === "analytics" ? (
-        <Panel className="min-h-0 flex-1">
-          <AnalyticsPane bucket={bucket} prefix={prefix} />
-        </Panel>
-      ) : null}
-    </div>
+    <StorageConnectionProvider connection={connection}>
+      <BucketBrowser
+        bucket={bucket}
+        prefix={prefix}
+        object={object}
+        tab={tab}
+        onTab={setTab}
+        onNavigate={goTo}
+        onOpenObject={(key) => {
+          // Opening a version means leaving for the pane that can show it.
+          setTab("objects");
+          goTo({ object: key });
+        }}
+        homeRegion={endpointId ? undefined : region}
+        toolbar={
+          <>
+            <PinButton target={target} />
+            <ConnectionPicker />
+          </>
+        }
+      />
+    </StorageConnectionProvider>
   );
 }

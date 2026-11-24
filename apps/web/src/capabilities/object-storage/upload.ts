@@ -1,5 +1,5 @@
-import { resolveServerOrigin } from "./apiUrl.ts";
-import { trpcClient } from "./trpc.ts";
+import { resolveServerOrigin } from "~/lib/apiUrl";
+import { trpcClient } from "~/lib/trpc";
 
 /** Bytes per part. Ten thousand of these reaches 160 GB, which is enough. */
 const PART_SIZE = 16 * 1024 * 1024;
@@ -80,7 +80,7 @@ export function uploadFile(input: {
       // A presigned single upload never reaches the server, so the session it
       // was opened with is closed here rather than by the route.
       if (input.transport === "presigned") {
-        await trpcClient.s3Actions.abortUpload.mutate({ uploadToken: input.uploadToken });
+        await trpcClient.storage.abortUpload.mutate({ uploadToken: input.uploadToken });
       }
       return;
     }
@@ -117,7 +117,7 @@ export function uploadFile(input: {
             ? {
                 kind: "signed",
                 url: (
-                  await trpcClient.s3Actions.presignPart.mutate({
+                  await trpcClient.storage.presignPart.mutate({
                     uploadToken: input.uploadToken,
                     partNumber,
                   })
@@ -142,7 +142,7 @@ export function uploadFile(input: {
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, partCount) }, worker));
     if (cancelled) throw new Error("Upload cancelled.");
 
-    await trpcClient.s3Actions.completeUpload.mutate({ uploadToken: input.uploadToken, parts });
+    await trpcClient.storage.completeUpload.mutate({ uploadToken: input.uploadToken, parts });
   })();
 
   return { promise, cancel };
