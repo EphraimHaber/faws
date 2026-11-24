@@ -12,17 +12,17 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@trpc/client": "^11.0.0",
-    "superjson": "^2.2.6"
+    "@trpc/client": "catalog:trpc",
+    "superjson": "catalog:trpc"
   },
   "devDependencies": {
     "@faws/server": "workspace:*",
-    "@types/node": "catalog:",
-    "electron": "^44.0.0",
-    "electron-builder": "^26.15.3",
-    "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "@types/node": "catalog:build",
+    "electron": "catalog:electron",
+    "electron-builder": "catalog:electron",
+    "tsdown": "catalog:build",
+    "typescript": "catalog:build",
+    "vitest": "catalog:build"
   },
   "productName": "faws"
 }

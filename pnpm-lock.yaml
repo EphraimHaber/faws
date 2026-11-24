@@ -163,7 +163,7 @@ settings:
   excludeLinksFromLockfile: false
 
 catalogs:
-  default:
+  aws:
     '@aws-sdk/client-api-gateway':
       specifier: ^3.700.0
       version: 3.1141.0
@@ -181,6 +181,9 @@ catalogs:
       version: 3.1134.0
     '@aws-sdk/client-ecs':
       specifier: ^3.700.0
+      version: 3.1132.0
+    '@aws-sdk/client-elastic-load-balancing-v2':
+      specifier: ^3.1132.0
       version: 3.1132.0
     '@aws-sdk/client-s3':
       specifier: ^3.700.0
@@ -203,101 +206,236 @@ catalogs:
     '@smithy/shared-ini-file-loader':
       specifier: ^4.0.4
       version: 4.7.2
+  build:
+    '@tailwindcss/vite':
+      specifier: ^4.0.0
+      version: 4.3.3
     '@types/node':
       specifier: ^24.10.13
       version: 24.13.4
+    '@vitejs/plugin-react':
+      specifier: ^6.1.1
+      version: 6.1.1
+    oxfmt:
+      specifier: ^0.68.0
+      version: 0.68.0
+    oxlint:
+      specifier: ^1.55.0
+      version: 1.83.0
+    tailwindcss:
+      specifier: ^4.0.0
+      version: 4.3.3
+    tsdown:
+      specifier: ^0.23.0
+      version: 0.23.0
+    turbo:
+      specifier: ^2.9.10
+      version: 2.10.13
+    typescript:
+      specifier: ^7.0.2
+      version: 7.0.2
+    vite:
+      specifier: ^8.0.0
+      version: 8.3.0
+    vitest:
+      specifier: ^5.0.0
+      version: 5.0.1
+  default:
+    '@fastify/cors':
+      specifier: ^11.0.0
+      version: 11.3.0
+    '@fastify/static':
+      specifier: ^10.1.3
+      version: 10.1.3
+    '@fontsource-variable/geist':
+      specifier: ^5.2.8
+      version: 5.3.0
+    '@fontsource-variable/jetbrains-mono':
+      specifier: ^5.2.8
+      version: 5.3.0
+    '@hookform/resolvers':
+      specifier: ^5.2.2
+      version: 5.9.1
     '@types/ssh2':
       specifier: ^1.15.5
       version: 1.15.6
+    '@xterm/addon-fit':
+      specifier: ^0.11.0
+      version: 0.11.0
+    '@xterm/addon-search':
+      specifier: ^0.16.0
+      version: 0.16.0
+    '@xterm/addon-web-links':
+      specifier: ^0.12.0
+      version: 0.12.0
+    '@xterm/addon-webgl':
+      specifier: ^0.19.0
+      version: 0.19.0
+    '@xterm/xterm':
+      specifier: ^6.0.0
+      version: 6.0.0
+    class-variance-authority:
+      specifier: ^0.7.1
+      version: 0.7.1
+    fastify:
+      specifier: ^5.2.0
+      version: 5.12.4
+    lucide-react:
+      specifier: ^1.46.0
+      version: 1.46.0
+    monaco-editor:
+      specifier: ^0.56.0
+      version: 0.56.0
     node-pty:
       specifier: ^1.1.0-beta21
       version: 1.1.0
+    pino:
+      specifier: ^10.3.1
+      version: 10.3.1
+    pino-pretty:
+      specifier: ^13.1.3
+      version: 13.1.3
+    react-hook-form:
+      specifier: ^7.65.0
+      version: 7.88.0
+    socket.io:
+      specifier: ^4.8.3
+      version: 4.8.3
+    socket.io-client:
+      specifier: ^4.8.3
+      version: 4.8.3
     ssh-config:
       specifier: ^5.0.3
       version: 5.3.0
     ssh2:
       specifier: ^1.17.0
       version: 1.17.0
-    tsdown:
-      specifier: ^0.23.0
-      version: 0.23.0
-    typescript:
-      specifier: ^7.0.2
-      version: 7.0.2
-    vitest:
-      specifier: ^5.0.0
-      version: 5.0.1
+    tailwind-merge:
+      specifier: ^3.4.0
+      version: 3.7.0
+    zod:
+      specifier: ^4.6.5
+      version: 4.6.5
+    zustand:
+      specifier: ^5.0.12
+      version: 5.0.15
+  electron:
+    electron:
+      specifier: ^44.0.0
+      version: 44.3.0
+    electron-builder:
+      specifier: ^26.15.3
+      version: 26.15.3
+  react:
+    '@types/react':
+      specifier: ^19.0.0
+      version: 19.3.0
+    '@types/react-dom':
+      specifier: ^19.0.0
+      version: 19.3.0
+    react:
+      specifier: ^19.0.0
+      version: 19.3.0
+    react-dom:
+      specifier: ^19.0.0
+      version: 19.3.0
+  tanstack:
+    '@tanstack/hotkeys':
+      specifier: ^0.8.0
+      version: 0.8.0
+    '@tanstack/react-hotkeys':
+      specifier: ^0.10.0
+      version: 0.10.0
+    '@tanstack/react-query':
+      specifier: ^5.90.0
+      version: 5.102.8
+    '@tanstack/react-router':
+      specifier: ^1.160.2
+      version: 1.170.36
+  trpc:
+    '@trpc/client':
+      specifier: ^11.0.0
+      version: 11.18.0
+    '@trpc/server':
+      specifier: ^11.0.0
+      version: 11.18.0
+    '@trpc/tanstack-react-query':
+      specifier: ^11.17.0
+      version: 11.18.0
+    superjson:
+      specifier: ^2.2.6
+      version: 2.2.6
 
 importers:
 
   .:
     devDependencies:
       '@types/node':
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 24.13.4
       oxfmt:
-        specifier: ^0.68.0
+        specifier: catalog:build
         version: 0.68.0
       oxlint:
-        specifier: ^1.55.0
+        specifier: catalog:build
         version: 1.83.0
       turbo:
-        specifier: ^2.9.10
+        specifier: catalog:build
         version: 2.10.13
       vitest:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
 
   apps/desktop:
     dependencies:
       '@trpc/client':
-        specifier: ^11.0.0
+        specifier: catalog:trpc
         version: 11.18.0(@trpc/server@11.18.0(typescript@7.0.2))(typescript@7.0.2)
       superjson:
-        specifier: ^2.2.6
+        specifier: catalog:trpc
         version: 2.2.6
     devDependencies:
       '@faws/server':
         specifier: workspace:*
         version: link:../server
       '@types/node':
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 24.13.4
       electron:
-        specifier: ^44.0.0
+        specifier: catalog:electron
         version: 44.3.0(supports-color@7.2.0)
       electron-builder:
-        specifier: ^26.15.3
+        specifier: catalog:electron
         version: 26.15.3(electron-builder-squirrel-windows@26.15.3)(supports-color@7.2.0)
       tsdown:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 0.23.0(typescript@7.0.2)(unrun@0.2.39)
       typescript:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 7.0.2
       vitest:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
 
   apps/server:
     dependencies:
       '@aws-sdk/client-ec2':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1134.0
       '@aws-sdk/client-ec2-instance-connect':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1134.0
       '@aws-sdk/client-ecs':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1132.0
       '@aws-sdk/client-ssm':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1134.0
       '@fastify/cors':
-        specifier: ^11.0.0
+        specifier: 'catalog:'
         version: 11.3.0
       '@fastify/static':
-        specifier: ^10.1.3
+        specifier: 'catalog:'
         version: 10.1.3
       '@faws/contracts':
         specifier: workspace:*
@@ -312,44 +450,44 @@ importers:
         specifier: workspace:*
         version: link:../../packages/socket-io-events
       '@trpc/server':
-        specifier: ^11.0.0
+        specifier: catalog:trpc
         version: 11.18.0(typescript@7.0.2)
       fastify:
-        specifier: ^5.2.0
+        specifier: 'catalog:'
         version: 5.12.4
       pino:
-        specifier: ^10.3.1
+        specifier: 'catalog:'
         version: 10.3.1
       pino-pretty:
-        specifier: ^13.1.3
+        specifier: 'catalog:'
         version: 13.1.3
       socket.io:
-        specifier: ^4.8.3
+        specifier: 'catalog:'
         version: 4.8.3(supports-color@7.2.0)
       ssh2:
         specifier: 'catalog:'
         version: 1.17.0
       superjson:
-        specifier: ^2.2.6
+        specifier: catalog:trpc
         version: 2.2.6
       zod:
-        specifier: ^4.0.0
+        specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
       '@types/node':
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 24.13.4
       '@types/ssh2':
         specifier: 'catalog:'
         version: 1.15.6
       tsdown:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 0.23.0(typescript@7.0.2)(unrun@0.2.39)
       typescript:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 7.0.2
       vitest:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
     optionalDependencies:
       node-pty:
@@ -371,159 +509,159 @@ importers:
         specifier: workspace:*
         version: link:../../packages/socket-io-events
       '@fontsource-variable/geist':
-        specifier: ^5.2.8
+        specifier: 'catalog:'
         version: 5.3.0
       '@fontsource-variable/jetbrains-mono':
-        specifier: ^5.2.8
+        specifier: 'catalog:'
         version: 5.3.0
       '@hookform/resolvers':
-        specifier: ^5.2.2
+        specifier: 'catalog:'
         version: 5.9.1(ajv@8.20.0)(react-hook-form@7.88.0(react@19.3.0))(zod@4.6.5)
       '@tanstack/hotkeys':
-        specifier: ^0.8.0
+        specifier: catalog:tanstack
         version: 0.8.0
       '@tanstack/react-hotkeys':
-        specifier: ^0.10.0
+        specifier: catalog:tanstack
         version: 0.10.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-query':
-        specifier: ^5.90.0
+        specifier: catalog:tanstack
         version: 5.102.8(react@19.3.0)
       '@tanstack/react-router':
-        specifier: ^1.160.2
+        specifier: catalog:tanstack
         version: 1.170.36(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@trpc/client':
-        specifier: ^11.0.0
+        specifier: catalog:trpc
         version: 11.18.0(@trpc/server@11.18.0(typescript@7.0.2))(typescript@7.0.2)
       '@trpc/server':
-        specifier: ^11.0.0
+        specifier: catalog:trpc
         version: 11.18.0(typescript@7.0.2)
       '@trpc/tanstack-react-query':
-        specifier: ^11.17.0
+        specifier: catalog:trpc
         version: 11.18.0(@tanstack/react-query@5.102.8(react@19.3.0))(@trpc/client@11.18.0(@trpc/server@11.18.0(typescript@7.0.2))(typescript@7.0.2))(@trpc/server@11.18.0(typescript@7.0.2))(react@19.3.0)(typescript@7.0.2)
       '@xterm/addon-fit':
-        specifier: ^0.11.0
+        specifier: 'catalog:'
         version: 0.11.0
       '@xterm/addon-search':
-        specifier: ^0.16.0
+        specifier: 'catalog:'
         version: 0.16.0
       '@xterm/addon-web-links':
-        specifier: ^0.12.0
+        specifier: 'catalog:'
         version: 0.12.0
       '@xterm/addon-webgl':
-        specifier: ^0.19.0
+        specifier: 'catalog:'
         version: 0.19.0
       '@xterm/xterm':
-        specifier: ^6.0.0
+        specifier: 'catalog:'
         version: 6.0.0
       class-variance-authority:
-        specifier: ^0.7.1
+        specifier: 'catalog:'
         version: 0.7.1
       lucide-react:
-        specifier: ^1.46.0
+        specifier: 'catalog:'
         version: 1.46.0(react@19.3.0)
       monaco-editor:
-        specifier: ^0.56.0
+        specifier: 'catalog:'
         version: 0.56.0
       react:
-        specifier: ^19.0.0
+        specifier: catalog:react
         version: 19.3.0
       react-dom:
-        specifier: ^19.0.0
+        specifier: catalog:react
         version: 19.3.0(react@19.3.0)
       react-hook-form:
-        specifier: ^7.65.0
+        specifier: 'catalog:'
         version: 7.88.0(react@19.3.0)
       socket.io-client:
-        specifier: ^4.8.3
+        specifier: 'catalog:'
         version: 4.8.3(supports-color@7.2.0)
       superjson:
-        specifier: ^2.2.6
+        specifier: catalog:trpc
         version: 2.2.6
       tailwind-merge:
-        specifier: ^3.4.0
+        specifier: 'catalog:'
         version: 3.7.0
       zod:
-        specifier: ^4.6.5
+        specifier: 'catalog:'
         version: 4.6.5
       zustand:
-        specifier: ^5.0.12
+        specifier: 'catalog:'
         version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
     devDependencies:
       '@tailwindcss/vite':
-        specifier: ^4.0.0
+        specifier: catalog:build
         version: 4.3.3(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
       '@types/react':
-        specifier: ^19.0.0
+        specifier: catalog:react
         version: 19.3.0
       '@types/react-dom':
-        specifier: ^19.0.0
+        specifier: catalog:react
         version: 19.3.0(@types/react@19.3.0)
       '@vitejs/plugin-react':
-        specifier: ^6.1.1
+        specifier: catalog:build
         version: 6.1.1(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
       tailwindcss:
-        specifier: ^4.0.0
+        specifier: catalog:build
         version: 4.3.3
       typescript:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 7.0.2
       vite:
-        specifier: ^8.0.0
+        specifier: catalog:build
         version: 8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0)
       vitest:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
 
   packages/contracts:
     dependencies:
       zod:
-        specifier: ^4.0.0
+        specifier: 'catalog:'
         version: 4.6.5
     devDependencies:
       typescript:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 7.0.2
       vitest:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
 
   packages/core:
     dependencies:
       '@aws-sdk/client-api-gateway':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1141.0
       '@aws-sdk/client-cloudwatch':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1132.0
       '@aws-sdk/client-cloudwatch-logs':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1132.0
       '@aws-sdk/client-ec2':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1134.0
       '@aws-sdk/client-ec2-instance-connect':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1134.0
       '@aws-sdk/client-ecs':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1132.0
       '@aws-sdk/client-elastic-load-balancing-v2':
-        specifier: ^3.1132.0
+        specifier: catalog:aws
         version: 3.1132.0
       '@aws-sdk/client-s3':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1134.0
       '@aws-sdk/client-ssm':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1134.0
       '@aws-sdk/client-sts':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1132.0
       '@aws-sdk/credential-providers':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1132.0
       '@aws-sdk/s3-request-presigner':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 3.1134.0
       '@faws/contracts':
         specifier: workspace:*
@@ -532,35 +670,35 @@ importers:
         specifier: workspace:*
         version: link:../shared
       '@smithy/node-http-handler':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 4.12.1
       '@smithy/shared-ini-file-loader':
-        specifier: 'catalog:'
+        specifier: catalog:aws
         version: 4.7.2
       ssh-config:
         specifier: 'catalog:'
         version: 5.3.0
     devDependencies:
       '@types/node':
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 24.13.4
       typescript:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 7.0.2
       vitest:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
 
   packages/shared:
     devDependencies:
       '@types/node':
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 24.13.4
       typescript:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 7.0.2
       vitest:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
 
   packages/socket-io-events:
@@ -570,19 +708,19 @@ importers:
         version: link:../contracts
     devDependencies:
       typescript:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 7.0.2
       vitest:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
 
   scripts:
     devDependencies:
       '@types/node':
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 24.13.4
       typescript:
-        specifier: 'catalog:'
+        specifier: catalog:build
         version: 7.0.2
 
 packages:
@@ -1616,10 +1754,16 @@ packages:
   '@smithy/core@3.34.1':
     resolution: {integrity: sha512-dLcOUxz8YCv1RZUMKq6GbyUf95pLbrqh34bPvpCZ1+CByFF31BEAFewZjsGCnVsZTKdThNENfGyAgk2TJqVwSw==}
     engines: {node: '>=18.0.0'}
+    deprecated: |-
+      Deprecated due to a bug in custom logger data redaction. Upgrade to the latest version. If you used a custom logger with this
+        version, review your logs and rotate any credentials or other secrets. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/core@3.35.0':
     resolution: {integrity: sha512-zRMhfkByhT2snNdr1si24vJitU6Cr9ix2MikUfWmkAgp4jrNP0GcKSP5YvwQ+TlI8AZXER5QOGJn3JsVtSD9/A==}
     engines: {node: '>=18.0.0'}
+    deprecated: |-
+      Deprecated due to a bug in custom logger data redaction. Upgrade to the latest version. If you used a custom logger with this
+        version, review your logs and rotate any credentials or other secrets. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.5.2':
     resolution: {integrity: sha512-A9uSdn72ozbRUSit0eib0TW7nXuNPlaeM0zcGkJ+nE6tFcSDbnmtwoxbTCFBukVQcszDAyvsd7+rTduPTXpygg==}
@@ -2089,133 +2233,157 @@ packages:
     resolution: {integrity: sha512-jrOY5WM+AaAqkv51fHP1x28ifto4WgcZVzodLUyMU1jMWn5Sq+VciRdk/n8E0Ey5w4p4cWWE+m5GfXWOYh7Kzw==}
     cpu: [arm64]
     os: [android]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-darwin-arm64@0.9.5':
     resolution: {integrity: sha512-4O4lkCQIzPZGjiNB1GORSI6hBECbiiSBS/APZXPvNKYH+nhY4uuqv03LNXA+SET3hoBjvr95P5rIhY8KQaQUBA==}
     cpu: [arm64]
     os: [darwin]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-darwin-x64@0.9.5':
     resolution: {integrity: sha512-9EvoUO0SEhD6/d8VHdWuPerepPMSR1y84+UEgz8Un1Ope14Oe7xMvePpEQLTLovoIFZ8Zg3iZ8z8E11pZMqC3g==}
     cpu: [x64]
     os: [darwin]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-freebsd-x64@0.9.5':
     resolution: {integrity: sha512-HqT78WwgHTmp8lwujoUa9CrIortX4DdpuiVC18ZPSGvuuJf4ylpIEI6QrQEM78Zwz3muhAWAOXZ5irdiYY+AyA==}
     cpu: [x64]
     os: [freebsd]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm-gnu@0.9.5':
     resolution: {integrity: sha512-QJXwIW6Ms3QIawbcBIedmrmXnfdpuAOjZJ/eAABq5XTzWvSxZ7lutu9W5yIHahlaTaFnBo7ikrVMD1szLTpPUw==}
     cpu: [arm]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm-musl@0.9.5':
     resolution: {integrity: sha512-eHbFy3IHGb+IYarrYwAo0yWSEQV3eAmEn6VrsKA6I1Wy1YPJxWqSJlV69JhqsHtJuJlljUIF3ex0y46yaKIu9w==}
     cpu: [arm]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm64-gnu@0.9.5':
     resolution: {integrity: sha512-ByoJMbySTaDhjAXSu8q6Lh7HKg3YoesXpcT72aYk0Aiw4PCznmY4ybpLTq0RCvp0RIPhFm/6yECFiGBwyCC1nw==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm64-musl@0.9.5':
     resolution: {integrity: sha512-gD9vfXIoBw1toSxhO9rgmSu/FEfy3PMznJAxVjIuH8DrWEiDKXmJO0pJKfj1Ltbe/TmtWVZR+TjISqeSIGQzMg==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-x64-gnu@0.9.5':
     resolution: {integrity: sha512-BARvdnvqMGjOr5Iel2JH+9H5vAIE0R6H0Z2fsT02xrvmI/1ZXNB8lkuX+ZGevPhZb3zJ9WeC/R8JZstrsUOK5g==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-x64-musl@0.9.5':
     resolution: {integrity: sha512-x8flcevS1fbb7ESrmpOY/pON4eInSaE/7Ktjqx2udOE2W33BNSZmJuwpyUgo54AoHNqrcaM7szqydyJn5fNvew==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-win32-arm64@0.9.5':
     resolution: {integrity: sha512-KOL/rBatWqH4ZpCNoF8ZtSNdOJbAxBJLmk/VeRciepGROPTbPum1A9t67GpFgOU7qrkUWlPJdJ+KHKbvbmOt+w==}
     cpu: [arm64]
     os: [win32]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-win32-x64@0.9.5':
     resolution: {integrity: sha512-FxENahEjWSan59Syh/us/Kf4wNq8qrJLFJ3R2N4Oiwtb6yNdz/rWLNTIoNSssnsp7IoWJdUP6o/Z8ppg7lXMcg==}
     cpu: [x64]
     os: [win32]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-parser/binding-android-arm64@0.9.5':
     resolution: {integrity: sha512-A2JCFCSHfnficqYEw4Iujpx7XrkMM3UfFcgJFmYpZSo9zM4nyhmdIIE0FogSduuU60lhM0/UcfuUBXIVNBMlGQ==}
     cpu: [arm64]
     os: [android]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-darwin-arm64@0.9.5':
     resolution: {integrity: sha512-3PiyU+Eare4YuKaQ22N98/yAiROPY5o/NQJHraICzDvk4pgS+m+bgLKOvkGBRn33OnV95Vdv1Mn38b+MQHpULQ==}
     cpu: [arm64]
     os: [darwin]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-darwin-x64@0.9.5':
     resolution: {integrity: sha512-blFMAFI7AInI83XaiOF8cIeiRM46Nz9EfpZtZPRLbKxSA9aAr5v8aHYpmfN6NoyXxAv/10pwS4gsAuc1W6fy5Q==}
     cpu: [x64]
     os: [darwin]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-freebsd-x64@0.9.5':
     resolution: {integrity: sha512-TsNuL4qsZdO0tHp5GW43Y5fHeLPpPHA675wdcPNTcdq2ZO5AvsQWFFoiDg8CH4oBktfsQ9tdvKhjLnLYwKvp4g==}
     cpu: [x64]
     os: [freebsd]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm-gnu@0.9.5':
     resolution: {integrity: sha512-b0afYK5gHeV8RdmOcqAlgM8ONsye4cax4DMnIBaoJyPMd1UTGvTbpkqQcPVdhmHlcfcGVGMV1laeVovlr/dscw==}
     cpu: [arm]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm-musl@0.9.5':
     resolution: {integrity: sha512-fD3lKzl+r6j6n8DwiMY53qnh5DLqD8KJjCp+NbVud54Nnh3Q9Wprqss3YzyMHP3NSJk663Wlg1E1X5qOuFVFig==}
     cpu: [arm]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm64-gnu@0.9.5':
     resolution: {integrity: sha512-aRU/aCphV1MWCl/lvI6NX8LgucHQ68Fx+vz7NBb/5MEr2EuzCxiPOQqeFcMdWh+2AED/p0AvAREch0c+cSnlhA==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm64-musl@0.9.5':
     resolution: {integrity: sha512-5+Guro0l8H473YXlEjVNBRLN/IbPbJdnQh1zo0OLt49xxnON+XMJRRaEyTOTfkn9QSRg0+BhEKGR4W9Gu2uZJQ==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-x64-gnu@0.9.5':
     resolution: {integrity: sha512-pwwSyV9q+GlvzSXlsMZBMlgk22L5bud714/vqZCdeUTivzeUVltQzUaf3IQXOGXdpc59JYTeuMCtbGquaAUoCA==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-x64-musl@0.9.5':
     resolution: {integrity: sha512-z18j6JN3lBHH8vzN7gG1M8fI0nlgItSfnC9PfbmUbt97iHViKfw2iA2G9fGwRMe5LyPRZBrejIlapbygPbpdaw==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-win32-arm64@0.9.5':
     resolution: {integrity: sha512-s6Gwttb1dQvtPX6Bgkw+UPC9IO3UBDXc6Zezog8MMgvu3UfJBBB9TQqKBX/2quu0Eyh+lLSAyNlIyyecaagUPg==}
     cpu: [arm64]
     os: [win32]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-win32-x64@0.9.5':
     resolution: {integrity: sha512-FrERt9YWatY3bJfSUdi4YWY+6iQcyo3MzCC821BxlWM5TFZEHijnpz/bknR79VHlXY/9CvXz8ZlaAGPsTtN3nw==}
     cpu: [x64]
     os: [win32]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-toolchain/types@0.9.5':
     resolution: {integrity: sha512-KiuLNNgX9uNealaWAR+G3/cMXnRk9x4TY2EkYe/KIag+UPdwiA0RRf1hr1WAxzTP8KGzCTkqUdLPvqh32sEO3w==}
@@ -2237,11 +2405,6 @@ packages:
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
-    peerDependencies:
-      ajv: ^8.0.0
-    peerDependenciesMeta:
-      ajv:
-        optional: true
 
   ajv@8.20.0:
     resolution: {integrity: sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==}
@@ -4008,12 +4171,15 @@ packages:
 
   yuku-ast@0.9.5:
     resolution: {integrity: sha512-Q8qW8WwQnN5Cm0ZZivdRIfv0sRLTjUq0YumXJkw8CYN1aCdICH9rk4C47/4n6kA5EqDtlj+F608twoTSV2MwdQ==}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-codegen@0.9.5:
     resolution: {integrity: sha512-zGUVyDpSK4b6c9B0yyxi2P0wujn1XZTbG9dCb7d6gyAoP63EMgyLzUwPUvwxPG5jgYqhlI7w+S3oCyapqGr4PA==}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   yuku-parser@0.9.5:
     resolution: {integrity: sha512-IBnAdNVMswWbJcM7woPluOudectJzFjJ1N8jVRxP9Uq4CIv5hZdBIcdmtRbFDYF/Ph2j2gVup4YJ4N9mh0jYFA==}
+    deprecated: 'Yuku is now one package with one core. Use "yuku" instead: https://yuku.fyi/javascript/. Existing installs keep working but get no more fixes.'
 
   zod@4.6.5:
     resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
@@ -4683,7 +4849,7 @@ snapshots:
   '@fastify/ajv-compiler@4.0.6':
     dependencies:
       ajv: 8.20.0
-      ajv-formats: 3.0.1(ajv@8.20.0)
+      ajv-formats: 3.0.1
       fast-uri: 4.1.5
 
   '@fastify/cors@11.3.0':
@@ -5492,8 +5658,8 @@ snapshots:
 
   agent-base@7.1.4: {}
 
-  ajv-formats@3.0.1(ajv@8.20.0):
-    optionalDependencies:
+  ajv-formats@3.0.1:
+    dependencies:
       ajv: 8.20.0
 
   ajv@8.20.0:
@@ -6023,7 +6189,7 @@ snapshots:
     dependencies:
       '@fastify/merge-json-schemas': 0.2.1
       ajv: 8.20.0
-      ajv-formats: 3.0.1(ajv@8.20.0)
+      ajv-formats: 3.0.1
       fast-uri: 4.1.5
       json-schema-ref-resolver: 3.0.0
       rfdc: 1.4.1
