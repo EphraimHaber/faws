@@ -14,7 +14,7 @@ import { LoadingRows } from "~/components/ui/spinner";
 import { ResizeHandle } from "~/components/ui/resize-handle";
 import { LogFilterBar } from "~/features/ecs/components/LogFilterBar";
 import { LogLine } from "~/features/ecs/components/LogLine";
-import { MIN_LOG_GUTTER, useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { MIN_LOG_GUTTER, useAwsScope, useScope } from "~/stores/scope";
 import { hasAnsi, stripAnsi } from "~/lib/ansi";
 import { ArrowDown, ArrowUp, Clock, Eye, EyeOff, Pause, Play } from "lucide-react";
 import { clockTime, fullTimestamp } from "~/lib/format";

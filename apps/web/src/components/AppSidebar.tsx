@@ -18,7 +18,7 @@ import {
   type ServiceDefinition,
   visibleSections,
 } from "~/services/registry";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useEnabledProviders } from "~/stores/scope";
 import { clusterRef } from "~/features/ecs/refs";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { trpc } from "~/lib/trpc";
@@ -47,7 +47,9 @@ export function AppSidebar() {
   const width = useSettings((state) => state.settings.layout.sidebarWidth);
   const [filter, setFilter] = React.useState("");
 
-  const clusters = useQuery(trpc.ecs.clusters.queryOptions(scope));
+  const enabledProviders = useEnabledProviders();
+  const awsEnabled = enabledProviders.includes("aws");
+  const clusters = useQuery({ ...trpc.ecs.clusters.queryOptions(scope), enabled: awsEnabled });
   const kubeVirt = useKubeDiagnostics().data?.kubeVirt ?? false;
   const runtime = React.useMemo<NavRuntime>(
     () => ({ kubernetes: { kubevirt: kubeVirt } }),
@@ -98,18 +100,20 @@ export function AppSidebar() {
 
           <span aria-hidden className="mx-2 my-1.5 h-px bg-border" />
 
-          {PROVIDERS.map((provider) => (
-            <NavGroup key={provider.id} label={provider.label} icon={provider.icon}>
-              {provider.services.map((service) => (
-                <ServiceLinks
-                  key={service.id}
-                  service={service}
-                  runtime={runtime}
-                  pathname={location.pathname}
-                />
-              ))}
-            </NavGroup>
-          ))}
+          {PROVIDERS.filter((provider) => enabledProviders.includes(provider.id)).map(
+            (provider) => (
+              <NavGroup key={provider.id} label={provider.label} icon={provider.icon}>
+                {provider.services.map((service) => (
+                  <ServiceLinks
+                    key={service.id}
+                    service={service}
+                    runtime={runtime}
+                    pathname={location.pathname}
+                  />
+                ))}
+              </NavGroup>
+            ),
+          )}
 
           <NavGroup label="Workspace">
             {HOST_SERVICES.map((service) => (
@@ -144,77 +148,85 @@ export function AppSidebar() {
         <RefSection title="Pinned" rows={pinned} here={location.href} pinned />
         <RefSection title="Recent" rows={recent} here={location.href} />
 
-        <SectionHeader
-          title="Clusters"
-          count={clusters.data ? visible.length : "—"}
-          className="mx-3.5 mt-2 mb-1.5"
-        />
+        {/* ECS's own live list, so it goes with AWS: switched off, a rail of
+            cached cluster rows would be a list of places nothing can open. */}
+        {awsEnabled ? (
+          <>
+            <SectionHeader
+              title="Clusters"
+              count={clusters.data ? visible.length : "—"}
+              className="mx-3.5 mt-2 mb-1.5"
+            />
 
-        <div className="shrink-0 px-2.5 pb-2">
-          <input
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            placeholder="Filter clusters…"
-            className="h-7 w-full rounded-md border border-border bg-background/50 px-2.5 text-[12px] placeholder:text-muted-foreground/55 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/15"
-          />
-        </div>
-
-        <div className="flex shrink-0 flex-col gap-px px-2 pb-3">
-          {clusters.isPending ? (
-            <div className="flex flex-col gap-1 px-0.5">
-              {Array.from({ length: 5 }, (_, i) => (
-                <div key={i} className="h-8 animate-pulse rounded bg-muted" />
-              ))}
+            <div className="shrink-0 px-2.5 pb-2">
+              <input
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+                placeholder="Filter clusters…"
+                className="h-7 w-full rounded-md border border-border bg-background/50 px-2.5 text-[12px] placeholder:text-muted-foreground/55 focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/15"
+              />
             </div>
-          ) : null}
 
-          {clusters.isError ? (
-            <p className="px-2 py-3 text-[11.5px] leading-relaxed text-danger">
-              {clusters.error instanceof Error ? clusters.error.message : "Failed to list clusters"}
-            </p>
-          ) : null}
+            <div className="flex shrink-0 flex-col gap-px px-2 pb-3">
+              {clusters.isPending ? (
+                <div className="flex flex-col gap-1 px-0.5">
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <div key={i} className="h-8 animate-pulse rounded bg-muted" />
+                  ))}
+                </div>
+              ) : null}
 
-          {visible.map((cluster) => {
-            const to = `/ecs/clusters/${encodeURIComponent(cluster.name)}`;
-            const busy = cluster.pendingTasks > 0;
-            const target = clusterRef(cluster.name, scope);
-            return (
-              <div
-                key={cluster.arn}
-                {...pinDrag(target)}
-                className={cn("group flex items-center gap-0.5 rounded-md", PIN_DROP_CLASS)}
-              >
-                <EntityRow
-                  dense
-                  to={to}
-                  active={location.pathname.startsWith(to)}
-                  icon={
-                    <StatusDot
-                      tone={
-                        cluster.status === "ACTIVE" ? (busy ? "warning" : "success") : "neutral"
+              {clusters.isError ? (
+                <p className="px-2 py-3 text-[11.5px] leading-relaxed text-danger">
+                  {clusters.error instanceof Error
+                    ? clusters.error.message
+                    : "Failed to list clusters"}
+                </p>
+              ) : null}
+
+              {visible.map((cluster) => {
+                const to = `/ecs/clusters/${encodeURIComponent(cluster.name)}`;
+                const busy = cluster.pendingTasks > 0;
+                const target = clusterRef(cluster.name, scope);
+                return (
+                  <div
+                    key={cluster.arn}
+                    {...pinDrag(target)}
+                    className={cn("group flex items-center gap-0.5 rounded-md", PIN_DROP_CLASS)}
+                  >
+                    <EntityRow
+                      dense
+                      to={to}
+                      active={location.pathname.startsWith(to)}
+                      icon={
+                        <StatusDot
+                          tone={
+                            cluster.status === "ACTIVE" ? (busy ? "warning" : "success") : "neutral"
+                          }
+                          pulse={busy}
+                        />
                       }
-                      pulse={busy}
+                      label={cluster.name}
+                      actions={
+                        <span className="font-mono text-[10px] text-muted-foreground tabular">
+                          {cluster.activeServices}·{cluster.runningTasks}
+                        </span>
+                      }
+                      className="min-w-0 flex-1"
                     />
-                  }
-                  label={cluster.name}
-                  actions={
-                    <span className="font-mono text-[10px] text-muted-foreground tabular">
-                      {cluster.activeServices}·{cluster.runningTasks}
-                    </span>
-                  }
-                  className="min-w-0 flex-1"
-                />
-                <PinButton quiet target={target} />
-              </div>
-            );
-          })}
+                    <PinButton quiet target={target} />
+                  </div>
+                );
+              })}
 
-          {clusters.isSuccess && visible.length === 0 ? (
-            <p className="px-2 py-3 text-center text-[11.5px] text-muted-foreground">
-              {filter ? "No matches." : "No clusters in this region."}
-            </p>
-          ) : null}
-        </div>
+              {clusters.isSuccess && visible.length === 0 ? (
+                <p className="px-2 py-3 text-center text-[11.5px] text-muted-foreground">
+                  {filter ? "No matches." : "No clusters in this region."}
+                </p>
+              ) : null}
+            </div>
+          </>
+        ) : null}
       </aside>
     </div>
   );

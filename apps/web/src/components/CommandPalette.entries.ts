@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { SERVICES, type NavRuntime, visibleSections } from "~/services/registry";
+import { type NavRuntime, type ProviderId, SERVICES, visibleSections } from "~/services/registry";
 
 /**
  * One row in the palette.
@@ -78,7 +78,12 @@ export function entryText(entry: PaletteEntry): ReadonlyArray<string> {
  * Planned services are left out. The sidebar lists them so the gap is known;
  * offering a jump to a page that does not exist is a different thing.
  */
-export function navEntries(navigate: (to: string) => void, runtime: NavRuntime): PaletteEntry[] {
+export function navEntries(
+  navigate: (to: string) => void,
+  runtime: NavRuntime,
+  /** Providers switched off contribute nothing; absent means every provider is on. */
+  enabled?: ReadonlyArray<ProviderId>,
+): PaletteEntry[] {
   const out: PaletteEntry[] = [
     {
       id: "nav:home",
@@ -93,6 +98,7 @@ export function navEntries(navigate: (to: string) => void, runtime: NavRuntime):
 
   for (const service of SERVICES) {
     if (service.status !== "available") continue;
+    if (enabled && service.owner !== "host" && !enabled.includes(service.owner)) continue;
 
     out.push({
       // The description rides as the hint rather than being split into

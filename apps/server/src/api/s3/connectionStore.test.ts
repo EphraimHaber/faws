@@ -61,9 +61,9 @@ describe("records", () => {
     await settings.flush();
 
     const onDisk = JSON.parse(fs.readFileSync(settingsPath, "utf8")) as {
-      s3: { connections: S3Connection[] };
+      providers: { s3: { connections: S3Connection[] } };
     };
-    expect(onDisk.s3.connections).toEqual([connection]);
+    expect(onDisk.providers.s3.connections).toEqual([connection]);
     expect(await records().get("abc")).toEqual(connection);
   });
 

@@ -3,7 +3,7 @@ import { Boxes, Monitor, Ship } from "lucide-react";
 
 import { SectionCard } from "~/components/section-card";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
-import { useKubeScope } from "~/contexts/ScopeContext";
+import { useKubeScope } from "~/stores/scope";
 import { KubeScopePicker } from "~/features/kube/components/KubeScopePicker";
 import { hasNoCli, NoKubectl } from "~/features/kube/components/NoKubectl";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";

@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Check, HardDrive, ShieldAlert } from "lucide-react";
 import * as React from "react";
 
-import { useScope } from "~/contexts/ScopeContext";
+import { useScope } from "~/stores/scope";
 import { useS3Connections } from "~/features/s3/useS3Connections";
 import { cn } from "~/lib/utils";
 

@@ -16,7 +16,7 @@ import { Button } from "~/components/ui/button";
 import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { TextAction } from "~/components/ui/text-action";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { StageSelect } from "~/features/api-gateway/components/parts";
 import {
   API_GATEWAY_NAMESPACE,

@@ -6,7 +6,7 @@ import { Dialog } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
 import { ErrorState } from "~/components/ui/error-state";
 import { Spinner } from "~/components/ui/spinner";
-import { useS3Scope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/stores/scope";
 import { scopeKey } from "~/features/s3/scopeKey";
 import { fetchRange } from "~/lib/s3-bytes";
 import { cn } from "~/lib/utils";

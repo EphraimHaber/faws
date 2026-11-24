@@ -14,7 +14,7 @@ import {
 import { Dialog } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
 import { useDisabledReason } from "~/components/WriteGuard";
-import { useS3Scope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/stores/scope";
 import { trpc } from "~/lib/trpc";
 
 /**

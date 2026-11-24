@@ -13,7 +13,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { SectionHeader } from "~/components/ui/section-header";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { linkClass, TagsSection } from "~/features/api-gateway/components/parts";
 import { dnsTarget, mappedApi, mappingUrl, statusTone } from "~/features/api-gateway/domains";
 import { fullTimestamp } from "~/lib/format";

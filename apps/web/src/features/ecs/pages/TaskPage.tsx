@@ -18,7 +18,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { cpuLabel, fullTimestamp, imageLabel, memoryLabel } from "~/lib/format";
 import { taskTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";

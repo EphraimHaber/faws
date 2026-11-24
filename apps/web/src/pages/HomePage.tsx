@@ -15,7 +15,7 @@ import { ScrollList } from "~/components/ui/scroll-list";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
 import { TextAction } from "~/components/ui/text-action";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useScope } from "~/stores/scope";
 import { clusterRef, serviceRef } from "~/features/ecs/refs";
 import { deployedUntil } from "~/lib/deployment";
 import { serviceTone } from "~/lib/status";

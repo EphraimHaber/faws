@@ -5,7 +5,7 @@ import * as React from "react";
 
 import { Segmented } from "~/components/segmented";
 import { Button } from "~/components/ui/button";
-import { useS3Scope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/stores/scope";
 import { useS3Capabilities } from "~/features/s3/useS3Capabilities";
 import { trpcClient } from "~/lib/trpc";
 import { uploadFile, type UploadHandle, type UploadTransport } from "~/lib/s3-upload";

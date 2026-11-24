@@ -21,6 +21,13 @@ function allEntries(navigate = () => {}): PaletteEntry[] {
 }
 
 describe("navEntries", () => {
+  it("offers nothing from a provider that is switched off, and keeps the app's own pages", () => {
+    const ids = navEntries(() => {}, EVERYTHING, ["kubernetes", "s3"]).map((entry) => entry.id);
+    expect(ids.some((id) => id.startsWith("nav:ecs"))).toBe(false);
+    expect(ids).toContain("nav:kubernetes");
+    expect(ids).toContain("nav:sessions");
+  });
+
   it("offers every available service and its sections", () => {
     const ids = new Set(allEntries().map((entry) => entry.id));
     for (const service of SERVICES) {

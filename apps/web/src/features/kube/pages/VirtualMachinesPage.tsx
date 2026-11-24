@@ -13,7 +13,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
-import { useKubeScope } from "~/contexts/ScopeContext";
+import { useKubeScope } from "~/stores/scope";
 import { KubeScopePicker } from "~/features/kube/components/KubeScopePicker";
 import { VmSshDialog } from "~/features/kube/components/VmSshDialog";
 import { hasNoCli, NoKubectl } from "~/features/kube/components/NoKubectl";

@@ -11,7 +11,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useScope } from "~/stores/scope";
 import { AuthorizersPane } from "~/features/api-gateway/components/AuthorizersPane";
 import { DeploymentsPane } from "~/features/api-gateway/components/DeploymentsPane";
 import { ExportPane } from "~/features/api-gateway/components/ExportPane";

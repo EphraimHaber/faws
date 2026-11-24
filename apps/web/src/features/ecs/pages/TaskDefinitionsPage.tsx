@@ -11,7 +11,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { taskDefinitionRef } from "~/features/ecs/refs";
 import { cpuLabel, memoryLabel } from "~/lib/format";
 import { trpc } from "~/lib/trpc";

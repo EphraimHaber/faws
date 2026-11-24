@@ -10,7 +10,7 @@ import { useSettings } from "~/stores/settings";
  * here without a refetch, and the first paint already has them.
  */
 export function useS3Connections(): S3Connection[] {
-  const connections = useSettings((state) => state.settings.s3.connections);
+  const connections = useSettings((state) => state.settings.providers.s3.connections);
   return React.useMemo(
     () => [...connections].toSorted((a, b) => a.name.localeCompare(b.name)),
     [connections],

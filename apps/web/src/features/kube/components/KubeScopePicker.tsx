@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Boxes, Check, Ship } from "lucide-react";
 import * as React from "react";
 
-import { useKubeScope } from "~/contexts/ScopeContext";
+import { useKubeScope } from "~/stores/scope";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
 

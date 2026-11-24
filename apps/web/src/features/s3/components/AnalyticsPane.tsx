@@ -10,7 +10,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Spinner } from "~/components/ui/spinner";
-import { useS3Scope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/stores/scope";
 import { useS3Capabilities } from "~/features/s3/useS3Capabilities";
 import { startScan, type RunningScan } from "~/lib/s3-scan";
 import { trpc } from "~/lib/trpc";

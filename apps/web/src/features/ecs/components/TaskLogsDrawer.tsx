@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, X } from "lucide-react";
 
 import { PinButton } from "~/components/PinButton";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { LogsPane } from "~/features/ecs/components/LogsPane";
 import { taskRef } from "~/features/ecs/refs";
 import { StatusDot } from "~/components/ui/status-dot";

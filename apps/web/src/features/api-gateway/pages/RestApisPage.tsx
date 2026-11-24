@@ -12,7 +12,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { TruncatedNote } from "~/features/api-gateway/components/parts";
 import { restApiRef } from "~/features/api-gateway/refs";
 import { fullTimestamp } from "~/lib/format";

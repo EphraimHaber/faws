@@ -37,13 +37,13 @@ export function createSettingsConnectionStore(
   store: () => SettingsStore = settingsStore,
 ): S3ConnectionStore {
   return {
-    list: () => Promise.resolve([...store().get().settings.s3.connections]),
+    list: () => Promise.resolve([...store().get().settings.providers.s3.connections]),
 
     get: (id) =>
       Promise.resolve(
         store()
           .get()
-          .settings.s3.connections.find((entry) => entry.id === id) ?? null,
+          .settings.providers.s3.connections.find((entry) => entry.id === id) ?? null,
       ),
 
     put: (connection) => {

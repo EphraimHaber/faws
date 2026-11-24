@@ -29,9 +29,13 @@ module.exports = {
     {
       name: "contracts-stay-runtime-free",
       severity: "warn",
-      comment: "Contracts are zod and types, imported by every layer including the renderer.",
+      comment:
+        "Contracts are zod and types, imported by every layer including the renderer. Provider manifests are plain data and the settings file is shaped by them, so those alone may be imported.",
       from: { path: "^packages/contracts/" },
-      to: { path: "^packages/(core|lib-[^/]+|providers)/" },
+      to: {
+        path: "^packages/(core|lib-[^/]+|providers)/",
+        pathNot: "^packages/providers/[^/]+/src/manifest\\.ts$",
+      },
     },
     {
       name: "kit-never-imports-providers",

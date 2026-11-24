@@ -39,14 +39,14 @@ describe("the settings namespace", () => {
     const unsubscribe = settingsStore().subscribe((_, originId) => seen.push(originId));
 
     const updated = await caller.settings.update({
-      patch: { appearance: { theme: "light" }, scope: { profile: "prod" } },
+      patch: { appearance: { theme: "light" }, providers: { aws: { scope: { profile: "prod" } } } },
       originId: "tab-1",
     });
     expect(updated.settings.appearance.theme).toBe("light");
     expect(seen).toEqual(["tab-1"]);
     unsubscribe();
 
-    expect((await caller.settings.get()).settings.scope.profile).toBe("prod");
+    expect((await caller.settings.get()).settings.providers.aws.scope.profile).toBe("prod");
 
     await settingsStore().flush();
     const onDisk = JSON.parse(fs.readFileSync(file, "utf8")) as Settings;

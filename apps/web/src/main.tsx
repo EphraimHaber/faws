@@ -4,7 +4,6 @@ import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { ScopeProvider } from "~/contexts/ScopeContext";
 import { ThemeProvider } from "~/contexts/ThemeContext";
 import { queryClient } from "~/lib/query-client";
 import { router } from "~/router";
@@ -24,9 +23,7 @@ createRoot(rootElement).render(
     <QueryClientProvider client={queryClient}>
       <HotkeysProvider defaultOptions={{ hotkey: { preventDefault: true } }}>
         <ThemeProvider>
-          <ScopeProvider>
-            <RouterProvider router={router} />
-          </ScopeProvider>
+          <RouterProvider router={router} />
         </ThemeProvider>
       </HotkeysProvider>
     </QueryClientProvider>

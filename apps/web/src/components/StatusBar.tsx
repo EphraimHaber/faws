@@ -3,7 +3,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { Pause, RotateCw, TerminalSquare, Timer } from "lucide-react";
 
 import { Kbd } from "~/components/ui/kbd";
-import { REFRESH_CHOICES, useKubeScope, useScope } from "~/contexts/ScopeContext";
+import { REFRESH_CHOICES, useKubeScope, useScope } from "~/stores/scope";
 import { useAutoRefresh } from "~/hooks/useAutoRefresh";
 import { describe } from "~/lib/hotkeys";
 import { useSessions } from "~/stores/sessions";

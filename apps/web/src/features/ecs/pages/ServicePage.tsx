@@ -30,7 +30,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useScope } from "~/stores/scope";
 import { fullTimestamp } from "~/lib/format";
 import { classifyEvent, type ClassifiedEvent, deployedUntil } from "~/lib/deployment";
 import { describe } from "~/lib/hotkeys";

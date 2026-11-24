@@ -8,7 +8,7 @@ import { CopyButton } from "~/components/ui/copy-button";
 import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { JsonText } from "~/features/api-gateway/components/JsonText";
 import { StageSelect } from "~/features/api-gateway/components/parts";
 import { parseText, useSearchState } from "~/hooks/useSearchState";

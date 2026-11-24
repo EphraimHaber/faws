@@ -3,7 +3,7 @@ import { Globe, KeyRound, Network } from "lucide-react";
 
 import { SectionCard } from "~/components/section-card";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useScope } from "~/stores/scope";
 import { trpc } from "~/lib/trpc";
 
 /** The front door of the API Gateway section. */

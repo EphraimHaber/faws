@@ -12,7 +12,7 @@ import {
 } from "~/components/form";
 import { Dialog } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
-import { useS3Scope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/stores/scope";
 import { trpc } from "~/lib/trpc";
 
 /**

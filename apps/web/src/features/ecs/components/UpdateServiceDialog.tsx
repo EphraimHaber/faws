@@ -16,7 +16,7 @@ import {
 import { DialogFrame } from "~/components/Dialog";
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kbd";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { trpc } from "~/lib/trpc";
 
 /**

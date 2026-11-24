@@ -14,7 +14,7 @@ import { VersionsPane } from "~/features/s3/components/VersionsPane";
 import { Badge } from "~/components/ui/badge";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel } from "~/components/ui/panel";
-import { useS3Scope, useScope } from "~/contexts/ScopeContext";
+import { useS3Scope, useScope } from "~/stores/scope";
 import { ConnectionPicker } from "~/features/s3/components/ConnectionPicker";
 import { useS3Capabilities } from "~/features/s3/useS3Capabilities";
 import { useTabSearch } from "~/hooks/useTabSearch";

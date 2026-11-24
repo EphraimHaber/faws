@@ -11,7 +11,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows } from "~/components/ui/spinner";
 import { StatusDot, type StatusTone } from "~/components/ui/status-dot";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useScope } from "~/stores/scope";
 import { LogsPane } from "~/features/ecs/components/LogsPane";
 import { CountMeter } from "~/components/meter";
 import { type ClassifiedEvent } from "~/lib/deployment";

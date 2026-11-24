@@ -18,7 +18,7 @@ import { LoadingRows } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
 import { Button } from "~/components/ui/button";
 import { TextAction } from "~/components/ui/text-action";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { useRecordVisit } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
 import { cpuLabel, memoryLabel, uptimeLabel } from "~/lib/format";

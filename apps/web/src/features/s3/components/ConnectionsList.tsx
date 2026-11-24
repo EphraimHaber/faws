@@ -7,7 +7,7 @@ import { EntityRow } from "~/components/entity-row";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
-import { useScope } from "~/contexts/ScopeContext";
+import { useScope } from "~/stores/scope";
 import { ConnectionDialog } from "~/features/s3/components/ConnectionDialog";
 import { useS3Connections } from "~/features/s3/useS3Connections";
 import { trpc } from "~/lib/trpc";

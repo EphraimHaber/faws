@@ -8,7 +8,7 @@ import {
 } from "@faws/contracts";
 import * as React from "react";
 
-import { useScope } from "~/contexts/ScopeContext";
+import { useScope } from "~/stores/scope";
 import { withScopedLink } from "~/features/kube/scope-link";
 import { applyRecent, useSettings } from "./settings";
 

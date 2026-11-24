@@ -644,6 +644,15 @@ importers:
       '@faws/kit':
         specifier: workspace:*
         version: link:../kit
+      '@faws/provider-aws':
+        specifier: workspace:*
+        version: link:../providers/aws
+      '@faws/provider-kubernetes':
+        specifier: workspace:*
+        version: link:../providers/kubernetes
+      '@faws/provider-s3compat':
+        specifier: workspace:*
+        version: link:../providers/s3compat
       zod:
         specifier: 'catalog:'
         version: 4.6.5

@@ -10,7 +10,7 @@ import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { SectionHeader } from "~/components/ui/section-header";
 import { textActionClass } from "~/components/ui/text-action";
-import { useAwsScope, useKubeScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useKubeScope } from "~/stores/scope";
 import { hasNoCli } from "~/features/kube/components/NoKubectl";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { useFilterSearch } from "~/hooks/useSearchState";

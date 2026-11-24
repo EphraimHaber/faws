@@ -10,10 +10,12 @@ Desktop operations console for AWS, Kubernetes and S3-compatible storage. Read `
 
 ## Settings file
 - `packages/contracts/src/settings.ts` is the schema. Give every leaf a `.catch(default)`: that fallback is the single definition of the default, and one bad stored value costs only itself.
-- Adding a section needs no migration. Moving or renaming data does:
-  - Append a raw migration in `apps/server/src/api/settings/migrations.ts`. Migrations transform plain objects and never use the current schema.
-  - Bump `SETTINGS_VERSION`.
-  - Freeze a fixture of the old file in `__fixtures__/`.
+- Adding a section needs no migration. Moving or renaming data in a file a release has shipped does:
+  1. Freeze a fixture of the current file as `apps/server/src/api/settings/__fixtures__/settings-v<N>.json` if there isn't one. Never edit a committed fixture.
+  2. Bump `SETTINGS_VERSION` and append a raw migration in `migrations.ts`. Migrations transform plain objects and never use the current schema.
+  3. Move the value's `read` in `fixtures.test.ts` to where it now lands, and add a fixture for the new version.
+- Until the first release, reshape freely: there are no users' files to migrate.
+- The renderer reads settings from the Zustand store in `apps/web/src/stores/settings.ts` through narrow selector hooks (`stores/scope.ts` for provider scope and on/off). Use a selector hook, never a React context, for state that the server persists.
 
 ## Safety
 - Every tRPC mutation declares `.meta({ effect })`: `local`, `write` or `destructive`. The tRPC layer enforces write mode from it, and `apps/server/src/router.test.ts` fails on an undeclared one.

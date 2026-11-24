@@ -7,7 +7,7 @@ import { SearchField } from "~/components/SearchField";
 import { Button } from "~/components/ui/button";
 import { Kbd } from "~/components/ui/kbd";
 import { Spinner } from "~/components/ui/spinner";
-import { useS3Scope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/stores/scope";
 import { parseText, useSearchState } from "~/hooks/useSearchState";
 import { startScan, type RunningScan } from "~/lib/s3-scan";
 import { cn } from "~/lib/utils";

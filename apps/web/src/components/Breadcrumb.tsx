@@ -3,7 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import * as React from "react";
 
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { serviceForPath } from "~/services/registry";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";

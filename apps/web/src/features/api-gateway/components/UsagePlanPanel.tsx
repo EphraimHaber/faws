@@ -18,7 +18,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { SectionHeader } from "~/components/ui/section-header";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { linkClass, TagsSection } from "~/features/api-gateway/components/parts";
 import { limitsLabel, quotaLabel } from "~/features/api-gateway/usage-plans";
 import { trpc } from "~/lib/trpc";

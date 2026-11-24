@@ -1,7 +1,7 @@
 import { s3CapabilitiesFor, type S3Capabilities } from "@faws/contracts";
 import * as React from "react";
 
-import { useScope } from "~/contexts/ScopeContext";
+import { useScope } from "~/stores/scope";
 import { useS3Connections } from "~/features/s3/useS3Connections";
 
 /**

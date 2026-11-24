@@ -14,7 +14,7 @@ import {
 import { Dialog } from "~/components/Dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { useS3Scope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/stores/scope";
 import { trpc } from "~/lib/trpc";
 
 /** Keys listed in full before the list is summarised instead. */

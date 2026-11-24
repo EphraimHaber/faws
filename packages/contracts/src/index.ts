@@ -5,6 +5,7 @@ export * from "./ecs.ts";
 export * from "./errors.ts";
 export * from "./exec.ts";
 export * from "./kube.ts";
+export * from "./providers.ts";
 export * from "./recents.ts";
 export * from "./s3-connections.ts";
 export * from "./s3.ts";

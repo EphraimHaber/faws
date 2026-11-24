@@ -12,7 +12,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
-import { useKubeScope } from "~/contexts/ScopeContext";
+import { setKubeScope, useKubeScope } from "~/stores/scope";
 import { KubeScopePicker } from "~/features/kube/components/KubeScopePicker";
 import { hasNoCli, NoKubectl } from "~/features/kube/components/NoKubectl";
 import { kubeContextRef } from "~/features/kube/scope-link";
@@ -23,7 +23,6 @@ import type { ExecTarget } from "~/lib/terminal/handshake";
 import { trpc } from "~/lib/trpc";
 import { recentActions } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
-import { updateSettings } from "~/stores/settings";
 
 /**
  * Pods in the scoped namespace, listed for one reason: getting a shell in one.
@@ -259,7 +258,7 @@ function useAdoptLinkedScope() {
 
   React.useLayoutEffect(() => {
     if (context === undefined) return;
-    updateSettings({ kube: { context, namespace: namespace ?? "" } });
+    setKubeScope({ context, namespace: namespace ?? "" });
     void navigate({
       to: ".",
       search: ({ context: _context, namespace: _namespace, ...rest }) => rest,

@@ -18,7 +18,6 @@ import {
   recentOpSchema,
   settingsPatchSchema,
   silenceOpSchema,
-  silencedSettingsSchema,
   tableLayoutOpSchema,
 } from "@faws/contracts";
 import { z } from "zod";
@@ -51,25 +50,6 @@ export const settingsRouter = router({
     .meta({ effect: "local" })
     .input(z.object({ op: tableLayoutOpSchema, originId }))
     .mutation(({ input }) => settingsStore().applyTableLayout(input.op, input.originId ?? null)),
-
-  /**
-   * Adopts what a browser had in `localStorage` before the server owned any of
-   * this. Its own procedure rather than an `update` because it carries the
-   * silence maps, which the patch schema excludes, and because it has to be a
-   * no-op once settings exist - so two tabs racing on first load is harmless.
-   */
-  importLegacy: publicProcedure
-    .meta({ effect: "local" })
-    .input(
-      z.object({
-        patch: settingsPatchSchema,
-        silenced: silencedSettingsSchema.partial().default({}),
-        originId,
-      }),
-    )
-    .mutation(({ input }) =>
-      settingsStore().importLegacy(input.patch, input.silenced, input.originId ?? null),
-    ),
 
   reset: publicProcedure
     .meta({ effect: "local" })

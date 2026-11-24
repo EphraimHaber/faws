@@ -24,7 +24,7 @@ import { ResourcePicker } from "~/components/ResourcePicker";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Segmented } from "~/components/segmented";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { instanceActions, instanceRef, sshHostRef } from "~/lib/terminal/connectable";
 import { trpc } from "~/lib/trpc";
 import { recentActions } from "~/stores/recents";

@@ -25,7 +25,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Spinner } from "~/components/ui/spinner";
 import { DisabledHint, useDisabledReason } from "~/components/WriteGuard";
-import { useS3Scope } from "~/contexts/ScopeContext";
+import { useS3Scope } from "~/stores/scope";
 import { scopeKey } from "~/features/s3/scopeKey";
 import { fullTimestamp } from "~/lib/format";
 import { downloadObject, fetchRange, fetchText, objectUrl } from "~/lib/s3-bytes";

@@ -2,7 +2,7 @@ import { useHotkeys } from "@tanstack/react-hotkeys";
 import { Check, Globe2 } from "lucide-react";
 import * as React from "react";
 
-import { useScope } from "~/contexts/ScopeContext";
+import { useScope } from "~/stores/scope";
 import { AWS_REGION_GROUPS } from "~/lib/aws-regions";
 import { describe } from "~/lib/hotkeys";
 import { useOverlay, useOverlaysOpen } from "~/stores/overlays";

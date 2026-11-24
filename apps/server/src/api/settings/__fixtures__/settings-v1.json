@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "providers": {
+    "aws": { "enabled": true, "scope": { "profile": "prod", "region": "eu-west-1" } },
+    "kubernetes": { "enabled": false, "scope": { "context": "lab", "namespace": "payments" } },
+    "s3": { "enabled": true, "scope": { "connectionId": "" }, "connections": [] }
+  },
+  "onboarding": { "completed": true },
+  "refresh": { "seconds": 60 },
+  "logs": { "timestamps": "full", "gutter": 90, "taskGutter": 128 },
+  "appearance": { "theme": "light" },
+  "layout": { "sidebarWidth": 300 },
+  "terminal": { "dockHeight": 320, "recordByDefault": false, "ssmBash": true },
+  "ecs": { "deployedLingerSeconds": 300 },
+  "silenced": { "dismissed": {}, "muted": {} }
+}

@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { useScope } from "~/contexts/ScopeContext";
+import { useScope } from "~/stores/scope";
 
 /**
  * Re-runs every mounted query on the scope's refresh interval and exposes the

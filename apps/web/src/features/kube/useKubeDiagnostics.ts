@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { useKubeScope } from "~/contexts/ScopeContext";
+import { useKubeScope, useProviderEnabled } from "~/stores/scope";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -18,8 +18,11 @@ import { trpc } from "~/lib/trpc";
  */
 export function useKubeDiagnostics() {
   const { context } = useKubeScope();
+  // Switched off, nothing spawns kubectl - not even to say it is missing.
+  const enabled = useProviderEnabled("kubernetes");
   return useQuery({
     ...trpc.kube.diagnostics.queryOptions(context ? { context } : {}),
+    enabled,
     staleTime: 30_000,
     retry: false,
   });
