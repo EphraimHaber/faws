@@ -16,12 +16,14 @@ import {
   BrowserWindow,
   ipcMain,
   Menu,
+  session,
   shell,
   type MenuItemConstructorOptions,
 } from "electron";
 
 import { parseBackendPort } from "./backendPort.ts";
 import { DEFAULT_NAV, type NavMenuItem, navMenuItems, sanitizeNavItems } from "./menu.ts";
+import { followAppTrust } from "./trustStore.ts";
 import {
   checkForUpdates,
   configureUpdates,
@@ -46,6 +48,11 @@ function resolveServerEntry(): string {
   return path.join(process.resourcesPath, "server", "main.mjs");
 }
 
+/** Where the server keeps logs and settings; the main process reads its trust store there. */
+function dataDir(): string {
+  return process.env["FAWS_DATA_DIR"] ?? app.getPath("userData");
+}
+
 function logFilePath(): string {
   return path.join(app.getPath("userData"), "logs", "faws-server.log");
 }
@@ -62,7 +69,7 @@ function startServer(): Promise<{ port: number }> {
         NODE_ENV: process.env["NODE_ENV"] ?? (isDevelopment ? "development" : "production"),
         FAWS_HOST: "127.0.0.1",
         FAWS_PORT: process.env["FAWS_PORT"] ?? "0",
-        FAWS_DATA_DIR: process.env["FAWS_DATA_DIR"] ?? app.getPath("userData"),
+        FAWS_DATA_DIR: dataDir(),
         ...(isDevelopment ? {} : { FAWS_WEB_DIST: path.join(process.resourcesPath, "web") }),
       },
     }) as ChildProcessByStdio<null, Readable, Readable>;
@@ -232,6 +239,12 @@ async function resolveServer(): Promise<number> {
 }
 
 void app.whenReady().then(async () => {
+  // Before any request: the window and the updater (its own "electron-updater"
+  // partition) honour the same certificates the server does.
+  followAppTrust(dataDir(), [
+    session.defaultSession,
+    session.fromPartition("electron-updater", { cache: false }),
+  ]);
   const port = await resolveServer();
   serverOrigin = `http://127.0.0.1:${port}`;
   buildMenu();
