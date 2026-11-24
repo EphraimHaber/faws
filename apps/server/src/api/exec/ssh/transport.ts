@@ -21,7 +21,7 @@ import { ssmClient } from "@faws/core";
 import { StartSessionCommand, TerminateSessionCommand } from "@aws-sdk/client-ssm";
 
 import { ExecSessionError } from "../errors.ts";
-import { spawnTunnel } from "../pty.ts";
+import { spawnTunnel } from "@faws/kit/server";
 import { resolveSessionPlugin } from "../sessionPlugin.ts";
 
 export interface OpenTransport {

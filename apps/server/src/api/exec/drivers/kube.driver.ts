@@ -26,7 +26,7 @@ import {
   kubeScopeFlags,
 } from "../kube/argv.ts";
 import { classifyKubeOutput, translateKubeError } from "../kube/translate.ts";
-import { spawnInteractive, type InteractiveChild } from "../pty.ts";
+import { spawnInteractive, type InteractiveChild } from "@faws/kit/server";
 import { resolveKubeBinary } from "../../kube/binaries.ts";
 import { runKubeJson } from "../../kube/cli.ts";
 import {

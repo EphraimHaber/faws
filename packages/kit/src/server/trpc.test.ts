@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { DomainError } from "../errors.ts";
 import { setDestructiveAllowed, setReadOnly } from "../guard.ts";
-import { publicProcedure, router, undeclaredMutations } from "./index.ts";
+import { publicProcedure, router, undeclaredMutations } from "./trpc.ts";
 
 class GoneError extends DomainError {
   readonly kind = "GoneError";

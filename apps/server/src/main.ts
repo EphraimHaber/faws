@@ -31,13 +31,17 @@ import { flushSettings, loadSettings, settingsStore } from "./api/settings/setti
 import { applyTrust } from "./api/trust/trust.ts";
 import { appRouter, type AppRouter } from "./router.ts";
 import { createIndexHtmlRenderer } from "./shared/indexHtml.ts";
-import { getRootLogger } from "./shared/logger.ts";
+import { createLogger, getRootLogger } from "./shared/logger.ts";
+import { setLoggerFactory } from "@faws/kit/server";
 import {
   closeSocketIO,
   getExecNamespace,
   getS3ScanNamespace,
   setupSocketIO,
 } from "./shared/socket-io.ts";
+
+// Provider packages log through kit; route them into the server's own log.
+setLoggerFactory(createLogger);
 
 const HOST = process.env["FAWS_HOST"] ?? "127.0.0.1";
 const PORT = process.env["FAWS_PORT"] ? Number(process.env["FAWS_PORT"]) : 0;

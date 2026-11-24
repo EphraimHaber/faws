@@ -16,6 +16,10 @@ import { execHandshakeSchema, execPromptResponseSchema } from "@faws/contracts";
 import { createLogger } from "../../shared/logger.ts";
 import type { ExecNamespace } from "../../shared/socket-io.ts";
 import { isExecSessionError } from "./errors.ts";
+import type {
+  ExecContext as KitExecContext,
+  ExecDriverFactory as KitExecDriverFactory,
+} from "@faws/kit/server";
 import {
   answerSessionPrompt,
   attachSession,
@@ -28,47 +32,14 @@ import {
 
 const log = createLogger("exec");
 
-export interface ExecDriver {
-  write(chunk: Uint8Array): void;
-  resize(cols: number, rows: number): void;
-  /** Idempotent: every teardown path funnels here, and several can race. */
-  close(reason: string): void | Promise<void>;
-}
+export type { ExecDriver, ExecSink } from "@faws/kit/server";
 
-/** What a driver can send back without knowing a socket exists. */
-export interface ExecSink {
-  data(chunk: Uint8Array): void;
-  exit(code: number | null, reason: string | null): void;
-  error(code: string, userMessage: string): void;
-  /** One line of connect progress, for the several-second paths. */
-  status(message: string): void;
-}
-
-export interface ExecContext {
-  readonly log: ReturnType<typeof createLogger>;
-  /**
-   * Asks the person something and waits. Rejects if they cancel, if the tab
-   * goes away, or on timeout - all three are refusals, never consent.
-   */
-  ask(prompt: ExecPrompt): Promise<ExecPromptResponse>;
-  /**
-   * Aborts when the client disconnects, so a slow connect actually cancels its
-   * AWS calls instead of finishing into a socket nobody is holding.
-   */
-  readonly signal: AbortSignal;
-}
-
-/**
- * Async because every driver awaits before its first byte - ExecuteCommand,
- * StartSession, an SSH handshake. A synchronous factory would force each one to
- * fire-and-forget its setup and hand-roll a buffer for input that arrives
- * before the connection is up.
- */
-export type ExecDriverFactory = (
-  auth: ExecHandshakeAuth,
-  sink: ExecSink,
-  ctx: ExecContext,
-) => Promise<ExecDriver>;
+export type ExecContext = KitExecContext<ExecPrompt, ExecPromptResponse>;
+export type ExecDriverFactory = KitExecDriverFactory<
+  ExecHandshakeAuth,
+  ExecPrompt,
+  ExecPromptResponse
+>;
 
 const drivers = new Map<ExecHandshakeAuth["kind"], ExecDriverFactory>();
 

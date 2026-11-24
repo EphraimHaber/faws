@@ -1,35 +1,24 @@
 /**
- * Procedures that belong to a provider, refused while it is switched off.
+ * The server's answer to "is this provider on", and the procedures gated on it.
  *
- * Checked on every call rather than by leaving routers unmounted, so turning a
- * provider back on in Settings takes effect without a restart, and a stale tab
- * or a forgotten poll gets a clear "switched off" instead of reading
- * `~/.aws` or spawning `kubectl` behind the user's back.
+ * Providers build their routers from `providerProcedure` in `@faws/kit/server`;
+ * this module plugs the settings file in behind it, and adds the one gate that
+ * belongs to the host: storage, whose owner depends on the scope.
  */
-import { manifestFor, type ProviderId } from "@faws/contracts";
-import { ProviderDisabledError } from "@faws/kit";
+import { isProviderId, manifestFor, type ProviderId } from "@faws/contracts";
+import { assertProviderEnabled, providerProcedure, setProviderGate } from "@faws/kit/server";
 
 import { settingsStore } from "../api/settings/settings.instance.ts";
-import { middleware, publicProcedure, toTrpcError } from "./index.ts";
+import { middleware, publicProcedure } from "./index.ts";
 
 export function isProviderEnabled(id: ProviderId): boolean {
   return settingsStore().get().settings.providers[id].enabled;
 }
 
-function assertEnabled(id: ProviderId): void {
-  if (!isProviderEnabled(id)) {
-    throw toTrpcError(new ProviderDisabledError(id, manifestFor(id).label));
-  }
-}
-
-export function providerProcedure(id: ProviderId) {
-  return publicProcedure.use(
-    middleware(({ next }) => {
-      assertEnabled(id);
-      return next();
-    }),
-  );
-}
+setProviderGate({
+  isEnabled: (id) => !isProviderId(id) || isProviderEnabled(id),
+  label: (id) => (isProviderId(id) ? manifestFor(id).label : id),
+});
 
 export const awsProcedure = providerProcedure("aws");
 export const kubernetesProcedure = providerProcedure("kubernetes");
@@ -44,7 +33,7 @@ export const s3EndpointsProcedure = providerProcedure("s3");
 export const storageProcedure = publicProcedure.use(
   middleware(async ({ getRawInput, next }) => {
     const owner = storageOwner(await getRawInput());
-    if (owner) assertEnabled(owner);
+    if (owner) assertProviderEnabled(owner);
     return next();
   }),
 );

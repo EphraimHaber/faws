@@ -13,7 +13,7 @@
  * The search itself is `shared/binaries.ts`, which is where the reason a
  * Homebrew binary is invisible to a GUI-launched app is written down.
  */
-import { forgetBinary, resolveBinary, type BinaryResolution } from "../../shared/binaries.ts";
+import { forgetBinary, resolveBinary, type BinaryResolution } from "@faws/kit/server";
 
 export type KubeToolName = "kubectl" | "oc" | "virtctl";
 

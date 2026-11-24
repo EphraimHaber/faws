@@ -9,7 +9,7 @@
  */
 import * as path from "node:path";
 
-import { type BinarySource, forgetBinary, resolveBinary } from "../../shared/binaries.ts";
+import { type BinarySource, forgetBinary, resolveBinary } from "@faws/kit/server";
 
 export type PluginSource = BinarySource;
 

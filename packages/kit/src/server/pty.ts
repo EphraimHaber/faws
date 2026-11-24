@@ -25,7 +25,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { Duplex } from "node:stream";
 
-import { createLogger } from "../../shared/logger.ts";
+import { createLogger } from "./log.ts";
 
 const log = createLogger("exec");
 
