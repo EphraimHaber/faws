@@ -80,7 +80,7 @@ export function BucketsPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={buckets} refreshLabel="Refresh buckets">
         <PanelTitle>Buckets</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {buckets.isPending ? "…" : rows.length}

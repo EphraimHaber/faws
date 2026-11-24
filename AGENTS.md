@@ -17,6 +17,10 @@ Desktop operations console for AWS, Kubernetes and S3-compatible storage. Read `
 - Until the first release, reshape freely: there are no users' files to migrate.
 - The renderer reads settings from the Zustand store in `apps/web/src/stores/settings.ts` through narrow selector hooks (`stores/scope.ts` for provider scope and on/off). Use a selector hook, never a React context, for state that the server persists.
 
+## UI patterns
+- Every widget that shows fetched data offers refresh and its age. A panel passes its queries to `<PanelHeader refresh={query}>`. Anything else uses `RefreshControl`, or `useRefreshable` to draw its own, from `~/components/refresh`.
+- Relative times on screen read `useClock()`, one shared timer, never their own interval.
+
 ## Safety
 - Every tRPC mutation declares `.meta({ effect })`: `local`, `write` or `destructive`. The tRPC layer enforces write mode from it, and `apps/server/src/router.test.ts` fails on an undeclared one.
 - Expected failures extend `DomainError` from `@faws/kit` and are thrown directly. The transport turns them into their declared status and `error.data.cause`.
