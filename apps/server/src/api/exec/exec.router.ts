@@ -38,6 +38,7 @@ export const execRouter = router({
   recordings: publicProcedure.query(() => listRecordings()),
 
   deleteRecording: publicProcedure
+    .meta({ effect: "local" })
     .input(z.object({ path: z.string().min(1) }))
     .mutation(({ input }) => {
       deleteRecording(input.path);

@@ -33,18 +33,22 @@ export const settingsRouter = router({
   get: publicProcedure.query(() => settingsStore().get()),
 
   update: publicProcedure
+    .meta({ effect: "local" })
     .input(z.object({ patch: settingsPatchSchema, originId }))
     .mutation(({ input }) => settingsStore().update(input.patch, input.originId ?? null)),
 
   silence: publicProcedure
+    .meta({ effect: "local" })
     .input(z.object({ op: silenceOpSchema, originId }))
     .mutation(({ input }) => settingsStore().applySilence(input.op, input.originId ?? null)),
 
   recents: publicProcedure
+    .meta({ effect: "local" })
     .input(z.object({ op: recentOpSchema, originId }))
     .mutation(({ input }) => settingsStore().applyRecents(input.op, input.originId ?? null)),
 
   tables: publicProcedure
+    .meta({ effect: "local" })
     .input(z.object({ op: tableLayoutOpSchema, originId }))
     .mutation(({ input }) => settingsStore().applyTableLayout(input.op, input.originId ?? null)),
 
@@ -55,6 +59,7 @@ export const settingsRouter = router({
    * no-op once settings exist - so two tabs racing on first load is harmless.
    */
   importLegacy: publicProcedure
+    .meta({ effect: "local" })
     .input(
       z.object({
         patch: settingsPatchSchema,
@@ -67,6 +72,7 @@ export const settingsRouter = router({
     ),
 
   reset: publicProcedure
+    .meta({ effect: "local" })
     .input(z.object({ originId }).default({}))
     .mutation(({ input }) => settingsStore().reset(input.originId ?? null)),
 });

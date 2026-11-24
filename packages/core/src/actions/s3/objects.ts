@@ -16,7 +16,7 @@ import type { S3Scope } from "@faws/contracts";
 
 import { callAws } from "../../clients.ts";
 import { s3ClientForBucket } from "../../fetchers/s3/buckets.ts";
-import { assertDestructive, assertMutable } from "../../readOnlyGuard.ts";
+import { assertDestructive, assertMutable } from "@faws/kit/guard";
 
 /** `CopyObject` refuses anything larger, which then needs a multipart copy. */
 const COPY_LIMIT = 5 * 1024 * 1024 * 1024;

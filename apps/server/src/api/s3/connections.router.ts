@@ -30,27 +30,33 @@ export const s3ConnectionsRouter = router({
    */
   credentials: publicProcedure.query(() => guard(() => credentialStore().summaries())),
 
-  save: publicProcedure.input(s3ConnectionInputSchema).mutation(({ input }) =>
-    guard(async () => {
-      const connection = await saveConnection(input);
-      // Credentials and certificates are read once when a client is built, so
-      // an edit that is not followed by this is an edit that does not apply.
-      invalidateConnection(connection.id);
-      log.info(
-        { id: connection.id, endpoint: connection.endpoint, verify: connection.tls.verify },
-        "s3 connection saved",
-      );
-      return connection;
-    }),
-  ),
+  save: publicProcedure
+    .meta({ effect: "local" })
+    .input(s3ConnectionInputSchema)
+    .mutation(({ input }) =>
+      guard(async () => {
+        const connection = await saveConnection(input);
+        // Credentials and certificates are read once when a client is built, so
+        // an edit that is not followed by this is an edit that does not apply.
+        invalidateConnection(connection.id);
+        log.info(
+          { id: connection.id, endpoint: connection.endpoint, verify: connection.tls.verify },
+          "s3 connection saved",
+        );
+        return connection;
+      }),
+    ),
 
-  remove: publicProcedure.input(s3ConnectionRefSchema).mutation(({ input }) =>
-    guard(async () => {
-      await deleteConnection(input.id);
-      invalidateConnection(input.id);
-      return { ok: true } as const;
-    }),
-  ),
+  remove: publicProcedure
+    .meta({ effect: "local" })
+    .input(s3ConnectionRefSchema)
+    .mutation(({ input }) =>
+      guard(async () => {
+        await deleteConnection(input.id);
+        invalidateConnection(input.id);
+        return { ok: true } as const;
+      }),
+    ),
 
   /**
    * Tests what is in the form, saving nothing.
@@ -60,6 +66,7 @@ export const s3ConnectionsRouter = router({
    * pinning this one certificate, and turning verification off.
    */
   test: publicProcedure
+    .meta({ effect: "local" })
     .input(s3ConnectionInputSchema)
     .mutation(({ input }) => guard(() => probeConnection(input))),
 });

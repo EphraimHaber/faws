@@ -11,7 +11,7 @@ import { AwsRequestError } from "@faws/contracts";
 import { callAws } from "../../clients.ts";
 import { s3ClientForBucket } from "../../fetchers/s3/buckets.ts";
 import { connectionFor } from "../../s3/connections.ts";
-import { assertDestructive, assertMutable } from "../../readOnlyGuard.ts";
+import { assertDestructive, assertMutable } from "@faws/kit/guard";
 
 /**
  * How long a signed URL stays usable.

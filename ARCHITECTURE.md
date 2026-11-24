@@ -26,9 +26,10 @@ Internal packages are **just-in-time**: their `exports` point at TypeScript sour
 | Package | Role | May import |
 |---|---|---|
 | `@faws/shared` | Pure helpers: time, bytes, arn, glob, data dir | nothing internal |
-| `@faws/contracts` | Zod schemas and types every layer agrees on, including the settings file | `shared` |
+| `@faws/kit` | Provider SDK. `.`: `DomainError` and the shared errors; `./guard`: the write-mode switches; `./server`: the tRPC instance, effect meta and error classification | nothing internal |
+| `@faws/contracts` | Zod schemas and types every layer agrees on, including the settings file | `shared`, `kit` (root only) |
 | `@faws/socket-io-events` | Typed Socket.IO event maps | `contracts` |
-| `@faws/core` | AWS clients, fetchers and actions; the S3-compatible endpoint client and stores | `contracts`, `shared` |
+| `@faws/core` | AWS clients, fetchers and actions; the S3-compatible endpoint client and stores | `contracts`, `shared`, `kit/guard` |
 | `@faws/server` (app) | tRPC routers, socket namespaces, settings store, exec host | everything above |
 | `@faws/web` (app) | UI | `contracts`, `shared`, `socket-io-events`; **types only** from `@faws/server` |
 
@@ -38,12 +39,11 @@ Internal packages are **just-in-time**: their `exports` point at TypeScript sour
 
 The app is moving from "an AWS console with extras" to **providers and capabilities**:
 
-- **Provider.** AWS, Kubernetes, and S3-compatible storage are each a provider, which the user can switch on or off. Each one is declared once with `defineProvider` in a planned `@faws/kit` package. The tRPC router, routes, settings section, sidebar group, command palette entries and app menu are all derived from that declaration.
+- **Provider.** AWS, Kubernetes, and S3-compatible storage are each a provider, which the user can switch on or off. Each one is declared once with `defineProvider` in `@faws/kit`. The tRPC router, routes, settings section, sidebar group, command palette entries and app menu are all derived from that declaration.
 - **Capability.** A cross-provider interface such as `objectStorage`, `logs`, `terminal` or `workloads`. Generic UI is written once against a capability. For example, one bucket browser serves both AWS S3 and MinIO.
 - **Connection.** Where a provider points: an AWS profile and region, a kube context and namespace, or an S3 endpoint. Each provider has an active connection, stored as its scope.
 
 The planned packages are:
-- `packages/kit`: the provider SDK.
 - `packages/lib-aws` and `packages/lib-s3`: engines with no UI.
 - `packages/providers/{aws,kubernetes,s3compat}`: each with `./manifest`, `./contracts`, `./server` and `./web` subpaths.
 

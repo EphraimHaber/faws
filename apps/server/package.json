@@ -31,6 +31,7 @@
     "@fastify/static": "catalog:",
     "@faws/contracts": "workspace:*",
     "@faws/core": "workspace:*",
+    "@faws/kit": "workspace:*",
     "@faws/shared": "workspace:*",
     "@faws/socket-io-events": "workspace:*",
     "@trpc/server": "catalog:trpc",

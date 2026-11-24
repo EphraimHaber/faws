@@ -30,6 +30,7 @@ export const awsRouter = router({
   writeMode: publicProcedure.query(() => writeMode()),
 
   setWriteMode: publicProcedure
+    .meta({ effect: "local" })
     .input(z.object({ readOnly: z.boolean().optional(), destructive: z.boolean().optional() }))
     .mutation(({ input }) => {
       if (input.readOnly !== undefined) setReadOnly(input.readOnly);
@@ -44,8 +45,11 @@ export const awsRouter = router({
     }),
 
   /** Forces the next call to re-resolve credentials (post SSO login, etc). */
-  refreshCredentials: publicProcedure.input(scopeInput).mutation(({ input }) => {
-    invalidateScope(input);
-    return { ok: true } as const;
-  }),
+  refreshCredentials: publicProcedure
+    .meta({ effect: "local" })
+    .input(scopeInput)
+    .mutation(({ input }) => {
+      invalidateScope(input);
+      return { ok: true } as const;
+    }),
 });

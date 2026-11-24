@@ -82,6 +82,7 @@ export const s3ActionsRouter = router({
     ),
 
   createUpload: publicProcedure
+    .meta({ effect: "write", operation: "s3:PutObject" })
     .input(s3ScopeSchema.and(s3CreateUploadSchema))
     .mutation(({ input }) =>
       guard(async () => {
@@ -133,54 +134,64 @@ export const s3ActionsRouter = router({
    * useful for as long as it is valid, and a large upload outlives the URLs it
    * would have been given up front.
    */
-  presignPart: publicProcedure.input(s3PresignPartSchema).mutation(({ input }) =>
-    guard(async () => {
-      const session = findUpload(input.uploadToken);
-      if (!session?.uploadId) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "That upload is no longer open." });
-      }
-      const url = await presignUploadPartUrl(session.scope, {
-        bucket: session.bucket,
-        key: session.key,
-        uploadId: session.uploadId,
-        partNumber: input.partNumber,
-      });
-      return { url };
-    }),
-  ),
+  presignPart: publicProcedure
+    .meta({ effect: "write", operation: "s3:UploadPart" })
+    .input(s3PresignPartSchema)
+    .mutation(({ input }) =>
+      guard(async () => {
+        const session = findUpload(input.uploadToken);
+        if (!session?.uploadId) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "That upload is no longer open." });
+        }
+        const url = await presignUploadPartUrl(session.scope, {
+          bucket: session.bucket,
+          key: session.key,
+          uploadId: session.uploadId,
+          partNumber: input.partNumber,
+        });
+        return { url };
+      }),
+    ),
 
-  completeUpload: publicProcedure.input(s3CompleteUploadSchema).mutation(({ input }) =>
-    guard(async () => {
-      const session = findUpload(input.uploadToken);
-      if (!session?.uploadId) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "That upload is no longer open." });
-      }
+  completeUpload: publicProcedure
+    .meta({ effect: "write", operation: "s3:CompleteMultipartUpload" })
+    .input(s3CompleteUploadSchema)
+    .mutation(({ input }) =>
+      guard(async () => {
+        const session = findUpload(input.uploadToken);
+        if (!session?.uploadId) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "That upload is no longer open." });
+        }
 
-      const result = await completeMultipartUpload(session.scope, {
-        bucket: session.bucket,
-        key: session.key,
-        uploadId: session.uploadId,
-        parts: input.parts,
-        overwrite: session.overwrite,
-      });
+        const result = await completeMultipartUpload(session.scope, {
+          bucket: session.bucket,
+          key: session.key,
+          uploadId: session.uploadId,
+          parts: input.parts,
+          overwrite: session.overwrite,
+        });
 
-      closeUpload(input.uploadToken);
-      log.info(
-        { bucket: session.bucket, key: session.key, parts: input.parts.length },
-        "upload completed",
-      );
-      return result;
-    }),
-  ),
+        closeUpload(input.uploadToken);
+        log.info(
+          { bucket: session.bucket, key: session.key, parts: input.parts.length },
+          "upload completed",
+        );
+        return result;
+      }),
+    ),
 
-  abortUpload: publicProcedure.input(s3AbortUploadSchema).mutation(({ input }) =>
-    guard(async () => {
-      await discardUpload(input.uploadToken);
-      return { ok: true } as const;
-    }),
-  ),
+  abortUpload: publicProcedure
+    .meta({ effect: "write", operation: "s3:AbortMultipartUpload" })
+    .input(s3AbortUploadSchema)
+    .mutation(({ input }) =>
+      guard(async () => {
+        await discardUpload(input.uploadToken);
+        return { ok: true } as const;
+      }),
+    ),
 
   deleteObjects: publicProcedure
+    .meta({ effect: "destructive", operation: "s3:DeleteObjects" })
     .input(s3ScopeSchema.and(s3DeleteObjectsSchema))
     .mutation(({ input }) =>
       guard(async () => {
@@ -202,29 +213,34 @@ export const s3ActionsRouter = router({
       }),
     ),
 
-  copyObject: publicProcedure.input(s3ScopeSchema.and(s3CopyObjectSchema)).mutation(({ input }) =>
-    guard(async () => {
-      const result = await copyObject(input, input);
-      log.warn(
-        {
-          from: `${input.sourceBucket}/${input.sourceKey}`,
-          to: `${input.destBucket}/${input.destKey}`,
-          move: input.deleteSource,
-          profile: input.profile,
-        },
-        input.deleteSource ? "object moved" : "object copied",
-      );
-      return result;
-    }),
-  ),
+  copyObject: publicProcedure
+    .meta({ effect: "write", operation: "s3:CopyObject" })
+    .input(s3ScopeSchema.and(s3CopyObjectSchema))
+    .mutation(({ input }) =>
+      guard(async () => {
+        const result = await copyObject(input, input);
+        log.warn(
+          {
+            from: `${input.sourceBucket}/${input.sourceKey}`,
+            to: `${input.destBucket}/${input.destKey}`,
+            move: input.deleteSource,
+            profile: input.profile,
+          },
+          input.deleteSource ? "object moved" : "object copied",
+        );
+        return result;
+      }),
+    ),
 
   createPrefix: publicProcedure
+    .meta({ effect: "write", operation: "s3:PutObject (prefix)" })
     .input(s3ScopeSchema.and(s3CreatePrefixSchema))
     .mutation(({ input }) =>
       guard(() => createPrefix(input, { bucket: input.bucket, prefix: input.prefix })),
     ),
 
   putTags: publicProcedure
+    .meta({ effect: "write", operation: "s3:PutObjectTagging" })
     .input(s3ScopeSchema.and(s3PutTagsSchema))
     .mutation(({ input }) =>
       guard(() => putObjectTags(input, { bucket: input.bucket, key: input.key, tags: input.tags })),

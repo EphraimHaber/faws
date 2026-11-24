@@ -16,6 +16,8 @@ Desktop operations console for AWS, Kubernetes and S3-compatible storage. Read `
   - Freeze a fixture of the old file in `__fixtures__/`.
 
 ## Safety
+- Every tRPC mutation declares `.meta({ effect })`: `local`, `write` or `destructive`. The tRPC layer enforces write mode from it, and `apps/server/src/router.test.ts` fails on an undeclared one.
+- Expected failures extend `DomainError` from `@faws/kit` and are thrown directly. The transport turns them into their declared status and `error.data.cause`.
 - The app is read-only by default. A write goes through the server's write-mode guard. A delete needs the second, never-persisted switch.
 - Byte transfer and any other non-tRPC HTTP route lives under `/api/`.
 
