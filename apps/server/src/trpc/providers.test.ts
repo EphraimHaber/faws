@@ -7,7 +7,7 @@ vi.mock("../api/settings/settings.instance.ts", () => ({
   settingsStore: () => ({ get: () => ({ settings }) }),
 }));
 
-const { awsProcedure, storageOwner, storageProcedure } = await import("./providers.ts");
+const { awsProcedure, storageProcedure, storageProviderOf } = await import("./providers.ts");
 const { router } = await import("./index.ts");
 
 const testRouter = router({
@@ -40,25 +40,25 @@ describe("provider procedures", () => {
 });
 
 describe("storage procedures", () => {
-  it("answer to AWS for a profile and to the endpoints provider for a connection", async () => {
+  it("answer to the provider their connection names", async () => {
+    const onAws = { ref: { provider: "aws", id: "default@eu-west-1" } };
+    const onMinio = { ref: { provider: "s3", id: "minio" } };
+
     switchOff("aws");
-    await expect(
-      caller.buckets({ profile: "default", region: "eu-west-1" } as never),
-    ).rejects.toThrow("AWS is switched off");
-    await expect(
-      caller.buckets({ profile: "", region: "x", connectionId: "minio" } as never),
-    ).resolves.toBe("buckets");
+    await expect(caller.buckets(onAws as never)).rejects.toThrow("AWS is switched off");
+    await expect(caller.buckets(onMinio as never)).resolves.toBe("buckets");
 
     switchOff("s3");
-    await expect(
-      caller.buckets({ profile: "", region: "x", connectionId: "minio" } as never),
-    ).rejects.toThrow("Storage endpoints is switched off");
+    await expect(caller.buckets(onMinio as never)).rejects.toThrow(
+      "Storage endpoints is switched off",
+    );
   });
 
-  it("names the owner from the scope alone", () => {
-    expect(storageOwner({ connectionId: "minio", profile: "" })).toBe("s3");
-    expect(storageOwner({ connectionId: "", profile: "default" })).toBe("aws");
-    expect(storageOwner({ uploadToken: "t" })).toBeNull();
-    expect(storageOwner(undefined)).toBeNull();
+  it("names the provider from the connection alone", () => {
+    expect(storageProviderOf({ ref: { provider: "s3", id: "minio" } })).toBe("s3");
+    expect(storageProviderOf({ ref: { provider: "aws", id: "default@us-east-1" } })).toBe("aws");
+    expect(storageProviderOf({ uploadToken: "t" })).toBeNull();
+    expect(storageProviderOf({ ref: "aws" })).toBeNull();
+    expect(storageProviderOf(undefined)).toBeNull();
   });
 });

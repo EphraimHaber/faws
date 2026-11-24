@@ -124,12 +124,6 @@ export const awsScopeSettingsSchema = z.object({
   region: z.string().catch(""),
 });
 
-/** Which saved S3-compatible endpoint the storage pages are looking at. */
-export const s3ScopeSettingsSchema = z.object({
-  /** Empty points S3 at AWS; otherwise the id of a saved S3 endpoint. */
-  connectionId: z.string().catch(""),
-});
-
 /** How often live lists poll, whichever provider they belong to. */
 export const refreshSettingsSchema = z.object({
   seconds: z.number().refine(isRefreshChoice).catch(DEFAULT_REFRESH_SECONDS),
@@ -245,7 +239,6 @@ const providerSections = {
   s3: section(
     z.object({
       enabled: enabledFor("s3"),
-      scope: section(s3ScopeSettingsSchema),
       /**
        * The records only: a key, a token or a passphrase belongs to none of
        * this, because this file is read by the renderer on first paint and
@@ -319,7 +312,6 @@ export type SilencedSettings = Settings["silenced"];
 export type ProvidersSettings = Settings["providers"];
 export type AwsScopeSettings = ProvidersSettings["aws"]["scope"];
 export type KubeScopeSettings = ProvidersSettings["kubernetes"]["scope"];
-export type S3ScopeSettings = ProvidersSettings["s3"]["scope"];
 export type RefreshSettings = Settings["refresh"];
 export type UpdatesSettings = Settings["updates"];
 export type TrustSettings = Settings["trust"];
@@ -354,7 +346,7 @@ const providersPatchSchema = z
     kubernetes: z
       .object({ enabled: z.boolean(), scope: kubeScopeSettingsSchema.partial() })
       .partial(),
-    s3: z.object({ enabled: z.boolean(), scope: s3ScopeSettingsSchema.partial() }).partial(),
+    s3: z.object({ enabled: z.boolean() }).partial(),
   } satisfies Record<ProviderId, z.ZodType>)
   .partial()
   .strict();
@@ -453,7 +445,9 @@ function mergeProviders(
   return {
     aws: mergeProvider(current.aws, patch.aws),
     kubernetes: mergeProvider(current.kubernetes, patch.kubernetes),
-    s3: mergeProvider(current.s3, patch.s3),
+    // Saved endpoints are the s3 provider's connections, chosen per page
+    // rather than held as a scope, so only the switch is patched here.
+    s3: { ...current.s3, enabled: patch.s3?.enabled ?? current.s3.enabled },
   };
 }
 

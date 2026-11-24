@@ -1,7 +1,8 @@
 /**
- * AWS on the server: one router per service, each gated on AWS being on, and
- * the terminals AWS contributes. The engines they call - SDK clients,
- * fetchers, actions - are in `@faws/core`.
+ * AWS on the server: one router per service, each gated on AWS being on, the
+ * terminals AWS contributes, and its object storage port. The engines they
+ * call - SDK clients, fetchers, actions - are in `@faws/core`; S3 is built on
+ * `@faws/lib-s3`.
  *
  * ECS exec and SSM are whole terminals. SSH belongs to the host, so AWS
  * contributes only the two routes to an SSH host that need it: an SSM tunnel
@@ -22,6 +23,7 @@ export { cloudwatchRouter } from "./cloudwatch.router.ts";
 export { ecsActionsRouter } from "./ecs-actions.router.ts";
 export { ecsRouter } from "./ecs.router.ts";
 export { resolveSessionPlugin } from "./exec/sessionPlugin.ts";
+export { awsObjectStorage, registerAwsObjectStorage } from "./objectStorage.ts";
 export { awsProcedure, scopeInput } from "./procedures.ts";
 
 export const awsTerminals: ReadonlyArray<TerminalContribution<"ecs" | "ssm", ExecHandshakeAuth>> = [

@@ -11,10 +11,9 @@ import { kubernetesServer } from "@faws/provider-kubernetes/server";
 import { appRouter as hostAppRouter } from "./api/app/app.router.ts";
 import { desktopRouter } from "./api/desktop/desktop.router.ts";
 import { execRouter } from "./api/exec/exec.router.ts";
+import { s3ConnectionsRouter } from "@faws/provider-s3compat/server";
 import { providersRouter } from "./api/providers/providers.router.ts";
-import { s3ActionsRouter } from "./api/s3/actions.router.ts";
-import { s3ConnectionsRouter } from "./api/s3/connections.router.ts";
-import { s3Router } from "./api/s3/s3.router.ts";
+import { storageRouter } from "./api/storage/storage.router.ts";
 import { trustRouter } from "./api/trust/trust.router.ts";
 import { settingsRouter } from "./api/settings/settings.router.ts";
 import { router } from "./trpc/index.ts";
@@ -38,10 +37,9 @@ export const appRouter = router({
   exec: execRouter,
   ...mountProviders([kubernetesServer]),
   providers: providersRouter,
-  s3: s3Router,
-  s3Actions: s3ActionsRouter,
   s3Connections: s3ConnectionsRouter,
   settings: settingsRouter,
+  storage: storageRouter,
   trust: trustRouter,
 });
 

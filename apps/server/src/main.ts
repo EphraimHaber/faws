@@ -23,9 +23,9 @@ import Fastify, { type FastifyBaseLogger, type FastifyError, type FastifyReply }
 import { attachExecNamespace } from "./api/exec/exec.service.ts";
 import { registerExecDrivers } from "./api/exec/index.ts";
 import { closeAllSessions } from "./api/exec/session.registry.ts";
-import { s3BytesRoutes } from "./api/s3/bytes.routes.ts";
-import { attachS3ScanNamespace } from "./api/s3/scan.service.ts";
-import { registerServerConnectionStores } from "./api/s3/connectionStore.ts";
+import { storageBytesRoutes } from "./api/storage/bytes.routes.ts";
+import { registerServerConnectionStores } from "./api/storage/connectionStore.ts";
+import { attachStorageScanNamespace } from "./api/storage/scan.service.ts";
 import { attachSettingsBroadcast } from "./api/settings/settings.events.ts";
 import { flushSettings, loadSettings, settingsStore } from "./api/settings/settings.instance.ts";
 import { applyTrust } from "./api/trust/trust.ts";
@@ -33,10 +33,12 @@ import { appRouter, type AppRouter } from "./router.ts";
 import { createIndexHtmlRenderer } from "./shared/indexHtml.ts";
 import { createLogger, getRootLogger } from "./shared/logger.ts";
 import { setLoggerFactory } from "@faws/kit/server";
+import { registerAwsObjectStorage } from "@faws/provider-aws/server";
+import { registerS3compatObjectStorage } from "@faws/provider-s3compat/server";
 import {
   closeSocketIO,
   getExecNamespace,
-  getS3ScanNamespace,
+  getStorageScanNamespace,
   setupSocketIO,
 } from "./shared/socket-io.ts";
 
@@ -124,6 +126,10 @@ await loadSettings();
 // Saved S3 endpoints live in the settings file, so nothing may read one
 // before it has been loaded.
 registerServerConnectionStores();
+// Each provider that stores objects answers the storage routes for its own
+// connections.
+registerAwsObjectStorage();
+registerS3compatObjectStorage();
 
 await server.register(fastifyTRPCPlugin, {
   prefix: "/trpc",
@@ -136,7 +142,7 @@ await server.register(fastifyTRPCPlugin, {
   } satisfies FastifyTRPCPluginOptions<AppRouter>["trpcOptions"],
 });
 
-await server.register(s3BytesRoutes);
+await server.register(storageBytesRoutes);
 
 server.get("/healthz", () => ({ ok: true }));
 
@@ -175,8 +181,8 @@ attachSettingsBroadcast();
 registerExecDrivers();
 const execNs = getExecNamespace();
 if (execNs) attachExecNamespace(execNs);
-const scanNs = getS3ScanNamespace();
-if (scanNs) attachS3ScanNamespace(scanNs);
+const scanNs = getStorageScanNamespace();
+if (scanNs) attachStorageScanNamespace(scanNs);
 
 console.log(`faws-server-port: ${resolvedPort}`);
 console.log(`faws-server-url: ${address.replace(/\/$/, "")}/trpc`);

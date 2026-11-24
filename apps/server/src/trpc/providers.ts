@@ -3,7 +3,7 @@
  *
  * Providers build their routers from `providerProcedure` in `@faws/kit/server`;
  * this module plugs the settings file in behind it, and adds the one gate that
- * belongs to the host: storage, whose owner depends on the scope.
+ * belongs to the host: storage, whose owner is named by the connection.
  */
 import { isProviderId, manifestFor, type ProviderId } from "@faws/contracts";
 import { assertProviderEnabled, providerProcedure, setProviderGate } from "@faws/kit/server";
@@ -22,26 +22,26 @@ setProviderGate({
 
 export const awsProcedure = providerProcedure("aws");
 export const kubernetesProcedure = providerProcedure("kubernetes");
-export const s3EndpointsProcedure = providerProcedure("s3");
 
 /**
- * The S3 procedures serve AWS's S3 and saved S3-compatible endpoints alike;
- * the scope says which. A `connectionId` is an endpoint, a profile without one
- * is AWS, and a call carrying neither (an upload already under way, named by
- * its token) was checked when it started.
+ * The storage procedures serve every provider that stores objects; the
+ * connection says which. A call without one (an upload already under way,
+ * named by its token) is gated in its body on the connection the upload was
+ * opened against.
  */
 export const storageProcedure = publicProcedure.use(
   middleware(async ({ getRawInput, next }) => {
-    const owner = storageOwner(await getRawInput());
-    if (owner) assertProviderEnabled(owner);
+    const provider = storageProviderOf(await getRawInput());
+    if (provider) assertProviderEnabled(provider);
     return next();
   }),
 );
 
-export function storageOwner(input: unknown): ProviderId | null {
+/** The provider a storage call names, read before the input is validated. */
+export function storageProviderOf(input: unknown): string | null {
   if (typeof input !== "object" || input === null) return null;
-  const { connectionId, profile } = input as { connectionId?: unknown; profile?: unknown };
-  if (typeof connectionId === "string" && connectionId.length > 0) return "s3";
-  if (typeof profile === "string") return "aws";
-  return null;
+  const ref = (input as { ref?: unknown }).ref;
+  if (typeof ref !== "object" || ref === null) return null;
+  const provider = (ref as { provider?: unknown }).provider;
+  return typeof provider === "string" && provider.length > 0 ? provider : null;
 }

@@ -64,7 +64,11 @@ export type ResourceKind = (typeof RESOURCE_KINDS)[number];
 export const resourceScopeSchema = z.object({
   profile: z.string().max(200).catch(""),
   region: z.string().max(64).catch(""),
-  /** Empty means AWS; otherwise the id of a saved S3 endpoint. */
+  /**
+   * The saved storage endpoint a resource lives on, or empty for one reached
+   * through the AWS profile and region. An endpoint's resources carry no
+   * profile, so they are shown whatever the AWS scope is.
+   */
   connectionId: z.string().max(200).catch(""),
 });
 
@@ -288,15 +292,9 @@ export function applyRecentOp(current: RecentsSettings, op: RecentOp, at: Date):
  * machine - and an entry whose scope was unreadable lands here too, which is
  * the right way round: a row that is always visible can be forgotten, and one
  * that is never visible cannot.
- *
- * `connectionId` is only compared for the S3 kinds. It is the endpoint S3 calls
- * are pointed at and has no bearing on an ECS cluster, so comparing it
- * everywhere would hide every ECS row the moment a non-AWS endpoint was picked.
  */
 export function inScope(entry: ResourceRef, scope: ResourceScope): boolean {
   if (entry.scope.profile.length === 0) return true;
   if (entry.scope.profile !== scope.profile) return false;
-  if (entry.scope.region !== scope.region) return false;
-  if (!entry.kind.startsWith("s3-")) return true;
-  return entry.scope.connectionId === scope.connectionId;
+  return entry.scope.region === scope.region;
 }

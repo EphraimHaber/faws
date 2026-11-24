@@ -12,6 +12,7 @@ import type { LucideIcon } from "lucide-react";
  */
 export function SectionCard({
   to,
+  search,
   icon: Icon,
   label,
   description,
@@ -19,6 +20,8 @@ export function SectionCard({
   metricLabel,
 }: {
   to: string;
+  /** Search params the link carries, such as which connection to open on. */
+  search?: Record<string, string>;
   icon: LucideIcon;
   label: string;
   description: string;
@@ -29,6 +32,7 @@ export function SectionCard({
   return (
     <Link
       to={to}
+      {...(search ? { search } : {})}
       className="group flex flex-col gap-3 rounded-md border border-border p-3.5 transition-colors hover:border-primary/45 hover:bg-accent/50"
     >
       <span className="flex items-center gap-2">

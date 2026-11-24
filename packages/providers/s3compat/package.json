@@ -7,6 +7,10 @@
     "./manifest": {
       "types": "./src/manifest.ts",
       "default": "./src/manifest.ts"
+    },
+    "./server": {
+      "types": "./src/server/index.ts",
+      "default": "./src/server/index.ts"
     }
   },
   "scripts": {
@@ -14,8 +18,12 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@faws/contracts": "workspace:*",
+    "@faws/core": "workspace:*",
     "@faws/kit": "workspace:*",
-    "@faws/provider-s3compat-manifest": "workspace:*"
+    "@faws/lib-s3": "workspace:*",
+    "@faws/provider-s3compat-manifest": "workspace:*",
+    "@trpc/server": "catalog:trpc"
   },
   "devDependencies": {
     "@types/node": "catalog:build",

@@ -18,8 +18,6 @@ import {
   MIN_LOG_GUTTER,
   type ProviderId,
   REFRESH_CHOICES,
-  type S3Scope,
-  toS3Scope,
 } from "@faws/contracts";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
@@ -96,29 +94,6 @@ export function setAwsRegion(region: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// S3
-
-/**
- * The AWS pair plus the endpoint S3 is pointed at.
- *
- * Every S3 query is keyed by this object, so switching to another endpoint
- * invalidates the buckets, the listings and the object in view together rather
- * than leaving one pane showing another storage system's contents.
- */
-export function useS3Scope(): S3Scope {
-  const { profile, region } = useAwsScope();
-  const connectionId = useSettings((state) => state.settings.providers.s3.scope.connectionId);
-  return React.useMemo(
-    () => toS3Scope({ profile, region, connectionId }),
-    [profile, region, connectionId],
-  );
-}
-
-export function setS3ConnectionId(connectionId: string): void {
-  updateSettings({ providers: { s3: { scope: { connectionId } } } });
-}
-
-// ---------------------------------------------------------------------------
 // Kubernetes
 
 export interface KubeScopeValue {
@@ -190,8 +165,6 @@ export function setKubeScope(scope: KubeScopeSettings): void {
 export interface ScopeValue {
   readonly profile: string;
   readonly region: string;
-  /** Empty points S3 at AWS; otherwise the id of a saved S3 endpoint. */
-  readonly connectionId: string;
   readonly refreshSeconds: number;
   readonly logTimestamps: LogTimestamps;
   /** Width in px of the log pane's leading timestamp column. */
@@ -208,7 +181,6 @@ export interface ScopeValue {
   readonly ready: boolean;
   setProfile(next: string): void;
   setRegion(next: string): void;
-  setConnectionId(next: string): void;
   setRefreshSeconds(next: number): void;
   setLogTimestamps(next: LogTimestamps): void;
   setLogGutter(next: number): void;
@@ -222,7 +194,6 @@ export interface ScopeValue {
  */
 export function useScope(): ScopeValue {
   const { profile, region, ready } = useResolvedAwsScope();
-  const connectionId = useSettings((state) => state.settings.providers.s3.scope.connectionId);
   const refreshSeconds = useRefreshSeconds();
   const logs = useSettings((state) => state.settings.logs);
 
@@ -230,7 +201,6 @@ export function useScope(): ScopeValue {
     () => ({
       profile,
       region,
-      connectionId,
       refreshSeconds,
       logTimestamps: logs.timestamps,
       logGutter: logs.gutter,
@@ -238,7 +208,6 @@ export function useScope(): ScopeValue {
       ready,
       setProfile: setAwsProfile,
       setRegion: setAwsRegion,
-      setConnectionId: setS3ConnectionId,
       setRefreshSeconds,
       setLogTimestamps: (next) => updateSettings({ logs: { timestamps: next } }),
       // Clamped here as well as in the schema: the drag handle reports
@@ -247,7 +216,7 @@ export function useScope(): ScopeValue {
       setLogGutter: (next) => updateSettings({ logs: { gutter: clampGutter(next) } }),
       setLogTaskGutter: (next) => updateSettings({ logs: { taskGutter: clampGutter(next) } }),
     }),
-    [profile, region, connectionId, refreshSeconds, logs, ready],
+    [profile, region, refreshSeconds, logs, ready],
   );
 }
 

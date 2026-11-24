@@ -93,3 +93,25 @@ export class ProviderDisabledError extends DomainError {
     return { provider: this.provider };
   }
 }
+
+/**
+ * Raised when a connection names a provider that serves no object storage.
+ *
+ * A stale link or a provider missing from this build lands here, and the fix
+ * is another connection rather than a retry.
+ */
+export class ObjectStorageUnavailableError extends DomainError {
+  readonly kind = "ObjectStorageUnavailableError";
+  readonly status = "NOT_FOUND";
+  readonly provider: string;
+
+  constructor(provider: string) {
+    super(`"${provider}" does not offer object storage.`);
+    this.name = "ObjectStorageUnavailableError";
+    this.provider = provider;
+  }
+
+  protected override details() {
+    return { provider: this.provider };
+  }
+}

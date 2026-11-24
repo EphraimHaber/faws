@@ -313,12 +313,8 @@ describe("inScope", () => {
     ).toBe(true);
   });
 
-  it("compares the endpoint for S3 kinds only", () => {
-    // `connectionId` says where S3 calls go and means nothing to an ECS
-    // cluster; comparing it everywhere would blank the ECS rows the moment a
-    // non-AWS endpoint was picked.
-    const onMinio = { ...here, connectionId: "minio" };
-    expect(inScope(ref({ kind: "s3-bucket", scope: onMinio }), here)).toBe(false);
-    expect(inScope(ref({ kind: "ecs-cluster", scope: onMinio }), here)).toBe(true);
+  it("shows a saved endpoint's bucket whatever the AWS scope", () => {
+    const onMinio = { profile: "", region: "", connectionId: "minio" };
+    expect(inScope(ref({ kind: "s3-bucket", scope: onMinio }), here)).toBe(true);
   });
 });

@@ -5,3 +5,4 @@ export * from "./diff.ts";
 export * from "./glob.ts";
 export * from "./s3-key.ts";
 export * from "./time.ts";
+export * from "./trust.ts";

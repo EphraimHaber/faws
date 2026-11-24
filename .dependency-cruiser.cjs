@@ -3,8 +3,7 @@
  * these rules keep apart; `pnpm check:deps` runs them.
  *
  * Every rule is an error: CI fails on a new violation. Rules naming
- * `packages/lib-*` describe packages that do not exist yet; they hold the
- * moment one does.
+ * `packages/lib-*` hold for every engine package, present and future.
  */
 /** @type {import("dependency-cruiser").IConfiguration} */
 module.exports = {
@@ -48,6 +47,22 @@ module.exports = {
       comment: "One provider never reaches into another; shared code belongs in kit or a lib-*.",
       from: { path: "^packages/providers/([^/]+)/" },
       to: { path: "^packages/providers/", pathNot: "^packages/providers/$1/" },
+    },
+    {
+      name: "libs-stay-below-providers",
+      severity: "error",
+      comment:
+        "An engine is shared by providers, so it never knows one; what differs per provider is handed to it.",
+      from: { path: "^packages/lib-[^/]+/" },
+      to: { path: "^packages/(core|providers)/" },
+    },
+    {
+      name: "web-never-imports-libs",
+      severity: "error",
+      comment:
+        "Engines run on the server. The renderer reaches them through the host routes, not even for types; shared shapes live in kit or contracts.",
+      from: { path: "^apps/web/" },
+      to: { path: "^packages/lib-[^/]+/" },
     },
     {
       name: "web-never-imports-server-code",

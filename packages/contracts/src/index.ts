@@ -8,7 +8,6 @@ export * from "./kube.ts";
 export * from "./providers.ts";
 export * from "./recents.ts";
 export * from "./s3-connections.ts";
-export * from "./s3.ts";
 export * from "./schemas.ts";
 export * from "./settings.ts";
 export * from "./tables.ts";

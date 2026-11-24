@@ -266,16 +266,26 @@ const taskDefinitionsRoute = createRoute({
   component: TaskDefinitionsPage,
 });
 
+/**
+ * Which saved endpoint the storage pages read, by id. Absent reads AWS through
+ * the profile and region in the title bar, so a link names its storage system
+ * and every existing `/s3/...` link still lands on AWS.
+ */
+const storageSearch = z.object({
+  connection: z.string().min(1).max(512).optional().catch(undefined),
+});
+
 const s3IndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/s3",
+  validateSearch: storageSearch,
   component: S3IndexPage,
 });
 
 const bucketsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/s3/buckets",
-  validateSearch: filterSearch,
+  validateSearch: filterSearch.extend(storageSearch.shape),
   component: BucketsPage,
 });
 
@@ -291,6 +301,7 @@ const bucketRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/s3/buckets/$bucket",
   validateSearch: filterSearch.extend({
+    ...storageSearch.shape,
     prefix: z.string().max(1024).optional().catch(undefined),
     /** The key open in the viewer, so a link can carry one object. */
     object: z.string().max(1024).optional().catch(undefined),
