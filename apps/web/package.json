@@ -13,9 +13,6 @@
   "dependencies": {
     "@faws/contracts": "workspace:*",
     "@faws/kit": "workspace:*",
-    "@faws/provider-aws": "workspace:*",
-    "@faws/provider-kubernetes": "workspace:*",
-    "@faws/provider-s3compat": "workspace:*",
     "@faws/server": "workspace:*",
     "@faws/shared": "workspace:*",
     "@faws/socket-io-events": "workspace:*",

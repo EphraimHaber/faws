@@ -35,6 +35,9 @@ Internal packages are **just-in-time**: their `exports` point at TypeScript sour
 
 `.dependency-cruiser.cjs` enforces these edges (`pnpm check:deps`).
 
+### Why manifests are packages of their own
+Each provider's manifest is a separate workspace package (`packages/providers/<id>/manifest`, `@faws/provider-<id>-manifest`) that depends only on `@faws/kit`. Contracts reads the manifests to shape the settings file, and provider server code reads contracts. If the manifest lived inside the provider package, those two edges would form a package cycle, and turbo refuses to build a workspace with one. The provider package re-exports it as `./manifest`.
+
 ## Where this is heading
 
 The app is moving from "an AWS console with extras" to **providers and capabilities**:

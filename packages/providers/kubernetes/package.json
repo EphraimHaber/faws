@@ -20,6 +20,7 @@
   "dependencies": {
     "@faws/contracts": "workspace:*",
     "@faws/kit": "workspace:*",
+    "@faws/provider-kubernetes-manifest": "workspace:*",
     "@trpc/server": "catalog:trpc",
     "zod": "catalog:"
   },

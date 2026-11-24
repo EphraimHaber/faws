@@ -544,15 +544,6 @@ importers:
       '@faws/kit':
         specifier: workspace:*
         version: link:../../packages/kit
-      '@faws/provider-aws':
-        specifier: workspace:*
-        version: link:../../packages/providers/aws
-      '@faws/provider-kubernetes':
-        specifier: workspace:*
-        version: link:../../packages/providers/kubernetes
-      '@faws/provider-s3compat':
-        specifier: workspace:*
-        version: link:../../packages/providers/s3compat
       '@faws/server':
         specifier: workspace:*
         version: link:../server
@@ -671,15 +662,15 @@ importers:
       '@faws/kit':
         specifier: workspace:*
         version: link:../kit
-      '@faws/provider-aws':
+      '@faws/provider-aws-manifest':
         specifier: workspace:*
-        version: link:../providers/aws
-      '@faws/provider-kubernetes':
+        version: link:../providers/aws/manifest
+      '@faws/provider-kubernetes-manifest':
         specifier: workspace:*
-        version: link:../providers/kubernetes
-      '@faws/provider-s3compat':
+        version: link:../providers/kubernetes/manifest
+      '@faws/provider-s3compat-manifest':
         specifier: workspace:*
-        version: link:../providers/s3compat
+        version: link:../providers/s3compat/manifest
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -794,6 +785,9 @@ importers:
       '@faws/kit':
         specifier: workspace:*
         version: link:../../kit
+      '@faws/provider-aws-manifest':
+        specifier: workspace:*
+        version: link:manifest
       '@trpc/server':
         specifier: catalog:trpc
         version: 11.18.0(typescript@7.0.2)
@@ -810,6 +804,19 @@ importers:
       vitest:
         specifier: catalog:build
         version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/providers/aws/manifest:
+    dependencies:
+      '@faws/kit':
+        specifier: workspace:*
+        version: link:../../../kit
+    devDependencies:
+      '@types/node':
+        specifier: catalog:build
+        version: 24.13.4
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
 
   packages/providers/kubernetes:
     dependencies:
@@ -819,6 +826,9 @@ importers:
       '@faws/kit':
         specifier: workspace:*
         version: link:../../kit
+      '@faws/provider-kubernetes-manifest':
+        specifier: workspace:*
+        version: link:manifest
       '@trpc/server':
         specifier: catalog:trpc
         version: 11.18.0(typescript@7.0.2)
@@ -836,11 +846,27 @@ importers:
         specifier: catalog:build
         version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/providers/kubernetes/manifest:
+    dependencies:
+      '@faws/kit':
+        specifier: workspace:*
+        version: link:../../../kit
+    devDependencies:
+      '@types/node':
+        specifier: catalog:build
+        version: 24.13.4
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
+
   packages/providers/s3compat:
     dependencies:
       '@faws/kit':
         specifier: workspace:*
         version: link:../../kit
+      '@faws/provider-s3compat-manifest':
+        specifier: workspace:*
+        version: link:manifest
     devDependencies:
       '@types/node':
         specifier: catalog:build
@@ -851,6 +877,19 @@ importers:
       vitest:
         specifier: catalog:build
         version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/providers/s3compat/manifest:
+    dependencies:
+      '@faws/kit':
+        specifier: workspace:*
+        version: link:../../../kit
+    devDependencies:
+      '@types/node':
+        specifier: catalog:build
+        version: 24.13.4
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
 
   packages/shared:
     devDependencies:

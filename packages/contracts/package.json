@@ -15,9 +15,9 @@
   },
   "dependencies": {
     "@faws/kit": "workspace:*",
-    "@faws/provider-aws": "workspace:*",
-    "@faws/provider-kubernetes": "workspace:*",
-    "@faws/provider-s3compat": "workspace:*",
+    "@faws/provider-aws-manifest": "workspace:*",
+    "@faws/provider-kubernetes-manifest": "workspace:*",
+    "@faws/provider-s3compat-manifest": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

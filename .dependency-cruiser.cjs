@@ -32,7 +32,7 @@ module.exports = {
       from: { path: "^packages/contracts/" },
       to: {
         path: "^packages/(core|lib-[^/]+|providers)/",
-        pathNot: "^packages/providers/[^/]+/src/manifest\\.ts$",
+        pathNot: "^packages/providers/[^/]+/manifest/",
       },
     },
     {

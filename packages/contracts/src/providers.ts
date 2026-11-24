@@ -6,9 +6,9 @@
  * plain data, so importing them here costs nothing at runtime.
  */
 import type { ProviderIdOf } from "@faws/kit";
-import { awsManifest } from "@faws/provider-aws/manifest";
-import { kubernetesManifest } from "@faws/provider-kubernetes/manifest";
-import { s3compatManifest } from "@faws/provider-s3compat/manifest";
+import { awsManifest } from "@faws/provider-aws-manifest";
+import { kubernetesManifest } from "@faws/provider-kubernetes-manifest";
+import { s3compatManifest } from "@faws/provider-s3compat-manifest";
 
 export const PROVIDER_MANIFESTS = [awsManifest, kubernetesManifest, s3compatManifest] as const;
 

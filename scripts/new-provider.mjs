@@ -42,6 +42,7 @@ const files = {
       dependencies: {
         "@faws/contracts": "workspace:*",
         "@faws/kit": "workspace:*",
+        [`@faws/provider-${id}-manifest`]: "workspace:*",
         "@trpc/server": "catalog:trpc",
         zod: "catalog:",
       },
@@ -60,7 +61,29 @@ const files = {
   "include": ["src/**/*.ts"]
 }
 `,
-  "src/manifest.ts": `import { defineProvider } from "@faws/kit";
+  "manifest/package.json": `${JSON.stringify(
+    {
+      name: `@faws/provider-${id}-manifest`,
+      version: kitVersion.version,
+      private: true,
+      type: "module",
+      exports: { ".": { types: "./src/index.ts", default: "./src/index.ts" } },
+      scripts: { typecheck: "tsc --noEmit" },
+      dependencies: { "@faws/kit": "workspace:*" },
+      devDependencies: { "@types/node": "catalog:build", typescript: "catalog:build" },
+    },
+    null,
+    2,
+  )}\n`,
+  "manifest/tsconfig.json": `{
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": { "types": ["node"] },
+  "include": ["src/**/*.ts"]
+}
+`,
+  "src/manifest.ts": `export * from "@faws/provider-${id}-manifest";
+`,
+  "manifest/src/index.ts": `import { defineProvider } from "@faws/kit";
 
 /** ${label}: what it is, and how faws reaches it. */
 export const ${camel}Manifest = defineProvider({
@@ -116,14 +139,16 @@ for (const [file, content] of Object.entries(files)) {
 
 console.log(`Created packages/providers/${id}. Now register it:
 
-  1. packages/contracts/src/providers.ts: add ${camel}Manifest to PROVIDER_MANIFESTS
-     (and "@faws/provider-${id}": "workspace:*" to contracts' dependencies).
+  1. packages/contracts/src/providers.ts: add ${camel}Manifest (from
+     "@faws/provider-${id}-manifest") to PROVIDER_MANIFESTS, and that package to
+     contracts' dependencies. The manifest is its own package so contracts
+     never depends on provider code, which would be a package cycle.
   2. packages/contracts/src/settings.ts: give it a section in providerSections and
      providersPatchSchema; both are typed against every provider id, so the
      build fails until it has one.
   3. apps/server/src/router.ts: mount ${camel}Router under "${id}"
      (and add the package to apps/server's dependencies).
-  4. apps/web/src/services/registry.ts: add ${camel}Manifest to MANIFESTS, and
-     apps/web/src/features/overview/ProviderHealth.tsx: give it a tile.
+  4. apps/web/src/features/overview/ProviderHealth.tsx: give it a tile (the
+     web nav reads PROVIDER_MANIFESTS from contracts).
 
 Then: pnpm install && pnpm typecheck && pnpm test`);

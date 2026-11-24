@@ -1,7 +1,5 @@
+import { PROVIDER_MANIFESTS } from "@faws/contracts";
 import type { AnyProviderManifest, ProviderIdOf, ServiceManifest } from "@faws/kit";
-import { awsManifest } from "@faws/provider-aws/manifest";
-import { kubernetesManifest } from "@faws/provider-kubernetes/manifest";
-import { s3compatManifest } from "@faws/provider-s3compat/manifest";
 import type { LucideIcon } from "lucide-react";
 
 import { ICONS } from "~/providers/icons";
@@ -14,7 +12,7 @@ import { ICONS } from "~/providers/icons";
  * from the provider manifests, so adding a service means adding it to its
  * provider's manifest and a feature folder - not touching the shell.
  */
-const MANIFESTS = [awsManifest, kubernetesManifest, s3compatManifest] as const;
+const MANIFESTS = PROVIDER_MANIFESTS;
 
 export type ProviderId = ProviderIdOf<typeof MANIFESTS>;
 
