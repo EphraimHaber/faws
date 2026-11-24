@@ -10,7 +10,7 @@ apps/desktop (Electron main)
   └─ loads  apps/web     (React renderer, served by the server in a packaged build)
 ```
 
-- **`apps/desktop`** is a thin shell. It holds the window, the app menu, the preload bridge (`window.faws`) and, eventually, the updater. It owns no domain logic.
+- **`apps/desktop`** is a thin shell. It holds the window, the app menu, the preload bridge (`window.faws`) and the updater. It owns no domain logic. It reads one thing from the settings file the server writes: `settings.trust`, so its own network stack (the window and the updater's downloads) accepts the certificates the server does (`apps/desktop/src/trust.ts`).
 - **`apps/server`** does all the work. It runs the AWS SDK calls, the `kubectl`/`oc`/`virtctl` subprocesses, the terminals (node-pty, ssh2) and the settings file. The renderer reaches it through:
   - **tRPC over HTTP** for queries and mutations. `AppRouter` is the only thing the web app imports from the server, and it is a type.
   - **Socket.IO** for push: settings sync, terminal streams, S3 scans and navigation.
