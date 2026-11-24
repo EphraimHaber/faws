@@ -10,6 +10,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Gauge, X } from "lucide-react";
 
 import { KeyValue, KeyValueGrid } from "~/components/kv";
+import { RefreshControl } from "~/components/refresh";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { CopyButton } from "~/components/ui/copy-button";
@@ -17,7 +18,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { SectionHeader } from "~/components/ui/section-header";
-import { LoadingRows, Spinner } from "~/components/ui/spinner";
+import { LoadingRows } from "~/components/ui/spinner";
 import { useAwsScope } from "~/stores/scope";
 import { linkClass, TagsSection } from "~/features/api-gateway/components/parts";
 import { limitsLabel, quotaLabel } from "~/features/api-gateway/usage-plans";
@@ -103,7 +104,7 @@ function PlanDetail({ plan, apiKeys }: { plan: UsagePlan; apiKeys: ApiKeyListing
         <SectionHeader
           title="API stages"
           count={plan.apiStages.length}
-          action={apis.isFetching ? <Spinner className="size-3" /> : undefined}
+          action={<RefreshControl source={apis} label="Refresh REST APIs" />}
         />
         {plan.apiStages.length === 0 ? (
           <p className="text-[12px] text-muted-foreground">
@@ -186,7 +187,7 @@ function PlanKeys({ planId, apiKeys }: { planId: string; apiKeys: ApiKeyListing 
       <SectionHeader
         title="API keys"
         count={count === undefined ? undefined : `${count}${keys.data?.truncated ? "+" : ""}`}
-        action={keys.isFetching ? <Spinner className="size-3" /> : undefined}
+        action={<RefreshControl source={keys} label="Refresh API keys" />}
       />
       <p className="text-[11px] text-muted-foreground">Key values are never read.</p>
       {keys.isPending ? (

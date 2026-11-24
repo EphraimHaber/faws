@@ -33,7 +33,7 @@ export function Ec2IndexPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={targets} refreshLabel="Refresh instances">
         <PanelTitle>EC2</PanelTitle>
         {/* Instances are regional, so naming the region here is a claim the
             number below actually has - unlike S3, whose buckets are account

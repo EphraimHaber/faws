@@ -114,7 +114,7 @@ export function ClustersPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={clusters} refreshLabel="Refresh clusters">
         <PanelTitle>Clusters</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {clusters.isPending ? "…" : rows.length}

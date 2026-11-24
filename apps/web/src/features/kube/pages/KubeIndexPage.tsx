@@ -39,7 +39,14 @@ export function KubeIndexPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader
+        refresh={[
+          diagnostics,
+          ...(ready ? [pods] : []),
+          ...(ready && (diagnostics.data?.kubeVirt ?? false) ? [machines] : []),
+        ]}
+        refreshLabel="Refresh Kubernetes"
+      >
         <PanelTitle>Kubernetes</PanelTitle>
         <div className="ml-auto">
           <KubeScopePicker />

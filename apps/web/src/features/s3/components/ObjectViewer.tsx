@@ -54,7 +54,7 @@ export function ObjectViewer({
 
   return (
     <Panel className="min-h-0 flex-1">
-      <PanelHeader className="gap-2">
+      <PanelHeader className="gap-2" refresh={head} refreshLabel="Refresh object">
         <PanelTitle className="shrink-0">Object</PanelTitle>
         <span className="truncate font-mono text-[11.5px]" title={objectKey}>
           {objectKey}

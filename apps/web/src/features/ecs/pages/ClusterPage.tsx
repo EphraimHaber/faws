@@ -67,7 +67,24 @@ export function ClusterPage({ cluster }: { cluster: string }) {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader
+        refresh={
+          tab === "services"
+            ? services
+            : tab === "tasks"
+              ? tasks
+              : tab === "stopped"
+                ? stopped
+                : instances
+        }
+        refreshLabel={
+          tab === "services"
+            ? "Refresh services"
+            : tab === "instances"
+              ? "Refresh container instances"
+              : "Refresh tasks"
+        }
+      >
         <PanelTitle>{cluster}</PanelTitle>
         <Segmented<Tab>
           value={tab}

@@ -126,7 +126,11 @@ export function VirtualMachinesPage() {
 
   return (
     <Panel className="min-h-0 flex-1">
-      <PanelHeader>
+      <PanelHeader
+        {...(ready && kubeVirt
+          ? { refresh: machines, refreshLabel: "Refresh virtual machines" }
+          : {})}
+      >
         <PanelTitle>Virtual machines</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
         {noVirtctl ? (

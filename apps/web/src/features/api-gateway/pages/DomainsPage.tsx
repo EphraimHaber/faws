@@ -117,7 +117,7 @@ export function DomainsPage() {
       ) : null}
 
       <Panel className="flex-1">
-        <PanelHeader>
+        <PanelHeader refresh={domains} refreshLabel="Refresh custom domains">
           <PanelTitle>Custom domains</PanelTitle>
           <span className="font-mono text-[11px] text-muted-foreground tabular">
             {domains.isPending ? "…" : rows.length}

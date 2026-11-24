@@ -239,7 +239,7 @@ export function ObjectBrowser({
 
   return (
     <Panel className="flex-1">
-      <PanelHeader className="gap-2">
+      <PanelHeader className="gap-2" refresh={listing} refreshLabel="Refresh objects">
         <PanelTitle className="shrink-0">Objects</PanelTitle>
         <PrefixTrail bucket={bucket} prefix={prefix} onNavigate={onNavigate} />
         <div className="ml-auto flex shrink-0 items-center gap-2">

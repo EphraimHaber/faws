@@ -115,7 +115,7 @@ export function ContextsPage() {
 
   return (
     <Panel className="min-h-0 flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={contexts} refreshLabel="Refresh contexts">
         <PanelTitle>Contexts</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
         <div className="ml-auto">

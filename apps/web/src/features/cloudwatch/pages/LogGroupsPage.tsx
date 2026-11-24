@@ -111,7 +111,7 @@ export function LogGroupsPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={groups} refreshLabel="Refresh log groups">
         <PanelTitle>Log groups</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {groups.isPending ? "…" : rows.length}

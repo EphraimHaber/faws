@@ -68,7 +68,10 @@ export function UsagePlansPage() {
       ) : null}
 
       <Panel className="flex-1">
-        <PanelHeader>
+        <PanelHeader
+          refresh={tab === "plans" ? [plans, apis] : keys}
+          refreshLabel={tab === "plans" ? "Refresh usage plans" : "Refresh API keys"}
+        >
           <Segmented<Tab>
             value={tab}
             onChange={(next) => {

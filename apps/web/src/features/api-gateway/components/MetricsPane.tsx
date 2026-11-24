@@ -12,6 +12,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 
 import { MetricChart } from "~/components/metric-chart";
+import { RefreshControl } from "~/components/refresh";
 import { Button } from "~/components/ui/button";
 import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
@@ -191,6 +192,7 @@ function RestApiMetricChart({
         >
           In CloudWatch <ArrowUpRight className="size-3" />
         </Link>
+        <RefreshControl source={series} label="Refresh chart" />
       </div>
     </section>
   );

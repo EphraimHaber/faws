@@ -43,7 +43,11 @@ export function AnalyticsPane({ bucket, prefix }: { bucket: string; prefix: stri
       <PrefixSize bucket={bucket} prefix={prefix} />
 
       <Panel className="shrink-0">
-        <PanelHeader>
+        <PanelHeader
+          {...(capabilities.storageMetrics
+            ? { refresh: metrics, refreshLabel: "Refresh storage metrics" }
+            : {})}
+        >
           <PanelTitle>Daily, from CloudWatch</PanelTitle>
           <span className="font-mono text-[10.5px] text-muted-foreground">
             published once a day, so today is usually missing

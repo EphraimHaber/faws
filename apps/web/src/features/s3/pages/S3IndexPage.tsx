@@ -28,7 +28,7 @@ export function S3IndexPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={buckets} refreshLabel="Refresh buckets">
         <PanelTitle>S3</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {/* Buckets are an account wide list, so naming a region here would

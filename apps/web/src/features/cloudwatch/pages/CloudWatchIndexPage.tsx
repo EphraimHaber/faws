@@ -21,7 +21,7 @@ export function CloudWatchIndexPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={groups} refreshLabel="Refresh log groups">
         <PanelTitle>CloudWatch</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{region}</span>
       </PanelHeader>

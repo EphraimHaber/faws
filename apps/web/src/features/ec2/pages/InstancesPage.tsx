@@ -209,7 +209,7 @@ export function InstancesPage() {
   return (
     <div className="flex min-h-0 flex-col gap-3">
       <Panel className="min-h-0 flex-1">
-        <PanelHeader>
+        <PanelHeader refresh={targets} refreshLabel="Refresh instances">
           <PanelTitle>Instances</PanelTitle>
           <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
           <div className="ml-auto">

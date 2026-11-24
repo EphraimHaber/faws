@@ -52,7 +52,8 @@ interface GroupResult {
   readonly isError: boolean;
   readonly isPending: boolean;
   readonly isFetching: boolean;
-  readonly refetch: () => unknown;
+  readonly dataUpdatedAt: number;
+  readonly refetch: () => Promise<unknown>;
 }
 
 /**
@@ -67,6 +68,7 @@ function combineResults(results: ReadonlyArray<GroupResult>): ReadonlyArray<Grou
     isError: result.isError,
     isPending: result.isPending,
     isFetching: result.isFetching,
+    dataUpdatedAt: result.dataUpdatedAt,
     refetch: result.refetch,
   }));
 }
@@ -157,7 +159,7 @@ export function TailPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={results} refreshLabel="Refresh log events">
         <PanelTitle>Tail</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {groups.length} / {MAX_TAILED_GROUPS} groups

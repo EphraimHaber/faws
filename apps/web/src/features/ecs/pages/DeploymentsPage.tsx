@@ -157,7 +157,7 @@ export function DeploymentsPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={[clusters, ...serviceQueries]} refreshLabel="Refresh deployments">
         <PanelTitle>Recently deployed</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {loadingServices ? "…" : rows.length}

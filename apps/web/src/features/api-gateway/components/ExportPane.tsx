@@ -3,6 +3,7 @@ import { byteSize } from "@faws/shared";
 import { useQuery } from "@tanstack/react-query";
 import { FileJson, Layers } from "lucide-react";
 
+import { RefreshControl } from "~/components/refresh";
 import { Segmented } from "~/components/segmented";
 import { CopyButton } from "~/components/ui/copy-button";
 import { EmptyState } from "~/components/ui/empty";
@@ -86,6 +87,7 @@ export function ExportPane({ apiId }: { apiId: string }) {
           {body !== null ? (
             <CopyButton variant="ghost" size="icon" label="definition" value={body} />
           ) : null}
+          <RefreshControl source={[stages, exported]} label="Refresh definition" />
         </div>
       </div>
 

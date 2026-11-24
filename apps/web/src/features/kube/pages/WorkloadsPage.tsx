@@ -153,7 +153,7 @@ export function WorkloadsPage() {
 
   return (
     <Panel className="min-h-0 flex-1">
-      <PanelHeader>
+      <PanelHeader {...(ready ? { refresh: pods, refreshLabel: "Refresh pods" } : {})}>
         <PanelTitle>Workloads</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
         <div className="ml-auto flex items-center gap-2">

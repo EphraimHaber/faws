@@ -19,7 +19,7 @@ export function ApiGatewayIndexPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={[apis, domains, plans]} refreshLabel="Refresh API Gateway">
         <PanelTitle>API Gateway</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{region}</span>
       </PanelHeader>

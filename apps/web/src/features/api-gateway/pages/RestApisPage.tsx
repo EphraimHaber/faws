@@ -110,7 +110,7 @@ export function RestApisPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={apis} refreshLabel="Refresh REST APIs">
         <PanelTitle>REST APIs</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {apis.isPending ? "…" : rows.length}

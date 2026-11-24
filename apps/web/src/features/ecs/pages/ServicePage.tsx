@@ -143,7 +143,7 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto">
       <Panel className="shrink-0">
-        <PanelHeader>
+        <PanelHeader refresh={detail} refreshLabel="Refresh service">
           <StatusDot tone={tone.tone} pulse={tone.pulse} />
           <PanelTitle className="text-foreground normal-case tracking-normal text-[13px] font-medium">
             {summary.name}
@@ -225,7 +225,15 @@ export function ServicePage({ cluster, service }: { cluster: string; service: st
       <UpdateServiceDialog service={summary} open={updating} onClose={() => setUpdating(false)} />
 
       <Panel className="min-h-[22rem] flex-1">
-        <PanelHeader>
+        <PanelHeader
+          {...(tab === "tasks"
+            ? { refresh: tasks, refreshLabel: "Refresh tasks" }
+            : tab === "metrics"
+              ? { refresh: metrics, refreshLabel: "Refresh metrics" }
+              : tab === "logs"
+                ? {}
+                : { refresh: detail, refreshLabel: "Refresh service" })}
+        >
           <Segmented<Tab>
             value={tab}
             onChange={setTab}

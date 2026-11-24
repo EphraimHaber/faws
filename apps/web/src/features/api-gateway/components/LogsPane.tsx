@@ -9,6 +9,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, ScrollText } from "lucide-react";
 import * as React from "react";
 
+import { RefreshControl } from "~/components/refresh";
 import { Segmented } from "~/components/segmented";
 import { CopyButton } from "~/components/ui/copy-button";
 import { EmptyState } from "~/components/ui/empty";
@@ -129,6 +130,7 @@ function StageLogs({
   // read says nothing either way.
   const noRole = loggingOn && account.data?.cloudwatchRoleArn === null;
   const found = described.data ?? null;
+  const settings = [...(group === null ? [] : [described]), ...(loggingOn ? [account] : [])];
 
   const kindLabel = KIND_LABELS[kind];
   const noRoleSentence = `API Gateway has no CloudWatch role in ${scope.region}, so it cannot write logs for any stage until one is set in its account settings.`;
@@ -143,18 +145,23 @@ function StageLogs({
           options={STAGE_LOG_KINDS.map((value) => ({ value, label: KIND_LABELS[value] }))}
         />
         {described.isFetching ? <Spinner /> : null}
-        {found ? (
-          <Link
-            to="/cloudwatch/log-groups/$group"
-            params={{ group: found.name }}
-            search={{ window: windowMinutes }}
-            title={`Open ${found.name} in CloudWatch`}
-            className="ml-auto inline-flex min-w-0 items-center gap-1 font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-primary"
-          >
-            <span className="truncate">{found.name}</span>
-            <ArrowUpRight className="size-3 shrink-0" />
-          </Link>
-        ) : null}
+        <div className="ml-auto flex min-w-0 items-center gap-2">
+          {found ? (
+            <Link
+              to="/cloudwatch/log-groups/$group"
+              params={{ group: found.name }}
+              search={{ window: windowMinutes }}
+              title={`Open ${found.name} in CloudWatch`}
+              className="inline-flex min-w-0 items-center gap-1 font-mono text-[10.5px] text-muted-foreground underline decoration-border underline-offset-2 hover:text-primary"
+            >
+              <span className="truncate">{found.name}</span>
+              <ArrowUpRight className="size-3 shrink-0" />
+            </Link>
+          ) : null}
+          {settings.length > 0 ? (
+            <RefreshControl source={settings} label="Refresh logging settings" />
+          ) : null}
+        </div>
       </div>
 
       {kind === "access" && access.kind !== "group" ? (
@@ -311,6 +318,7 @@ function LogReader({
               events.map((event) => `${event.timestamp} ${stripAnsi(event.message)}`).join("\n")
             }
           />
+          <RefreshControl source={logs} label="Refresh log events" />
         </div>
       </div>
       <LogWindowView

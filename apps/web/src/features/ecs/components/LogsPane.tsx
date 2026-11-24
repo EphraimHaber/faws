@@ -4,6 +4,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ExternalLink, FileWarning, ScrollText } from "lucide-react";
 import * as React from "react";
 
+import { RefreshControl } from "~/components/refresh";
 import { Segmented } from "~/components/segmented";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -262,6 +263,10 @@ export function LogsPane({
               <ExternalLink className="size-3" />
             </Button>
           ) : null}
+          <RefreshControl
+            source={active.logGroup ? [configs, logs] : configs}
+            label="Refresh log events"
+          />
         </div>
       </div>
 

@@ -69,7 +69,7 @@ export function TaskPage({ cluster, taskId }: { cluster: string; taskId: string 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto">
       <Panel className="shrink-0">
-        <PanelHeader>
+        <PanelHeader refresh={task} refreshLabel="Refresh task">
           <StatusDot tone={tone.tone} pulse={tone.pulse} />
           <PanelTitle className="font-mono text-[12px] tracking-normal text-foreground normal-case">
             {data.id}
@@ -115,7 +115,7 @@ export function TaskPage({ cluster, taskId }: { cluster: string; taskId: string 
       </Panel>
 
       <Panel className="shrink-0">
-        <PanelHeader>
+        <PanelHeader refresh={task} refreshLabel="Refresh task">
           <PanelTitle>Containers</PanelTitle>
           <span className="font-mono text-[11px] text-muted-foreground tabular">
             {data.containers.length}

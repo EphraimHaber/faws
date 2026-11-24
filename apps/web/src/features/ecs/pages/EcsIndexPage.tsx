@@ -51,7 +51,7 @@ export function EcsIndexPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={[clusters, ...serviceQueries]} refreshLabel="Refresh ECS">
         <PanelTitle>ECS</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{region}</span>
       </PanelHeader>

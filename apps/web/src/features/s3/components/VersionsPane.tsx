@@ -5,6 +5,7 @@ import { GitCompare, History, Trash } from "lucide-react";
 import * as React from "react";
 
 import { type Column, DataTable } from "~/components/data-table";
+import { RefreshControl } from "~/components/refresh";
 import { FilterInput } from "~/components/toolbar";
 import { ObjectDiff, type DiffSide } from "~/features/s3/components/ObjectDiff";
 import { Badge } from "~/components/ui/badge";
@@ -184,6 +185,7 @@ export function VersionsPane({
             </span>
           ) : null}
           <FilterInput value={filter} onChange={setFilter} total={rows.length} />
+          <RefreshControl source={listing} label="Refresh versions" />
         </span>
       </div>
 

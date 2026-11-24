@@ -106,7 +106,10 @@ export function ConnectPanel() {
 
   return (
     <Panel className="min-h-0 flex-1">
-      <PanelHeader>
+      <PanelHeader
+        refresh={kube.ready && !noKubeCli ? [instances, hosts, pods] : [instances, hosts]}
+        refreshLabel="Refresh targets"
+      >
         <PanelTitle>Connect</PanelTitle>
         <div className="ml-auto">
           <FilterInput

@@ -49,7 +49,7 @@ export function BucketProperties({ bucket }: { bucket: string }) {
       ) : null}
 
       <Panel className="shrink-0">
-        <PanelHeader>
+        <PanelHeader refresh={config} refreshLabel="Refresh bucket configuration">
           <PanelTitle>Protection</PanelTitle>
         </PanelHeader>
         <KeyValueGrid className="px-3.5 py-3">
@@ -71,7 +71,7 @@ export function BucketProperties({ bucket }: { bucket: string }) {
       </Panel>
 
       <Panel className="shrink-0">
-        <PanelHeader>
+        <PanelHeader refresh={config} refreshLabel="Refresh bucket configuration">
           <PanelTitle>Public access</PanelTitle>
           <PublicAccessSummary block={data.publicAccessBlock} />
         </PanelHeader>
@@ -93,7 +93,7 @@ export function BucketProperties({ bucket }: { bucket: string }) {
 
       {data.lifecycleRules.length > 0 ? (
         <Panel className="shrink-0">
-          <PanelHeader>
+          <PanelHeader refresh={config} refreshLabel="Refresh bucket configuration">
             <PanelTitle>Lifecycle</PanelTitle>
             <span className="font-mono text-[11px] text-muted-foreground tabular">
               {data.lifecycleRules.length}
@@ -130,7 +130,7 @@ export function BucketProperties({ bucket }: { bucket: string }) {
 
       {Object.keys(data.tags).length > 0 ? (
         <Panel className="shrink-0">
-          <PanelHeader>
+          <PanelHeader refresh={config} refreshLabel="Refresh bucket configuration">
             <PanelTitle>Tags</PanelTitle>
           </PanelHeader>
           <KeyValueGrid className="px-3.5 py-3">
@@ -145,7 +145,7 @@ export function BucketProperties({ bucket }: { bucket: string }) {
 
       {data.policyJson ? (
         <Panel className="min-h-64 flex-1">
-          <PanelHeader>
+          <PanelHeader refresh={config} refreshLabel="Refresh bucket configuration">
             <PanelTitle>Policy</PanelTitle>
           </PanelHeader>
           <PolicyDocument json={data.policyJson} />
