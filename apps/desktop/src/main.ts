@@ -208,6 +208,7 @@ ipcMain.on("faws:update-configure", (_event, raw: unknown) => {
   configureUpdates({
     autoCheck: config["autoCheck"] === true,
     channel: config["channel"] === "beta" ? "beta" : "stable",
+    feedUrl: typeof config["feedUrl"] === "string" ? config["feedUrl"] : "",
   });
 });
 onUpdateStatus((status) => {

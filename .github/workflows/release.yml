@@ -85,6 +85,17 @@ jobs:
         with:
           ref: ${{ env.TAG }}
 
+      # One checksum file for the whole release, which a mirror into an
+      # air gapped network verifies before carrying anything across.
+      - name: Attach SHA256SUMS
+        run: |
+          mkdir assets
+          gh release download "$TAG" --dir assets
+          (cd assets && sha256sum -- * > ../SHA256SUMS)
+          gh release upload "$TAG" SHA256SUMS --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Write the release notes from the changelog and publish
         run: |
           node scripts/release-notes.mjs "$TAG" > notes.md

@@ -21,6 +21,8 @@ const BROWSER: UpdateStatus = {
   checkedAt: null,
   canInstall: false,
   reason: "Updates come with the desktop app; this is the browser build.",
+  feedSource: "github",
+  feedUrl: null,
 };
 
 export const useUpdates = create<{ status: UpdateStatus }>(() => ({ status: BROWSER }));

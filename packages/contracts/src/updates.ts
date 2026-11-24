@@ -38,9 +38,22 @@ export interface UpdateStatus {
   readonly canInstall: boolean;
   /** Why the state is `unsupported`, when it is. */
   readonly reason: string | null;
+  /** Who chose where releases are read from; `github` when nobody did. */
+  readonly feedSource: UpdateFeedSource;
+  /** The folder releases are read from; null for GitHub. */
+  readonly feedUrl: string | null;
 }
+
+/**
+ * `environment` and `policy` are set outside the app (FAWS_UPDATE_URL, or a
+ * machine wide file an administrator writes) and win over the person's own
+ * `setting`.
+ */
+export type UpdateFeedSource = "github" | "setting" | "policy" | "environment";
 
 export interface UpdateConfig {
   readonly autoCheck: boolean;
   readonly channel: "stable" | "beta";
+  /** A folder holding `latest.yml` and the installers; empty for GitHub Releases. */
+  readonly feedUrl: string;
 }

@@ -260,16 +260,31 @@ export const onboardingSettingsSchema = z.object({
 });
 
 /**
+ * A folder of releases to update from instead of GitHub, such as a Nexus raw
+ * repository: an http(s) URL, or empty for GitHub.
+ */
+export const updateFeedUrlSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) => value === "" || /^https?:\/\/[^\s/]+/i.test(value),
+    "Enter an http:// or https:// URL, or leave it empty for GitHub",
+  );
+
+export const updateFeedFormSchema = z.object({ feedUrl: updateFeedUrlSchema });
+
+/**
  * How the app keeps itself current.
  *
- * `autoCheck` off means the app never contacts GitHub on its own, which is
- * what an air-gapped or strictly on-prem install wants; "Check now" still
- * works when asked.
+ * `autoCheck` off means the app never contacts its update source on its own,
+ * which is what an air-gapped install wants; "Check now" still works when
+ * asked. `feedUrl` points it at an on-prem mirror.
  */
 export const updatesSettingsSchema = z.object({
   autoCheck: z.boolean().catch(true),
   /** `beta` also offers pre-releases. */
   channel: z.enum(["stable", "beta"]).catch("stable"),
+  feedUrl: updateFeedUrlSchema.catch(""),
   /** A version the user chose to skip; not offered again until a newer one. */
   skippedVersion: z.string().catch(""),
   /**

@@ -60,9 +60,13 @@ win:
     - target: nsis
       arch: [x64]
 
+# Always per user, into %LOCALAPPDATA%\Programs\faws: neither installing nor
+# updating ever asks for administrator rights.
 nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  packElevateHelper: false
 
 # The server is pre-bundled, and its one native module (node-pty) is staged
 # prebuilt by apps/server/scripts/stage-native.mjs into the server's own

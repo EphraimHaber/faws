@@ -126,6 +126,45 @@ If the file cannot be written at all, everything still works from memory for
 the life of the server, including the sync between windows; only survival
 across a restart is lost, and the Settings page says which errno caused it.
 
+## Installing and updating on-prem
+
+The Windows installer always installs for the current user only, into
+`%LOCALAPPDATA%\Programs\faws`, and never asks for administrator rights,
+neither to install nor to update.
+
+The app updates from GitHub Releases by default. To update from a folder on
+your own network instead, such as a Nexus raw repository, mirror a release
+into it:
+
+```bash
+node scripts/mirror-release.mjs fetch v0.2.0 ./faws-v0.2.0
+node scripts/mirror-release.mjs verify ./faws-v0.2.0
+MIRROR_USER=deployer MIRROR_PASSWORD=... node scripts/mirror-release.mjs push ./faws-v0.2.0 https://nexus.example.com/repository/faws/
+```
+
+`fetch` runs on the connected side and checks every file against the
+release's `SHA256SUMS` and the sha512 in its `latest*.yml`. Across an air gap,
+carry the folder over and run `verify` again before `push`. `push` uploads the
+installers first and the manifests last, so a client never reads a manifest
+naming a file that isn't there yet. On Nexus, the raw repository's deployment
+policy must allow redeploy, because each release overwrites `latest*.yml`.
+
+Then point the app at the folder. The first of these that is set wins:
+
+1. The `FAWS_UPDATE_URL` environment variable.
+2. A machine policy file that only an administrator can write:
+   `%ProgramData%\faws\update-feed.json` on Windows,
+   `/Library/Application Support/faws/update-feed.json` on macOS,
+   `/etc/faws/update-feed.json` on Linux.
+   It holds `{ "url": "https://nexus.example.com/repository/faws/" }`.
+3. Settings > About and updates > Update source.
+
+When the folder needs a login, put a whole `Authorization` header value in
+`FAWS_UPDATE_AUTHORIZATION` or in the policy file's `"authorization"` field,
+for example `"Basic <base64 of user:password>"` for a read only Nexus user.
+Turning off "Check for updates automatically" stops the app from contacting
+the folder until someone presses Check.
+
 ## Layout
 
 | | |

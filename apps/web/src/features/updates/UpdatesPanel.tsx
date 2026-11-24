@@ -1,7 +1,9 @@
-import type { UpdateStatus } from "@faws/contracts";
+import { updateFeedFormSchema, type UpdateStatus } from "@faws/contracts";
 import { Link } from "@tanstack/react-router";
+import * as React from "react";
 
 import { useClock } from "~/hooks/useClock";
+import { Form, FormActions, SubmitButton, TextField, useZodForm } from "~/components/form";
 import { formatAge } from "~/components/refresh";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
@@ -42,7 +44,7 @@ export function UpdatesPanel() {
               <span className="min-w-0 flex-1">
                 Check for updates automatically
                 <span className="block text-[12px] text-muted-foreground">
-                  Off, the app never contacts GitHub unless you press Check.
+                  Off, the app never contacts its update source unless you press Check.
                 </span>
               </span>
               <Switch
@@ -71,10 +73,58 @@ export function UpdatesPanel() {
                 <option value="beta">Beta</option>
               </select>
             </label>
+            <UpdateSource status={status} saved={prefs.feedUrl} />
           </>
         ) : null}
       </div>
     </Panel>
+  );
+}
+
+/**
+ * Where releases come from. Set from outside the app, it is shown and not
+ * editable; otherwise the person can point it at an on-prem folder.
+ */
+function UpdateSource({ status, saved }: { status: UpdateStatus; saved: string }) {
+  const managed = status.feedSource === "policy" || status.feedSource === "environment";
+  const form = useZodForm(updateFeedFormSchema, { defaultValues: { feedUrl: saved } });
+
+  React.useEffect(() => {
+    form.reset({ feedUrl: saved });
+  }, [form, saved]);
+
+  if (managed) {
+    return (
+      <div className="flex flex-col gap-0.5 text-[12.5px]">
+        Update source
+        <span className="text-[12px] text-muted-foreground">
+          Set by {status.feedSource === "policy" ? "your administrator" : "FAWS_UPDATE_URL"}:{" "}
+          <span className="font-mono">{status.feedUrl}</span>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <Form
+      form={form}
+      onSubmit={({ feedUrl }) => updateSettings({ updates: { feedUrl } })}
+      className="gap-2"
+    >
+      <TextField
+        name="feedUrl"
+        label="Update source"
+        hint="A folder holding latest.yml and the installers, such as a Nexus raw repository. Empty uses GitHub Releases."
+        placeholder="https://nexus.example.com/repository/faws/"
+        mono
+        className="text-[12px]"
+      />
+      <FormActions className="pt-0">
+        <SubmitButton size="sm" variant="outline" disabled={!form.formState.isDirty}>
+          Save
+        </SubmitButton>
+      </FormActions>
+    </Form>
   );
 }
 

@@ -11,6 +11,7 @@ import {
   pruneSilenced,
   type SilenceEntry,
   settingsPatchSchema,
+  updateFeedFormSchema,
   settingsSchema,
 } from "./settings.ts";
 
@@ -95,6 +96,7 @@ describe("settingsSchema", () => {
     expect(DEFAULT_SETTINGS.updates).toEqual({
       autoCheck: true,
       channel: "stable",
+      feedUrl: "",
       skippedVersion: "",
       lastSeenVersion: "",
     });
@@ -103,6 +105,18 @@ describe("settingsSchema", () => {
     );
     const patch = settingsPatchSchema.parse({ updates: { autoCheck: false } });
     expect(applyPatch(DEFAULT_SETTINGS, patch).updates.autoCheck).toBe(false);
+  });
+
+  it("updates from GitHub unless an http(s) folder is named", () => {
+    const feedUrl = (value: unknown) =>
+      settingsSchema.parse({ updates: { feedUrl: value } }).updates.feedUrl;
+    expect(feedUrl(" https://nexus.corp/repository/faws/ ")).toBe(
+      "https://nexus.corp/repository/faws/",
+    );
+    expect(feedUrl("file:///etc/passwd")).toBe("");
+    expect(feedUrl(42)).toBe("");
+    expect(updateFeedFormSchema.safeParse({ feedUrl: "nexus.corp" }).success).toBe(false);
+    expect(updateFeedFormSchema.safeParse({ feedUrl: "" }).success).toBe(true);
   });
 
   it("starts the first-run screen not yet done", () => {
