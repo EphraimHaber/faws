@@ -9,14 +9,20 @@ import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
+import { Switch } from "~/components/ui/switch";
+import { TrustPanel } from "~/features/trust/TrustPanel";
+import { UpdatesPanel } from "~/features/updates/UpdatesPanel";
 import { TextAction, textActionClass } from "~/components/ui/text-action";
 import {
   DEFAULT_LOG_GUTTER,
   DEFAULT_LOG_TASK_GUTTER,
   REFRESH_CHOICES,
+  setProviderEnabled,
   useAwsScope,
+  useProviderEnabled,
   useScope,
-} from "~/contexts/ScopeContext";
+} from "~/stores/scope";
+import { PROVIDERS, type ProviderDefinition } from "~/services/registry";
 import { useTheme } from "~/contexts/ThemeContext";
 import { useWriteMode } from "~/hooks/useWriteMode";
 import { trpc } from "~/lib/trpc";
@@ -74,19 +80,34 @@ export function SettingsPage() {
   const ssmBash = useSettings((state) => state.settings.terminal.ssmBash);
   const deployedLinger = useSettings((state) => state.settings.ecs.deployedLingerSeconds);
 
-  const whoami = useQuery({ ...trpc.aws.whoami.queryOptions(scope), retry: false });
+  const awsEnabled = useProviderEnabled("aws");
+  const whoami = useQuery({
+    ...trpc.aws.whoami.queryOptions(scope),
+    enabled: awsEnabled,
+    retry: false,
+  });
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto">
+      <ProvidersPanel />
+
+      <UpdatesPanel />
+
+      <TrustPanel />
+
       <Panel className="shrink-0">
         <PanelHeader>
           <PanelTitle>Session</PanelTitle>
         </PanelHeader>
         <KeyValueGrid className="px-3.5 py-3">
-          <KeyValue label="Profile">{scope.profile}</KeyValue>
-          <KeyValue label="Region">{scope.region}</KeyValue>
-          <KeyValue label="Account">{whoami.data?.accountId ?? "-"}</KeyValue>
-          <KeyValue label="Identity">{whoami.data?.arn ?? "-"}</KeyValue>
+          {awsEnabled ? (
+            <>
+              <KeyValue label="Profile">{scope.profile}</KeyValue>
+              <KeyValue label="Region">{scope.region}</KeyValue>
+              <KeyValue label="Account">{whoami.data?.accountId ?? "-"}</KeyValue>
+              <KeyValue label="Identity">{whoami.data?.arn ?? "-"}</KeyValue>
+            </>
+          ) : null}
           <KeyValue label="Mode">
             <WriteMode />
           </KeyValue>
@@ -258,6 +279,50 @@ export function SettingsPage() {
         </div>
       </Panel>
     </div>
+  );
+}
+
+/**
+ * What this app talks to.
+ *
+ * Switching a provider off removes it everywhere - sidebar, palette, menu,
+ * overview - and stops every call to it, which is what someone running only
+ * on their own network wants: no reading `~/.aws`, no AWS anywhere.
+ */
+function ProvidersPanel() {
+  return (
+    <Panel className="shrink-0">
+      <PanelHeader>
+        <PanelTitle>Providers</PanelTitle>
+      </PanelHeader>
+      <ul className="flex flex-col divide-y divide-border">
+        {PROVIDERS.map((provider) => (
+          <ProviderRow key={provider.id} provider={provider} />
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
+function ProviderRow({ provider }: { provider: ProviderDefinition }) {
+  const enabled = useProviderEnabled(provider.id);
+  const Icon = provider.icon;
+  const labelId = `provider-${provider.id}`;
+  return (
+    <li className="flex items-center gap-3 px-3.5 py-2.5">
+      <Icon className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.8} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p id={labelId} className="text-[13px]">
+          {provider.label}
+        </p>
+        <p className="text-[12px] text-muted-foreground">{provider.description}</p>
+      </div>
+      <Switch
+        aria-labelledby={labelId}
+        checked={enabled}
+        onCheckedChange={(next) => setProviderEnabled(provider.id, next)}
+      />
+    </li>
   );
 }
 

@@ -1,25 +1,19 @@
 /**
- * The error every layer of the exec stack throws.
+ * The exec error, with this app's codes.
  *
- * It lives in its own module so a driver can throw one without importing the
- * registry, and so the namespace can recognise one without importing a driver.
- * The `code` is the whole point: it is what the UI switches on to offer the
- * right next step, so an error that reaches the client as "Internal" has lost
- * the only part of itself that was useful.
+ * The class itself lives in `@faws/kit/server` so a provider's driver can
+ * throw one without importing the host; this module narrows its code to the
+ * ones the client knows how to explain.
  */
 import type { ExecErrorCode } from "@faws/contracts";
+import { ExecSessionError as KitExecSessionError } from "@faws/kit/server";
 
-export class ExecSessionError extends Error {
-  readonly code: ExecErrorCode;
+export class ExecSessionError extends KitExecSessionError<ExecErrorCode> {}
 
-  constructor(code: ExecErrorCode, message: string) {
-    super(message);
-    this.name = "ExecSessionError";
-    this.code = code;
-  }
-}
+/** An exec error from anywhere: the host's own, or one a provider's driver threw. */
+export type AnyExecSessionError = KitExecSessionError<ExecErrorCode>;
 
 /** True for an error that already carries a code worth showing. */
-export function isExecSessionError(err: unknown): err is ExecSessionError {
-  return err instanceof ExecSessionError;
+export function isExecSessionError(err: unknown): err is AnyExecSessionError {
+  return err instanceof KitExecSessionError;
 }

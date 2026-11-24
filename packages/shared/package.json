@@ -6,11 +6,11 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
-      "import": "./src/index.ts"
+      "default": "./src/index.ts"
     },
     "./dataDir": {
       "types": "./src/dataDir.ts",
-      "import": "./src/dataDir.ts"
+      "default": "./src/dataDir.ts"
     }
   },
   "scripts": {
@@ -18,8 +18,8 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "@types/node": "catalog:build",
+    "typescript": "catalog:build",
+    "vitest": "catalog:build"
   }
 }

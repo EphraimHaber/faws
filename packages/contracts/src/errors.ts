@@ -1,5 +1,11 @@
+import { DomainError } from "@faws/kit";
+
+export { ReadOnlyModeError } from "@faws/kit";
+
 /** Thrown when a named AWS profile isn't present in the local shared config. */
-export class ProfileNotFoundError extends Error {
+export class ProfileNotFoundError extends DomainError {
+  readonly kind = "ProfileNotFoundError";
+  readonly status = "NOT_FOUND";
   readonly profile: string | undefined;
 
   constructor(message: string, profile?: string) {
@@ -7,10 +13,16 @@ export class ProfileNotFoundError extends Error {
     this.name = "ProfileNotFoundError";
     this.profile = profile;
   }
+
+  protected override details() {
+    return { profile: this.profile };
+  }
 }
 
 /** Wraps a failed AWS SDK call so the transport layer can map it to a 4xx. */
-export class AwsRequestError extends Error {
+export class AwsRequestError extends DomainError {
+  readonly kind = "AwsRequestError";
+  readonly status = "BAD_REQUEST";
   readonly code: string | undefined;
   readonly service: string | undefined;
 
@@ -20,29 +32,16 @@ export class AwsRequestError extends Error {
     this.code = options?.code;
     this.service = options?.service;
   }
-}
 
-/**
- * Raised when a guard refuses an operation.
- *
- * The reason is part of the message because the two switches fail
- * differently: one is "this build cannot write at all", the other is "it can
- * write, but this would destroy something". Telling them apart is what makes
- * the refusal actionable.
- */
-export class ReadOnlyModeError extends Error {
-  constructor(operation: string, reason: "read-only" | "destructive" = "read-only") {
-    super(
-      reason === "read-only"
-        ? `Read-only mode is on; "${operation}" was blocked.`
-        : `"${operation}" destroys data, and deletion is not armed for this session.`,
-    );
-    this.name = "ReadOnlyModeError";
+  protected override details() {
+    return { code: this.code, service: this.service };
   }
 }
 
 /** Thrown when a scope names an S3 connection that is no longer stored. */
-export class ConnectionNotFoundError extends Error {
+export class ConnectionNotFoundError extends DomainError {
+  readonly kind = "ConnectionNotFoundError";
+  readonly status = "NOT_FOUND";
   readonly connectionId: string;
 
   constructor(connectionId: string) {
@@ -60,7 +59,9 @@ export class ConnectionNotFoundError extends Error {
  * would - trusting a CA or a certificate - is a decision, so the message has
  * to reach the person who can make it rather than read as "S3 is down".
  */
-export class EndpointTrustError extends Error {
+export class EndpointTrustError extends DomainError {
+  readonly kind = "EndpointTrustError";
+  readonly status = "BAD_REQUEST";
   readonly endpoint: string;
   readonly reason: string;
 
@@ -69,5 +70,9 @@ export class EndpointTrustError extends Error {
     this.name = "EndpointTrustError";
     this.endpoint = endpoint;
     this.reason = reason;
+  }
+
+  protected override details() {
+    return { endpoint: this.endpoint, reason: this.reason };
   }
 }

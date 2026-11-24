@@ -18,7 +18,7 @@ import { LoadingRows } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
 import { Button } from "~/components/ui/button";
 import { TextAction } from "~/components/ui/text-action";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { useRecordVisit } from "~/stores/recents";
 import { useSessions } from "~/stores/sessions";
 import { cpuLabel, memoryLabel, uptimeLabel } from "~/lib/format";
@@ -67,7 +67,24 @@ export function ClusterPage({ cluster }: { cluster: string }) {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader
+        refresh={
+          tab === "services"
+            ? services
+            : tab === "tasks"
+              ? tasks
+              : tab === "stopped"
+                ? stopped
+                : instances
+        }
+        refreshLabel={
+          tab === "services"
+            ? "Refresh services"
+            : tab === "instances"
+              ? "Refresh container instances"
+              : "Refresh tasks"
+        }
+      >
         <PanelTitle>{cluster}</PanelTitle>
         <Segmented<Tab>
           value={tab}

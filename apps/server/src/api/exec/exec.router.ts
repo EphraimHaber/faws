@@ -4,7 +4,7 @@ import { z } from "zod";
 import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
 import { deleteRecording, listRecordings } from "./recorder.ts";
 import { listSessions } from "./session.registry.ts";
-import { resolveSessionPlugin } from "./sessionPlugin.ts";
+import { resolveSessionPlugin } from "@faws/provider-aws/server";
 
 /**
  * Everything about shells that is a question rather than a stream.
@@ -38,6 +38,7 @@ export const execRouter = router({
   recordings: publicProcedure.query(() => listRecordings()),
 
   deleteRecording: publicProcedure
+    .meta({ effect: "local" })
     .input(z.object({ path: z.string().min(1) }))
     .mutation(({ input }) => {
       deleteRecording(input.path);

@@ -23,10 +23,26 @@ describe("mergePatches", () => {
     });
   });
 
-  it("carries the kube scope and the sidebar width", () => {
-    expect(mergePatches({ kube: { context: "prod" } }, { layout: { sidebarWidth: 300 } })).toEqual({
-      kube: { context: "prod" },
+  it("carries a provider scope and the sidebar width", () => {
+    expect(
+      mergePatches(
+        { providers: { kubernetes: { scope: { context: "prod" } } } },
+        { layout: { sidebarWidth: 300 } },
+      ),
+    ).toEqual({
+      providers: { kubernetes: { scope: { context: "prod" } } },
       layout: { sidebarWidth: 300 },
+    });
+  });
+
+  it("keeps both halves of two changes to the same provider", () => {
+    expect(
+      mergePatches(
+        { providers: { aws: { scope: { region: "eu-west-1" } } } },
+        { providers: { aws: { enabled: false, scope: { profile: "prod" } } } },
+      ),
+    ).toEqual({
+      providers: { aws: { enabled: false, scope: { region: "eu-west-1", profile: "prod" } } },
     });
   });
 

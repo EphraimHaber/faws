@@ -16,11 +16,23 @@ import {
   BrowserWindow,
   ipcMain,
   Menu,
+  session,
   shell,
   type MenuItemConstructorOptions,
 } from "electron";
 
 import { parseBackendPort } from "./backendPort.ts";
+import { DEFAULT_NAV, type NavMenuItem, navMenuItems, sanitizeNavItems } from "./menu.ts";
+import { followAppTrust } from "./trustStore.ts";
+import {
+  checkForUpdates,
+  configureUpdates,
+  downloadUpdate,
+  installUpdate,
+  onUpdateStatus,
+  openReleases,
+  updateStatus,
+} from "./updater.ts";
 
 const isDevelopment = Boolean(process.env["VITE_DEV_SERVER_URL"]);
 const VITE_DEV_URL = process.env["VITE_DEV_SERVER_URL"] ?? "";
@@ -34,6 +46,11 @@ let serverOrigin = "";
 function resolveServerEntry(): string {
   if (isDevelopment) return path.resolve(__dirname, "..", "..", "server", "src", "main.ts");
   return path.join(process.resourcesPath, "server", "main.mjs");
+}
+
+/** Where the server keeps logs and settings; the main process reads its trust store there. */
+function dataDir(): string {
+  return process.env["FAWS_DATA_DIR"] ?? app.getPath("userData");
 }
 
 function logFilePath(): string {
@@ -52,7 +69,7 @@ function startServer(): Promise<{ port: number }> {
         NODE_ENV: process.env["NODE_ENV"] ?? (isDevelopment ? "development" : "production"),
         FAWS_HOST: "127.0.0.1",
         FAWS_PORT: process.env["FAWS_PORT"] ?? "0",
-        FAWS_DATA_DIR: process.env["FAWS_DATA_DIR"] ?? app.getPath("userData"),
+        FAWS_DATA_DIR: dataDir(),
         ...(isDevelopment ? {} : { FAWS_WEB_DIST: path.join(process.resourcesPath, "web") }),
       },
     }) as ChildProcessByStdio<null, Readable, Readable>;
@@ -133,6 +150,9 @@ async function navigate(target: string): Promise<void> {
   }
 }
 
+/** What the renderer last said the View menu should offer. */
+let navItems: ReadonlyArray<NavMenuItem> = DEFAULT_NAV;
+
 function buildMenu(): void {
   const isMac = process.platform === "darwin";
   const template: MenuItemConstructorOptions[] = [
@@ -141,33 +161,7 @@ function buildMenu(): void {
     {
       label: "View",
       submenu: [
-        { label: "Overview", accelerator: "CmdOrCtrl+0", click: () => void navigate("/") },
-        {
-          label: "Clusters",
-          accelerator: "CmdOrCtrl+1",
-          click: () => void navigate("/ecs/clusters"),
-        },
-        {
-          label: "Recently deployed",
-          accelerator: "CmdOrCtrl+2",
-          click: () => void navigate("/ecs/deployments"),
-        },
-        {
-          label: "Task definitions",
-          accelerator: "CmdOrCtrl+3",
-          click: () => void navigate("/ecs/task-definitions"),
-        },
-        {
-          label: "Buckets",
-          accelerator: "CmdOrCtrl+4",
-          click: () => void navigate("/s3/buckets"),
-        },
-        {
-          label: "Instances",
-          accelerator: "CmdOrCtrl+5",
-          click: () => void navigate("/ec2/instances"),
-        },
-        { label: "Diagnostics", accelerator: "CmdOrCtrl+6", click: () => void navigate("/logs") },
+        ...navMenuItems(navItems, (target) => void navigate(target)),
         { type: "separator" },
         { role: "reload" },
         { role: "toggleDevTools" },
@@ -182,6 +176,15 @@ function buildMenu(): void {
     {
       role: "help",
       submenu: [
+        { label: "What's new", click: () => void navigate("/whats-new") },
+        {
+          label: "Check for updates…",
+          click: () => {
+            void navigate("/settings");
+            void checkForUpdates();
+          },
+        },
+        { type: "separator" },
         { label: "Open log file", click: () => void shell.openPath(logFilePath()) },
         {
           label: "Reveal logs folder",
@@ -193,7 +196,43 @@ function buildMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// Update check: the window asks, the main process answers and then reports
+// every change of state on "faws:update-status" until the window goes away.
+ipcMain.handle("faws:update-status", () => updateStatus());
+ipcMain.handle("faws:update-check", () => checkForUpdates());
+ipcMain.handle("faws:update-download", () => downloadUpdate());
+ipcMain.handle("faws:update-install", () => installUpdate());
+ipcMain.handle("faws:update-open-release", () => openReleases());
+ipcMain.on("faws:update-configure", (_event, raw: unknown) => {
+  const config = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
+  configureUpdates({
+    autoCheck: config["autoCheck"] === true,
+    channel: config["channel"] === "beta" ? "beta" : "stable",
+  });
+});
+onUpdateStatus((status) => {
+  if (mainWindow && !mainWindow.isDestroyed())
+    mainWindow.webContents.send("faws:update-status", status);
+});
+
+ipcMain.on("faws:set-nav", (_event, raw: unknown) => {
+  navItems = sanitizeNavItems(raw);
+  buildMenu();
+});
 ipcMain.handle("faws:open-log-file", () => shell.openPath(logFilePath()));
+/** Opens a web page in the default browser, such as a cluster's sign in page; nothing but http(s). */
+ipcMain.handle("faws:open-external", async (_event, raw: unknown) => {
+  if (typeof raw !== "string") return;
+  let target: URL;
+  try {
+    target = new URL(raw);
+  } catch {
+    return;
+  }
+  if (target.protocol === "https:" || target.protocol === "http:") {
+    await shell.openExternal(target.toString());
+  }
+});
 ipcMain.handle("faws:show-log-dir", () => {
   const file = logFilePath();
   if (fs.existsSync(file)) shell.showItemInFolder(file);
@@ -213,6 +252,12 @@ async function resolveServer(): Promise<number> {
 }
 
 void app.whenReady().then(async () => {
+  // Before any request: the window and the updater (its own "electron-updater"
+  // partition) honour the same certificates the server does.
+  followAppTrust(dataDir(), [
+    session.defaultSession,
+    session.fromPartition("electron-updater", { cache: false }),
+  ]);
   const port = await resolveServer();
   serverOrigin = `http://127.0.0.1:${port}`;
   buildMenu();

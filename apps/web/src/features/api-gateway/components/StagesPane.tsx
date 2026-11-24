@@ -5,13 +5,14 @@ import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, Layers } from "lucide-react";
 
 import { KeyValue, KeyValueGrid } from "~/components/kv";
+import { RefreshControl } from "~/components/refresh";
 import { Badge } from "~/components/ui/badge";
 import { CopyButton } from "~/components/ui/copy-button";
 import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { SectionHeader } from "~/components/ui/section-header";
-import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { LoadingRows } from "~/components/ui/spinner";
+import { useAwsScope, useScope } from "~/stores/scope";
 import {
   linkClass,
   TagsSection,
@@ -206,7 +207,7 @@ function StageUsagePlans({ apiId, stageName }: { apiId: string; stageName: strin
       <SectionHeader
         title="Usage plans"
         count={plans.data ? `${matches.length}${plans.data.truncated ? "+" : ""}` : undefined}
-        action={plans.isFetching ? <Spinner className="size-3" /> : undefined}
+        action={<RefreshControl source={plans} label="Refresh usage plans" />}
       />
       {plans.isPending ? (
         <LoadingRows rows={2} />

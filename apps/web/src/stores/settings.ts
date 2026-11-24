@@ -29,7 +29,6 @@ import {
 import { create } from "zustand";
 
 import { seedSettings, writeCache } from "~/lib/settings/cache";
-import { clearLegacyKeys, collectLegacySettings } from "~/lib/settings/importLegacy";
 import { reconcile } from "~/lib/settings/echo";
 import { createOutbox } from "~/lib/settings/outbox";
 import { getSocket } from "~/lib/socket";
@@ -212,31 +211,6 @@ export function resetSettings(): void {
     .catch(() => undefined);
 }
 
-/**
- * Hands this browser's old `localStorage` preferences to the server, once.
- *
- * Gated on the server's `pristine` flag rather than on a local tombstone: a
- * second browser profile on the same machine would otherwise turn up weeks
- * later and import its stale values over a settings file that is by then the
- * real one. The server refuses a second import anyway, so two tabs racing on
- * first load costs nothing.
- */
-function importLegacySettings(): void {
-  const legacy = collectLegacySettings();
-  if (!legacy) return;
-  void trpcClient.settings.importLegacy
-    .mutate({ patch: legacy.patch, silenced: legacy.silenced })
-    .then((result) => {
-      // Clear only on a real import: if the server had settings already, this
-      // browser's copy is the stale one and worth keeping until it is stale
-      // beyond doubt.
-      if (!result.imported) return;
-      accept(result.snapshot, null);
-      clearLegacyKeys(legacy.keys);
-    })
-    .catch(() => undefined);
-}
-
 let started = false;
 
 /**
@@ -251,17 +225,10 @@ export function initSettings(): void {
   if (started) return;
   started = true;
 
-  let first = true;
   const load = () => {
     void trpcClient.settings.get
       .query()
-      .then((snapshot) => {
-        accept(snapshot, null);
-        if (first) {
-          first = false;
-          if (snapshot.pristine) importLegacySettings();
-        }
-      })
+      .then((snapshot) => accept(snapshot, null))
       .catch(() => {
         // In dev, Vite serves this page before the server is listening. The
         // seeded values are already on screen; the socket's `connect` will

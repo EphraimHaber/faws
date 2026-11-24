@@ -1,7 +1,16 @@
 import { useHotkeys } from "@tanstack/react-hotkeys";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Boxes, CornerDownLeft, Layers, ScrollText, Settings2, TerminalSquare } from "lucide-react";
+import {
+  Boxes,
+  CornerDownLeft,
+  Layers,
+  ScrollText,
+  Settings2,
+  Ship,
+  TerminalSquare,
+  Sparkles,
+} from "lucide-react";
 import * as React from "react";
 
 import {
@@ -14,7 +23,8 @@ import {
 } from "~/components/CommandPalette.entries";
 import { Kbd } from "~/components/ui/kbd";
 import { rankBy } from "~/lib/rank";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useEnabledProviders } from "~/stores/scope";
+import { openAddCluster } from "~/features/kube/loginDialogs";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { trpc } from "~/lib/trpc";
 import { useOverlay } from "~/stores/overlays";
@@ -94,11 +104,15 @@ function PaletteBody({
   // history you have to read.
   const recent = useRecentList(12);
   const kubeVirt = useKubeDiagnostics().data?.kubeVirt ?? false;
+  const enabledProviders = useEnabledProviders();
 
-  const clusters = useQuery(trpc.ecs.clusters.queryOptions(scope));
+  const clusters = useQuery({
+    ...trpc.ecs.clusters.queryOptions(scope),
+    enabled: enabledProviders.includes("aws"),
+  });
   const services = useQuery({
     ...trpc.ecs.services.queryOptions({ ...scope, cluster: activeCluster ?? "" }),
-    enabled: Boolean(activeCluster),
+    enabled: Boolean(activeCluster) && enabledProviders.includes("aws"),
   });
 
   const entries = React.useMemo<PaletteEntry[]>(() => {
@@ -132,10 +146,23 @@ function PaletteBody({
         group: "action",
         run: onOpenKube,
       },
+      ...(enabledProviders.includes("kubernetes")
+        ? [
+            {
+              id: "kube:add-cluster",
+              icon: Ship,
+              label: "Add a cluster",
+              hint: "log in to a Kubernetes or OpenShift API server",
+              keywords: ["kube", "kubernetes", "openshift", "oc", "login", "context", "cluster"],
+              group: "action" as const,
+              run: openAddCluster,
+            },
+          ]
+        : []),
       ...refEntries(pinned, "pinned", go),
       ...refEntries(recent, "recent", go),
-      ...navEntries(go, { kubeVirt }),
-      ...shellEntries(go, { diagnostics: ScrollText, settings: Settings2 }),
+      ...navEntries(go, { kubernetes: { kubevirt: kubeVirt } }, enabledProviders),
+      ...shellEntries(go, { diagnostics: ScrollText, settings: Settings2, whatsNew: Sparkles }),
     ];
 
     for (const cluster of clusters.data ?? []) {
@@ -174,6 +201,7 @@ function PaletteBody({
     pinned,
     recent,
     kubeVirt,
+    enabledProviders,
     navigate,
     onOpenTerminal,
     onOpenSsh,

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { AWS_SERVICES, type NavCapabilities, visibleSections } from "~/services/registry";
+import { type NavRuntime, type ProviderId, SERVICES, visibleSections } from "~/services/registry";
 
 /**
  * One row in the palette.
@@ -80,12 +80,14 @@ export function entryText(entry: PaletteEntry): ReadonlyArray<string> {
  */
 export function navEntries(
   navigate: (to: string) => void,
-  capabilities: NavCapabilities,
+  runtime: NavRuntime,
+  /** Providers switched off contribute nothing; absent means every provider is on. */
+  enabled?: ReadonlyArray<ProviderId>,
 ): PaletteEntry[] {
   const out: PaletteEntry[] = [
     {
       id: "nav:home",
-      icon: AWS_SERVICES[0].icon,
+      icon: SERVICES[0].icon,
       label: "Overview",
       hint: "account summary",
       keywords: ["home", "start", "dashboard"],
@@ -94,8 +96,9 @@ export function navEntries(
     },
   ];
 
-  for (const service of AWS_SERVICES) {
+  for (const service of SERVICES) {
     if (service.status !== "available") continue;
+    if (enabled && service.owner !== "host" && !enabled.includes(service.owner)) continue;
 
     out.push({
       // The description rides as the hint rather than being split into
@@ -112,7 +115,7 @@ export function navEntries(
       run: () => navigate(service.basePath),
     });
 
-    for (const section of visibleSections(service, capabilities)) {
+    for (const section of visibleSections(service, runtime)) {
       const to = section.to ?? service.basePath;
       out.push({
         id: `nav:${service.id}:${section.id}`,
@@ -132,7 +135,7 @@ export function navEntries(
 /** The shell's own pages, which belong to no AWS service. */
 export function shellEntries(
   navigate: (to: string) => void,
-  icons: { diagnostics: LucideIcon; settings: LucideIcon },
+  icons: { diagnostics: LucideIcon; settings: LucideIcon; whatsNew?: LucideIcon },
 ): PaletteEntry[] {
   return [
     {
@@ -143,6 +146,15 @@ export function shellEntries(
       keywords: ["logs", "errors", "debug", "trace"],
       group: "nav",
       run: () => navigate("/logs"),
+    },
+    {
+      id: "nav:whats-new",
+      icon: icons.whatsNew ?? icons.settings,
+      label: "What's new",
+      hint: "release notes",
+      keywords: ["changelog", "release", "notes", "version", "update"],
+      group: "nav",
+      run: () => navigate("/whats-new"),
     },
     {
       id: "nav:settings",

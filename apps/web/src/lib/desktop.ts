@@ -1,3 +1,5 @@
+import type { UpdateConfig, UpdateStatus } from "@faws/contracts";
+
 /**
  * The Electron preload bridge, as the renderer sees it.
  *
@@ -9,6 +11,28 @@ export interface DesktopBridge {
   openLogFile(): Promise<void>;
   showLogDir(): Promise<void>;
   onFullscreenChange(listener: (fullscreen: boolean) => void): () => void;
+  /** Absent in desktop builds older than the provider menu. */
+  setNavMenu?(items: ReadonlyArray<DesktopNavItem>): void;
+  /** Absent in desktop builds older than the update check. */
+  readonly updates?: UpdatesBridge;
+  /** Absent in desktop builds older than browser sign in. */
+  openExternal?(url: string): Promise<void>;
+}
+
+export interface UpdatesBridge {
+  status(): Promise<UpdateStatus>;
+  check(): Promise<UpdateStatus>;
+  download(): Promise<void>;
+  install(): Promise<void>;
+  openRelease(): Promise<void>;
+  configure(config: UpdateConfig): void;
+  onStatus(listener: (status: UpdateStatus) => void): () => void;
+}
+
+export interface DesktopNavItem {
+  readonly label: string;
+  readonly target: string;
+  readonly group: string;
 }
 
 declare global {
@@ -19,6 +43,16 @@ declare global {
 
 export function desktopBridge(): DesktopBridge | null {
   return typeof window === "undefined" ? null : (window.faws ?? null);
+}
+
+/** Opens a page in the person's own browser: the default browser on desktop, a new tab otherwise. */
+export function openExternal(url: string): void {
+  const bridge = desktopBridge();
+  if (bridge?.openExternal) {
+    void bridge.openExternal(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 /**

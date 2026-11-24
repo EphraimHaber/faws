@@ -12,7 +12,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { TruncatedNote } from "~/features/api-gateway/components/parts";
 import { restApiRef } from "~/features/api-gateway/refs";
 import { fullTimestamp } from "~/lib/format";
@@ -110,7 +110,7 @@ export function RestApisPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={apis} refreshLabel="Refresh REST APIs">
         <PanelTitle>REST APIs</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {apis.isPending ? "…" : rows.length}

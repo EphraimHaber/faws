@@ -10,7 +10,7 @@ import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { SectionHeader } from "~/components/ui/section-header";
 import { textActionClass } from "~/components/ui/text-action";
-import { useAwsScope, useKubeScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useKubeScope } from "~/stores/scope";
 import { hasNoCli } from "~/features/kube/components/NoKubectl";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { useFilterSearch } from "~/hooks/useSearchState";
@@ -61,7 +61,7 @@ export function ConnectPanel() {
   const instances = useQuery(trpc.exec.targets.queryOptions(aws));
   const hosts = useQuery(trpc.exec.sshHosts.queryOptions());
   const pods = useQuery({
-    ...trpc.kube.pods.queryOptions({ context: kube.context, namespace: kube.namespace }),
+    ...trpc.kubernetes.pods.queryOptions({ context: kube.context, namespace: kube.namespace }),
     enabled: kube.ready && !noKubeCli,
     retry: false,
   });
@@ -106,7 +106,10 @@ export function ConnectPanel() {
 
   return (
     <Panel className="min-h-0 flex-1">
-      <PanelHeader>
+      <PanelHeader
+        refresh={kube.ready && !noKubeCli ? [instances, hosts, pods] : [instances, hosts]}
+        refreshLabel="Refresh targets"
+      >
         <PanelTitle>Connect</PanelTitle>
         <div className="ml-auto">
           <FilterInput

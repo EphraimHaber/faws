@@ -12,11 +12,12 @@ import { Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 
 import { MetricChart } from "~/components/metric-chart";
+import { RefreshControl } from "~/components/refresh";
 import { Button } from "~/components/ui/button";
 import { ErrorState } from "~/components/ui/error-state";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { TextAction } from "~/components/ui/text-action";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { StageSelect } from "~/features/api-gateway/components/parts";
 import {
   API_GATEWAY_NAMESPACE,
@@ -191,6 +192,7 @@ function RestApiMetricChart({
         >
           In CloudWatch <ArrowUpRight className="size-3" />
         </Link>
+        <RefreshControl source={series} label="Refresh chart" />
       </div>
     </section>
   );

@@ -13,7 +13,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader } from "~/components/ui/panel";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { TruncatedNote } from "~/features/api-gateway/components/parts";
 import { UsagePlanPanel } from "~/features/api-gateway/components/UsagePlanPanel";
 import { limitsLabel, quotaLabel } from "~/features/api-gateway/usage-plans";
@@ -68,7 +68,10 @@ export function UsagePlansPage() {
       ) : null}
 
       <Panel className="flex-1">
-        <PanelHeader>
+        <PanelHeader
+          refresh={tab === "plans" ? [plans, apis] : keys}
+          refreshLabel={tab === "plans" ? "Refresh usage plans" : "Refresh API keys"}
+        >
           <Segmented<Tab>
             value={tab}
             onChange={(next) => {

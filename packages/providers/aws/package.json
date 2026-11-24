@@ -1,0 +1,37 @@
+{
+  "name": "@faws/provider-aws",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./manifest": {
+      "types": "./src/manifest.ts",
+      "default": "./src/manifest.ts"
+    },
+    "./server": {
+      "types": "./src/server/index.ts",
+      "default": "./src/server/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ec2-instance-connect": "catalog:aws",
+    "@aws-sdk/client-ecs": "catalog:aws",
+    "@aws-sdk/client-ssm": "catalog:aws",
+    "@faws/contracts": "workspace:*",
+    "@faws/core": "workspace:*",
+    "@faws/kit": "workspace:*",
+    "@faws/provider-aws-manifest": "workspace:*",
+    "@faws/lib-s3": "workspace:*",
+    "@trpc/server": "catalog:trpc",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:build",
+    "typescript": "catalog:build",
+    "vitest": "catalog:build"
+  }
+}

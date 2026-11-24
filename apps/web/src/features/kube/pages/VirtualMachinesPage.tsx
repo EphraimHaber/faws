@@ -13,7 +13,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
-import { useKubeScope } from "~/contexts/ScopeContext";
+import { useKubeScope } from "~/stores/scope";
 import { KubeScopePicker } from "~/features/kube/components/KubeScopePicker";
 import { VmSshDialog } from "~/features/kube/components/VmSshDialog";
 import { hasNoCli, NoKubectl } from "~/features/kube/components/NoKubectl";
@@ -54,7 +54,7 @@ export function VirtualMachinesPage() {
   }, [diagnostics.data, navigate]);
 
   const machines = useQuery({
-    ...trpc.kube.virtualMachines.queryOptions({ context, namespace }),
+    ...trpc.kubernetes.virtualMachines.queryOptions({ context, namespace }),
     enabled: ready && kubeVirt,
     retry: false,
   });
@@ -126,7 +126,11 @@ export function VirtualMachinesPage() {
 
   return (
     <Panel className="min-h-0 flex-1">
-      <PanelHeader>
+      <PanelHeader
+        {...(ready && kubeVirt
+          ? { refresh: machines, refreshLabel: "Refresh virtual machines" }
+          : {})}
+      >
         <PanelTitle>Virtual machines</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
         {noVirtctl ? (

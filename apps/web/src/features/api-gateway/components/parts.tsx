@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { KeyValue, KeyValueGrid } from "~/components/kv";
 import { SectionHeader } from "~/components/ui/section-header";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { type StageLogSources, stageLogSources } from "~/features/api-gateway/stages";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";

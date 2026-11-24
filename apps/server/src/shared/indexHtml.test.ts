@@ -44,7 +44,13 @@ describe("createIndexHtmlRenderer", () => {
     write("<html><head><!--faws:settings--></head><body></body></html>");
     const html = await createIndexHtmlRenderer(root)({
       ...DEFAULT_SETTINGS,
-      scope: { ...DEFAULT_SETTINGS.scope, profile: "</script><script>alert(1)</script>" },
+      providers: {
+        ...DEFAULT_SETTINGS.providers,
+        aws: {
+          ...DEFAULT_SETTINGS.providers.aws,
+          scope: { profile: "</script><script>alert(1)</script>", region: "" },
+        },
+      },
     });
 
     expect(html).not.toContain("</script><script>alert(1)");

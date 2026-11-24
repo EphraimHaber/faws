@@ -4,7 +4,7 @@ import { Check, ChevronsUpDown, RefreshCw } from "lucide-react";
 import * as React from "react";
 
 import { StatusDot, type StatusTone } from "~/components/ui/status-dot";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useScope } from "~/stores/scope";
 import { describe } from "~/lib/hotkeys";
 import { trpc } from "~/lib/trpc";
 import { useOverlay, useOverlaysOpen } from "~/stores/overlays";

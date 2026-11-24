@@ -1,0 +1,34 @@
+{
+  "name": "@faws/provider-kubernetes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./manifest": {
+      "types": "./src/manifest.ts",
+      "default": "./src/manifest.ts"
+    },
+    "./server": {
+      "types": "./src/server/index.ts",
+      "default": "./src/server/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@faws/contracts": "workspace:*",
+    "@faws/kit": "workspace:*",
+    "@faws/provider-kubernetes-manifest": "workspace:*",
+    "@faws/shared": "workspace:*",
+    "@kubernetes/client-node": "catalog:",
+    "@trpc/server": "catalog:trpc",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:build",
+    "typescript": "catalog:build",
+    "vitest": "catalog:build"
+  }
+}

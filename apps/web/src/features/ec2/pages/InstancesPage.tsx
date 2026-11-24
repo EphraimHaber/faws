@@ -12,7 +12,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { useFilterSearch } from "~/hooks/useSearchState";
 import { instanceActions, instanceRef } from "~/lib/terminal/connectable";
 import { trpc } from "~/lib/trpc";
@@ -209,7 +209,7 @@ export function InstancesPage() {
   return (
     <div className="flex min-h-0 flex-col gap-3">
       <Panel className="min-h-0 flex-1">
-        <PanelHeader>
+        <PanelHeader refresh={targets} refreshLabel="Refresh instances">
           <PanelTitle>Instances</PanelTitle>
           <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
           <div className="ml-auto">

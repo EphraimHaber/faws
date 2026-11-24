@@ -18,6 +18,13 @@ export default defineConfig({
   outExtensions: () => ({ js: ".mjs" }),
   platform: "node",
   target: "node22",
+  // Bundled CommonJS dependencies (ssh2's agent among them) read `__dirname`,
+  // which an ES module does not have; Node refuses to guess once the bundle
+  // also holds a top-level await, and the server dies before it listens.
+  shims: true,
+  // Nothing consumes declarations from this bundle: the web app reads the
+  // router type from source through the `./router` export.
+  dts: false,
   noExternal: (id) =>
     !id.startsWith("node:") && !isNodeBuiltin(id) && !id.endsWith(".node") && id !== "node-pty",
   external: [/\.node$/, "node-pty"],

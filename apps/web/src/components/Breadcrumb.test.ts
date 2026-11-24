@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { deriveCrumbs } from "./Breadcrumb.tsx";
-import { AWS_SERVICES } from "~/services/registry";
+import { SERVICES } from "~/services/registry";
 
 /**
  * The trail is derived from the pathname alone, so it is testable without a
@@ -53,9 +53,9 @@ describe("deriveCrumbs", () => {
     expect(labels("/s3/buckets/my%2Fodd%20bucket").at(-1)).toBe("my/odd bucket");
   });
 
-  it("names the S3 endpoint list, which is a section and not a bucket", () => {
-    expect(labels("/s3/connections")).toEqual(["Overview", "S3", "Endpoints"]);
-    expect(paths("/s3/connections")).toEqual(["/", "/s3", "/s3/connections"]);
+  it("names the S3-compatible endpoint list as its own service, not an S3 bucket", () => {
+    expect(labels("/s3/connections")).toEqual(["Overview", "Endpoints"]);
+    expect(paths("/s3/connections")).toEqual(["/", "/s3/connections"]);
   });
 
   it("names the Kubernetes sections as the registry writes them", () => {
@@ -77,7 +77,7 @@ describe("deriveCrumbs", () => {
   });
 
   it("names every registered section as the registry does", () => {
-    for (const service of AWS_SERVICES) {
+    for (const service of SERVICES) {
       for (const section of service.sections) {
         if (!section.to) continue;
         expect(deriveCrumbs(section.to).at(-1)).toEqual({ label: section.label, to: section.to });

@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { Button } from "~/components/ui/button";
 import { ResizeHandle } from "~/components/ui/resize-handle";
-import { MIN_LOG_GUTTER, useScope } from "~/contexts/ScopeContext";
+import { MIN_LOG_GUTTER, useScope } from "~/stores/scope";
 import { LogLine } from "~/features/ecs/components/LogLine";
 import { useSearchState } from "~/hooks/useSearchState";
 import { hasAnsi } from "~/lib/ansi";

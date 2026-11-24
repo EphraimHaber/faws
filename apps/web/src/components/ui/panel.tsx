@@ -1,5 +1,7 @@
 import type * as React from "react";
 
+import { RefreshControl } from "~/components/refresh/Refresh";
+import type { RefreshSource } from "~/components/refresh/useRefreshable";
 import { cn } from "~/lib/utils";
 
 /** The one content container: a bordered plane that sits above the chrome. */
@@ -12,15 +14,47 @@ export function Panel({ className, ...props }: React.ComponentProps<"section">) 
   );
 }
 
-export function PanelHeader({ className, ...props }: React.ComponentProps<"header">) {
+/**
+ * The top of a card.
+ *
+ * Pass `refresh` the queries a widget shows and it gets the standard refresh
+ * button and, where the header is wide enough, how long ago they answered.
+ * Every panel that shows fetched data passes it; a widget without a header
+ * uses `RefreshControl` or `useRefreshable` from `~/components/refresh`.
+ */
+export function PanelHeader({
+  className,
+  children,
+  refresh,
+  refreshLabel,
+  ...props
+}: React.ComponentProps<"header"> & {
+  refresh?: RefreshSource;
+  /** What a refresh fetches again, for the button's tooltip. */
+  refreshLabel?: string;
+}) {
   return (
     <header
       className={cn(
-        "flex h-10 shrink-0 items-center gap-3 border-b border-border px-3.5",
+        "@container flex h-10 shrink-0 items-center gap-3 border-b border-border px-3.5",
         className,
       )}
       {...props}
-    />
+    >
+      {refresh ? (
+        <>
+          {/* Its own row so a child's `ml-auto` still pushes to the right of
+              the content, with the refresh control after it at the edge. */}
+          <div className="flex min-w-0 flex-1 items-center gap-3">{children}</div>
+          <RefreshControl
+            source={refresh}
+            {...(refreshLabel === undefined ? {} : { label: refreshLabel })}
+          />
+        </>
+      ) : (
+        children
+      )}
+    </header>
   );
 }
 

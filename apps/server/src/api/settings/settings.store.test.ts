@@ -68,16 +68,14 @@ describe("round trip", () => {
   it("reads back what a previous process wrote", async () => {
     const first = store();
     await first.load();
-    first.update({ scope: { profile: "prod", region: "eu-west-1" }, logs: { gutter: 90 } });
+    first.update({
+      providers: { aws: { scope: { profile: "prod", region: "eu-west-1" } } },
+      logs: { gutter: 90 },
+    });
     await first.flush();
 
     const reloaded = (await store().load()).settings;
-    expect(reloaded.scope).toEqual({
-      profile: "prod",
-      region: "eu-west-1",
-      connectionId: "",
-      refreshSeconds: 30,
-    });
+    expect(reloaded.providers.aws.scope).toEqual({ profile: "prod", region: "eu-west-1" });
     expect(reloaded.logs.gutter).toBe(90);
   });
 
@@ -88,7 +86,7 @@ describe("round trip", () => {
     const after = s.update({ logs: { gutter: 90 } }).settings;
 
     expect(after.appearance.theme).toBe("light");
-    expect(after.scope).toEqual(DEFAULT_SETTINGS.scope);
+    expect(after.providers).toEqual(DEFAULT_SETTINGS.providers);
     expect(after.terminal).toEqual(DEFAULT_SETTINGS.terminal);
     expect(after.silenced).toEqual(DEFAULT_SETTINGS.silenced);
   });
@@ -228,31 +226,6 @@ describe("silence operations", () => {
   });
 });
 
-describe("legacy import", () => {
-  it("adopts localStorage values while the store is pristine", async () => {
-    const s = store();
-    await s.load();
-    const result = s.importLegacy(
-      { appearance: { theme: "light" } },
-      { muted: { a: { arn: "a", label: "A", context: "", at: "2026-01-01T00:00:00.000Z" } } },
-    );
-
-    expect(result.imported).toBe(true);
-    expect(result.snapshot.settings.appearance.theme).toBe("light");
-    expect(result.snapshot.settings.silenced.muted["a"]).toBeDefined();
-  });
-
-  it("is a no-op once anything has been written", async () => {
-    const s = store();
-    await s.load();
-    s.update({ appearance: { theme: "dark" } });
-
-    const result = s.importLegacy({ appearance: { theme: "light" } }, {});
-    expect(result.imported).toBe(false);
-    expect(result.snapshot.settings.appearance.theme).toBe("dark");
-  });
-});
-
 describe("subscribers", () => {
   it("fire once per change, carrying the origin", async () => {
     const s = store();
@@ -283,7 +256,10 @@ describe("reset", () => {
   it("puts every section back to its default", async () => {
     const s = store();
     await s.load();
-    s.update({ appearance: { theme: "light" }, scope: { profile: "prod" } });
+    s.update({
+      appearance: { theme: "light" },
+      providers: { aws: { scope: { profile: "prod" } } },
+    });
     s.applySilence({ op: "mute", entry: { arn: "a", label: "", context: "" } });
 
     expect(s.reset().settings).toEqual(DEFAULT_SETTINGS);

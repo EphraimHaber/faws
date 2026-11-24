@@ -6,7 +6,7 @@ import * as React from "react";
 
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useScope } from "~/stores/scope";
 import { trpc } from "~/lib/trpc";
 
 /**
@@ -51,7 +51,7 @@ export function EcsIndexPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={[clusters, ...serviceQueries]} refreshLabel="Refresh ECS">
         <PanelTitle>ECS</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{region}</span>
       </PanelHeader>

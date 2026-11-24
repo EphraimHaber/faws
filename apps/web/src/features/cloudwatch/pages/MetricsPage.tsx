@@ -23,7 +23,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { TextAction } from "~/components/ui/text-action";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { WindowPicker } from "~/features/cloudwatch/components/LogWindow";
 import {
   chartStatistics,
@@ -171,7 +171,7 @@ export function MetricsPage() {
       {chart ? <ChartPanel metric={chart} onClose={() => setChart(null)} /> : null}
 
       <Panel className="flex-1">
-        <PanelHeader>
+        <PanelHeader refresh={listing} refreshLabel="Refresh metrics">
           <PanelTitle>Metrics</PanelTitle>
           <span className="font-mono text-[11px] text-muted-foreground tabular">
             {listing.isPending ? "…" : `${rows.length}${listing.hasNextPage ? "+" : ""}`}
@@ -317,7 +317,7 @@ function ChartPanel({ metric, onClose }: { metric: MetricDescriptor; onClose: ()
 
   return (
     <Panel className="shrink-0">
-      <PanelHeader>
+      <PanelHeader refresh={series} refreshLabel="Refresh chart">
         <PanelTitle className="truncate">{metric.name}</PanelTitle>
         <span className="truncate font-mono text-[10.5px] text-muted-foreground">
           {metric.namespace} · {dimensionsLabel(metric)}

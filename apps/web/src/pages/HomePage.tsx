@@ -15,13 +15,14 @@ import { ScrollList } from "~/components/ui/scroll-list";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
 import { TextAction } from "~/components/ui/text-action";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useEnabledProviders, useScope } from "~/stores/scope";
+import { ProviderHealth } from "~/features/overview/ProviderHealth";
 import { clusterRef, serviceRef } from "~/features/ecs/refs";
 import { deployedUntil } from "~/lib/deployment";
 import { serviceTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
 import { HiddenCount, SilenceMenu } from "~/components/SilenceMenu";
-import { AWS_SERVICES, resolveService, type AwsServiceDefinition } from "~/services/registry";
+import { SERVICES, resolveService, type ServiceDefinition } from "~/services/registry";
 import { kindIcon } from "~/components/CommandPalette.entries";
 import {
   PIN_DROP_CLASS,
@@ -38,20 +39,30 @@ import { useNowUntil } from "~/hooks/useNowUntil";
 import { useFilterSearch } from "~/hooks/useSearchState";
 
 /**
- * The landing screen: pick an AWS service, then see what it looks like right
- * now in this account.
+ * The landing screen: is everything reachable, what was I doing, and which
+ * service next.
  *
- * The service strip leads because it is the widest choice on the page —
- * everything below it is an answer scoped to one service.
+ * Provider health leads because it is the question every session starts
+ * with. The service strip below it lists only providers that are on, and
+ * everything under the strip is an answer scoped to the one picked.
  */
 export function HomePage() {
   const { service } = useSearch({ from: "/" });
   const navigate = useNavigate({ from: "/" });
-  const active = resolveService(service);
+  const enabled = useEnabledProviders();
+  const services = React.useMemo(
+    () => SERVICES.filter((entry) => entry.owner === "host" || enabled.includes(entry.owner)),
+    [enabled],
+  );
+  const requested = resolveService(service);
+  const active = services.includes(requested) ? requested : (services[0] ?? requested);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto">
+      <ProviderHealth />
+
       <ServiceSwitcher
+        services={services}
         active={active}
         onSelect={(next) =>
           void navigate({
@@ -146,20 +157,22 @@ const JUMP_BACK_CAP = 6;
 
 /** A row of services, one of which the page below belongs to. */
 function ServiceSwitcher({
+  services,
   active,
   onSelect,
 }: {
-  active: AwsServiceDefinition;
+  services: ReadonlyArray<ServiceDefinition>;
+  active: ServiceDefinition;
   onSelect: (id: string) => void;
 }) {
   return (
     <Panel className="shrink-0">
       <div
         role="group"
-        aria-label="AWS service"
+        aria-label="Service"
         className="grid gap-1 p-1.5 sm:grid-cols-3 lg:grid-cols-5"
       >
-        {AWS_SERVICES.map((service) => {
+        {services.map((service) => {
           const Icon = service.icon;
           const selected = service.id === active.id;
           return (
@@ -214,7 +227,7 @@ function ServiceSwitcher({
  * real contents, and the overview's job until one of them has numbers worth
  * putting here is to not be a dead end.
  */
-function AvailableService({ service }: { service: AwsServiceDefinition }) {
+function AvailableService({ service }: { service: ServiceDefinition }) {
   return (
     <Panel className="shrink-0">
       <PanelHeader>
@@ -250,7 +263,7 @@ function AvailableService({ service }: { service: AwsServiceDefinition }) {
  * A service faws will cover but doesn't yet. It names the work rather than
  * apologising, so the gap reads as unbuilt rather than broken.
  */
-function PlannedService({ service }: { service: AwsServiceDefinition }) {
+function PlannedService({ service }: { service: ServiceDefinition }) {
   return (
     <Panel className="shrink-0">
       <PanelHeader>

@@ -23,20 +23,27 @@ import Fastify, { type FastifyBaseLogger, type FastifyError, type FastifyReply }
 import { attachExecNamespace } from "./api/exec/exec.service.ts";
 import { registerExecDrivers } from "./api/exec/index.ts";
 import { closeAllSessions } from "./api/exec/session.registry.ts";
-import { s3BytesRoutes } from "./api/s3/bytes.routes.ts";
-import { attachS3ScanNamespace } from "./api/s3/scan.service.ts";
-import { registerServerConnectionStores } from "./api/s3/connectionStore.ts";
+import { storageBytesRoutes } from "./api/storage/bytes.routes.ts";
+import { registerServerConnectionStores } from "./api/storage/connectionStore.ts";
+import { attachStorageScanNamespace } from "./api/storage/scan.service.ts";
 import { attachSettingsBroadcast } from "./api/settings/settings.events.ts";
 import { flushSettings, loadSettings, settingsStore } from "./api/settings/settings.instance.ts";
+import { applyTrust } from "./api/trust/trust.ts";
 import { appRouter, type AppRouter } from "./router.ts";
 import { createIndexHtmlRenderer } from "./shared/indexHtml.ts";
-import { getRootLogger } from "./shared/logger.ts";
+import { createLogger, getRootLogger } from "./shared/logger.ts";
+import { setLoggerFactory } from "@faws/kit/server";
+import { registerAwsObjectStorage } from "@faws/provider-aws/server";
+import { registerS3compatObjectStorage } from "@faws/provider-s3compat/server";
 import {
   closeSocketIO,
   getExecNamespace,
-  getS3ScanNamespace,
+  getStorageScanNamespace,
   setupSocketIO,
 } from "./shared/socket-io.ts";
+
+// Provider packages log through kit; route them into the server's own log.
+setLoggerFactory(createLogger);
 
 const HOST = process.env["FAWS_HOST"] ?? "127.0.0.1";
 const PORT = process.env["FAWS_PORT"] ? Number(process.env["FAWS_PORT"]) : 0;
@@ -105,9 +112,24 @@ await server.register(fastifyCors, {
 // Before listen, so the very first request already sees the stored values
 // rather than defaults it would have to correct a moment later.
 await loadSettings();
+// Trust what the settings say before the first outbound connection, and again
+// whenever they change (a reset, or another window removing a certificate).
+{
+  let lastTrust = settingsStore().get().settings.trust;
+  applyTrust(lastTrust);
+  settingsStore().subscribe((snapshot) => {
+    if (snapshot.settings.trust === lastTrust) return;
+    lastTrust = snapshot.settings.trust;
+    applyTrust(lastTrust);
+  });
+}
 // Saved S3 endpoints live in the settings file, so nothing may read one
 // before it has been loaded.
 registerServerConnectionStores();
+// Each provider that stores objects answers the storage routes for its own
+// connections.
+registerAwsObjectStorage();
+registerS3compatObjectStorage();
 
 await server.register(fastifyTRPCPlugin, {
   prefix: "/trpc",
@@ -120,7 +142,7 @@ await server.register(fastifyTRPCPlugin, {
   } satisfies FastifyTRPCPluginOptions<AppRouter>["trpcOptions"],
 });
 
-await server.register(s3BytesRoutes);
+await server.register(storageBytesRoutes);
 
 server.get("/healthz", () => ({ ok: true }));
 
@@ -137,8 +159,11 @@ if (webDist) {
       reply.type("text/html").send(await renderIndex(settingsStore().get().settings));
 
     server.get("/", (_request, reply) => sendShell(reply));
+    // Only the server's own namespaces answer 404. Everything else is a page
+    // of the web app, so a reload or a deep link gets the shell; that is why
+    // byte routes live under `/api/` rather than beside the pages they serve.
     server.setNotFoundHandler((request, reply) => {
-      if (request.url.startsWith("/trpc") || request.url.startsWith("/s3/")) {
+      if (request.url.startsWith("/trpc") || request.url.startsWith("/api/")) {
         return reply.status(404).send({ error: "Not Found", message: request.url });
       }
       return sendShell(reply);
@@ -156,8 +181,8 @@ attachSettingsBroadcast();
 registerExecDrivers();
 const execNs = getExecNamespace();
 if (execNs) attachExecNamespace(execNs);
-const scanNs = getS3ScanNamespace();
-if (scanNs) attachS3ScanNamespace(scanNs);
+const scanNs = getStorageScanNamespace();
+if (scanNs) attachStorageScanNamespace(scanNs);
 
 console.log(`faws-server-port: ${resolvedPort}`);
 console.log(`faws-server-url: ${address.replace(/\/$/, "")}/trpc`);

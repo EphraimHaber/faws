@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { s3CapabilitiesFor, toS3Scope, type S3Connection } from "./s3-connections.ts";
+import { awsConnectionRef, awsScopeOf } from "./aws.ts";
+import { s3EndpointFeatures, s3EndpointRef, type S3Connection } from "./s3-connections.ts";
 
 const connection: S3Connection = {
   id: "abc",
@@ -24,17 +25,9 @@ const connection: S3Connection = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
-describe("s3CapabilitiesFor", () => {
-  it("offers everything when nothing but AWS is in scope", () => {
-    expect(s3CapabilitiesFor(null)).toEqual({
-      bucketRegions: true,
-      storageMetrics: true,
-      presign: true,
-    });
-  });
-
-  it("withholds what only AWS can answer for an endpoint", () => {
-    expect(s3CapabilitiesFor(connection)).toEqual({
+describe("s3EndpointFeatures", () => {
+  it("withholds what only AWS can answer", () => {
+    expect(s3EndpointFeatures(connection)).toEqual({
       bucketRegions: false,
       storageMetrics: false,
       presign: true,
@@ -43,27 +36,29 @@ describe("s3CapabilitiesFor", () => {
 
   it("offers metrics for an endpoint that says it is fronting AWS buckets", () => {
     expect(
-      s3CapabilitiesFor({ ...connection, features: { storageMetrics: true, presign: false } }),
+      s3EndpointFeatures({ ...connection, features: { storageMetrics: true, presign: false } }),
     ).toEqual({ bucketRegions: false, storageMetrics: true, presign: false });
   });
 });
 
-describe("toS3Scope", () => {
-  it("leaves the connection out rather than setting it to undefined", () => {
-    expect(toS3Scope({ profile: "default", region: "eu-west-1" })).toEqual({
-      profile: "default",
-      region: "eu-west-1",
-    });
-    expect(
-      Object.hasOwn(toS3Scope({ profile: "d", region: "r", connectionId: null }), "connectionId"),
-    ).toBe(false);
+describe("connection refs", () => {
+  it("name a saved endpoint by its id", () => {
+    expect(s3EndpointRef("abc")).toEqual({ provider: "s3", id: "abc" });
   });
 
-  it("carries one that is set", () => {
-    expect(toS3Scope({ profile: "d", region: "r", connectionId: "abc" })).toEqual({
-      profile: "d",
-      region: "r",
-      connectionId: "abc",
-    });
+  it("round trip an AWS scope, including a profile with an @ in it", () => {
+    for (const scope of [
+      { profile: "default", region: "eu-west-1" },
+      { profile: "me@corp", region: "us-east-1" },
+      { profile: "", region: "ap-south-1" },
+    ]) {
+      expect(awsScopeOf(awsConnectionRef(scope))).toEqual(scope);
+    }
+  });
+
+  it("refuse anything that is not an AWS scope", () => {
+    expect(awsScopeOf({ provider: "s3", id: "a@b" })).toBeNull();
+    expect(awsScopeOf({ provider: "aws", id: "no-region" })).toBeNull();
+    expect(awsScopeOf({ provider: "aws", id: "trailing@" })).toBeNull();
   });
 });

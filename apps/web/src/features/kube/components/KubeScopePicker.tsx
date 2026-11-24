@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Boxes, Check, Ship } from "lucide-react";
 import * as React from "react";
 
-import { useKubeScope } from "~/contexts/ScopeContext";
+import { useKubeScope } from "~/stores/scope";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
 
@@ -20,9 +20,9 @@ export function KubeScopePicker() {
   const { context, namespace, setContext, setNamespace } = useKubeScope();
   const [open, setOpen] = React.useState<"context" | "namespace" | null>(null);
 
-  const contexts = useQuery({ ...trpc.kube.contexts.queryOptions(), retry: false });
+  const contexts = useQuery({ ...trpc.kubernetes.contexts.queryOptions(), retry: false });
   const namespaces = useQuery({
-    ...trpc.kube.namespaces.queryOptions({ context }),
+    ...trpc.kubernetes.namespaces.queryOptions({ context }),
     enabled: context.length > 0,
     retry: false,
   });

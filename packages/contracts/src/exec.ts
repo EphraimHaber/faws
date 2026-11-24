@@ -271,6 +271,7 @@ export type ExecPromptResponse = z.infer<typeof execPromptResponseSchema>;
 export type ExecErrorCode =
   | "BadHandshake"
   | "NoDriver"
+  | "ProviderDisabled"
   | "SessionGone"
   | "TooManySessions"
   | "SessionManagerPluginMissing"
@@ -292,6 +293,7 @@ export type ExecErrorCode =
   | "KubeContextUnknown"
   | "KubeApiUnreachable"
   | "KubeAuthFailed"
+  | "KubeUnauthorized"
   | "KubeForbidden"
   | "KubePodNotFound"
   | "KubeContainerNotFound"

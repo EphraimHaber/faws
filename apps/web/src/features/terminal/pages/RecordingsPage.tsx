@@ -39,7 +39,7 @@ export function RecordingsPage() {
 
   return (
     <Panel className="min-h-0 flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={recordings} refreshLabel="Refresh recordings">
         <PanelTitle>Session recordings</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{rows.length}</span>
         <label className="ml-auto flex items-center gap-1.5 text-[12px]">

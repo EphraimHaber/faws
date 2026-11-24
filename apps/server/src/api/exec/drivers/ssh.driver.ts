@@ -6,12 +6,19 @@
  * changes it, so none of the node-pty machinery the SSM driver needs applies.
  *
  * The interesting part is reaching the host at all, and that is deliberately
- * not here - `ssh/connect` does one hop and `ssh/transport` gets a byte stream
- * to port 22. This file composes them: a jump chain is a fold over hops, and
- * every route ends with the same three lines opening a shell.
+ * not here - `ssh/connect` does one hop, and a route gets the last hop a byte
+ * stream or a key when dialling it is not enough. This file composes them: a
+ * jump chain is a fold over hops, and every route ends with the same three
+ * lines opening a shell.
+ *
+ * `direct` and `jump` are the host's own. Every other `transport.via` is a
+ * route a provider contributes (an SSM tunnel, an EC2 Instance Connect key),
+ * registered here with the provider it came from so the handshake can refuse
+ * it while that provider is switched off.
  */
-import type { ExecInstanceTarget, SshTransport } from "@faws/contracts";
-import { listExecTargets, readSshConfig, resolveSshHost } from "@faws/core";
+import type { ExecHandshakeAuth, SshTransport } from "@faws/contracts";
+import { readSshConfig, resolveSshHost } from "@faws/core";
+import type { SshRoute, SshRouteContext, SshRouteContribution } from "@faws/kit/server";
 import type { ClientChannel } from "ssh2";
 
 import { ExecSessionError } from "../errors.ts";
@@ -23,24 +30,33 @@ import {
   translateSshError,
   type Hop,
 } from "../ssh/connect.ts";
-import { generateEphemeralKey, sendPublicKey } from "../ssh/instanceConnect.ts";
-import { openTransport, type OpenTransport } from "../ssh/transport.ts";
 
-/** Where an Instance Connect key goes, and which address to dial after. */
-async function resolveInstance(
-  profile: string,
-  region: string,
-  instanceId: string,
-): Promise<ExecInstanceTarget> {
-  const targets = await listExecTargets({ profile, region });
-  const found = targets.find((target) => target.instanceId === instanceId);
-  if (!found) {
-    throw new ExecSessionError(
-      "InvalidInstanceId",
-      `${instanceId} is not an instance this region knows about.`,
-    );
-  }
-  return found;
+/** The transports the host reaches by itself. */
+type HostVia = "direct" | "jump";
+
+interface RegisteredRoute {
+  readonly provider: string;
+  readonly route: SshRouteContribution<string, SshTransport>;
+}
+
+const routes = new Map<string, RegisteredRoute>();
+
+/** Adds a provider's way of reaching an SSH host, for the handshakes whose `transport.via` it names. */
+export function registerSshRoute(
+  provider: string,
+  route: SshRouteContribution<Exclude<SshTransport["via"], HostVia>, SshTransport>,
+): void {
+  routes.set(route.via, { provider, route });
+}
+
+/**
+ * The provider whose route would serve this SSH handshake, or null for one the
+ * host dials itself. Registered as the SSH driver's provider, so
+ * SSH over an SSM tunnel is refused while AWS is switched off.
+ */
+export function sshProvider(auth: ExecHandshakeAuth): string | null {
+  if (auth.kind !== "ssh") return null;
+  return routes.get(auth.transport.via)?.provider ?? null;
 }
 
 export const sshDriverFactory: ExecDriverFactory = async (auth, sink, ctx) => {
@@ -51,7 +67,7 @@ export const sshDriverFactory: ExecDriverFactory = async (auth, sink, ctx) => {
   const status = (message: string) => sink.status(message);
   const hopCtx = { status, ask: ctx.ask, log: ctx.log, signal: ctx.signal };
 
-  const opened: OpenTransport[] = [];
+  const opened: SshRoute[] = [];
   const hops: Hop[] = [];
   let ephemeralScrub: (() => void) | null = null;
 
@@ -65,7 +81,7 @@ export const sshDriverFactory: ExecDriverFactory = async (auth, sink, ctx) => {
     // Innermost first: an outer hop carries the inner one's bytes, so closing
     // it first would drop them on the floor.
     for (const hop of hops.toReversed()) hop.client.end();
-    for (const transport of opened.toReversed()) await transport.close();
+    for (const route of opened.toReversed()) await route.close?.();
   }
 
   try {
@@ -101,15 +117,20 @@ export const sshDriverFactory: ExecDriverFactory = async (auth, sink, ctx) => {
     }
 
     // The final hop: its address, its key, and whatever it rides on.
-    const final = await finalHopSpec(transport, auth.user, auth.port, status);
-    ephemeralScrub = final.scrub;
+    const final = await finalHopSpec(transport, auth.user, auth.port, {
+      status,
+      log: ctx.log,
+      signal: ctx.signal,
+    });
+    const route = final.route;
+    if (route) opened.push(route);
+    ephemeralScrub = route?.scrub ? () => route.scrub?.() : null;
 
     if (hops.length > 0) {
       const last = hops.at(-1);
       if (last) sock = await forwardThrough(last, final.host, final.port);
-    } else if (final.transport) {
-      opened.push(final.transport);
-      sock = final.transport.sock;
+    } else if (route?.sock) {
+      sock = route.sock;
     }
 
     const hop = await connectHop(
@@ -186,88 +207,40 @@ interface FinalHop {
   readonly port: number;
   readonly user: string | undefined;
   readonly privateKey?: Buffer;
-  readonly transport?: OpenTransport;
-  readonly scrub: (() => void) | null;
+  /** Present when a provider's route reached this hop. */
+  readonly route?: SshRoute;
 }
 
 async function finalHopSpec(
   transport: SshTransport,
   user: string | undefined,
   port: number | undefined,
-  status: (message: string) => void,
+  ctx: SshRouteContext,
 ): Promise<FinalHop> {
-  const resolvedPort = port ?? 22;
-
-  switch (transport.via) {
-    case "direct":
-    case "jump": {
-      const resolved = resolveSshHost(readSshConfig(), transport.host);
-      return {
-        target: transport.host,
-        host: resolved.hostName,
-        port: port ?? resolved.port ?? 22,
-        user,
-        scrub: null,
-      };
-    }
-
-    case "ssm-tunnel": {
-      const opened = await openTransport(transport, status);
-      return {
-        target: transport.instanceId,
-        host: transport.instanceId,
-        port: resolvedPort,
-        user,
-        transport: opened,
-        scrub: null,
-      };
-    }
-
-    case "ec2-instance-connect": {
-      const instance = await resolveInstance(
-        transport.profile,
-        transport.region,
-        transport.instanceId,
-      );
-      const address = instance.publicIp ?? instance.privateIp;
-      if (!address) {
-        throw new ExecSessionError(
-          "InstanceConnectFailed",
-          `${transport.instanceId} has no address to connect to. Reach it with an SSM tunnel instead.`,
-        );
-      }
-      if (!instance.availabilityZone) {
-        throw new ExecSessionError(
-          "InstanceConnectFailed",
-          `${transport.instanceId} reports no availability zone, which Instance Connect requires.`,
-        );
-      }
-
-      status(`Pushing a one-time key to ${transport.instanceId} for ${transport.osUser}...`);
-      const key = generateEphemeralKey();
-      try {
-        await sendPublicKey(
-          { profile: transport.profile, region: transport.region },
-          {
-            instanceId: transport.instanceId,
-            osUser: transport.osUser,
-            availabilityZone: instance.availabilityZone,
-            publicKeyOpenSsh: key.publicKeyOpenSsh,
-          },
-        );
-      } catch (err) {
-        key.scrub();
-        throw err;
-      }
-
-      return {
-        target: address,
-        host: address,
-        port: resolvedPort,
-        user: transport.osUser,
-        privateKey: key.privateKey,
-        scrub: () => key.scrub(),
-      };
-    }
+  if (transport.via === "direct" || transport.via === "jump") {
+    const resolved = resolveSshHost(readSshConfig(), transport.host);
+    return {
+      target: transport.host,
+      host: resolved.hostName,
+      port: port ?? resolved.port ?? 22,
+      user,
+    };
   }
+
+  const registered = routes.get(transport.via);
+  if (!registered) {
+    throw new ExecSessionError(
+      "NoDriver",
+      `This build has no way to reach an SSH host over ${transport.via}.`,
+    );
+  }
+  const route = await registered.route.open(transport, { user, port }, ctx);
+  return {
+    target: route.target,
+    host: route.target,
+    port: route.port,
+    user: route.user,
+    ...(route.privateKey ? { privateKey: route.privateKey } : {}),
+    route,
+  };
 }

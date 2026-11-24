@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Globe, X } from "lucide-react";
 
 import { KeyValue, KeyValueGrid } from "~/components/kv";
+import { RefreshControl } from "~/components/refresh";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { CopyButton } from "~/components/ui/copy-button";
@@ -12,8 +13,8 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { SectionHeader } from "~/components/ui/section-header";
-import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { LoadingRows } from "~/components/ui/spinner";
+import { useAwsScope } from "~/stores/scope";
 import { linkClass, TagsSection } from "~/features/api-gateway/components/parts";
 import { dnsTarget, mappedApi, mappingUrl, statusTone } from "~/features/api-gateway/domains";
 import { fullTimestamp } from "~/lib/format";
@@ -146,7 +147,7 @@ function Mappings({ domain }: { domain: CustomDomain }) {
       <SectionHeader
         title="Base path mappings"
         count={count === undefined ? undefined : `${count}${mappings.data?.truncated ? "+" : ""}`}
-        action={mappings.isFetching || apis.isFetching ? <Spinner className="size-3" /> : undefined}
+        action={<RefreshControl source={[mappings, apis]} label="Refresh base path mappings" />}
       />
       {mappings.isPending ? (
         <LoadingRows rows={2} />

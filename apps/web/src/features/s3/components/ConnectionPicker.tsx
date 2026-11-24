@@ -1,8 +1,8 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Check, HardDrive, ShieldAlert } from "lucide-react";
 import * as React from "react";
 
-import { useScope } from "~/contexts/ScopeContext";
+import { useS3Connection } from "~/features/s3/useS3Connection";
 import { useS3Connections } from "~/features/s3/useS3Connections";
 import { cn } from "~/lib/utils";
 
@@ -12,20 +12,21 @@ import { cn } from "~/lib/utils";
  * It sits next to the listing rather than in the title bar because it moves
  * only these pages: profile and region still scope everything else, and a
  * connection that appeared to move the whole app would be a lie about what the
- * other services are reading.
+ * other services are reading. Picking one opens its bucket list, since a
+ * bucket open here need not exist on the other system.
  */
 export function ConnectionPicker() {
-  const { connectionId, setConnectionId } = useScope();
+  const { endpointId } = useS3Connection();
+  const navigate = useNavigate();
   const [open, setOpen] = React.useState(false);
 
   const saved = useS3Connections();
-  const active = saved.find((entry) => entry.id === connectionId) ?? null;
+  const active = saved.find((entry) => entry.id === endpointId) ?? null;
 
-  // An id whose endpoint has been deleted would otherwise leave every pane
-  // failing against something that no longer exists.
-  React.useEffect(() => {
-    if (connectionId && !active) setConnectionId("");
-  }, [connectionId, active, setConnectionId]);
+  const pick = (next: string | undefined) => {
+    setOpen(false);
+    void navigate({ to: "/s3/buckets", search: next ? { connection: next } : {} });
+  };
 
   if (saved.length === 0) return null;
 
@@ -45,7 +46,7 @@ export function ConnectionPicker() {
           <HardDrive className="size-3.5 opacity-70" strokeWidth={1.8} />
         )}
         <span className="max-w-40 truncate text-[11.5px] text-foreground">
-          {active ? active.name : "AWS"}
+          {active ? active.name : endpointId ? "Removed endpoint" : "AWS"}
         </span>
       </button>
 
@@ -61,11 +62,8 @@ export function ConnectionPicker() {
             <Choice
               label="AWS"
               detail="the profile and region in the title bar"
-              selected={connectionId === ""}
-              onSelect={() => {
-                setConnectionId("");
-                setOpen(false);
-              }}
+              selected={endpointId === undefined}
+              onSelect={() => pick(undefined)}
             />
             {saved.map((entry) => (
               <Choice
@@ -73,11 +71,8 @@ export function ConnectionPicker() {
                 label={entry.name}
                 detail={entry.endpoint}
                 warn={!entry.tls.verify}
-                selected={entry.id === connectionId}
-                onSelect={() => {
-                  setConnectionId(entry.id);
-                  setOpen(false);
-                }}
+                selected={entry.id === endpointId}
+                onSelect={() => pick(entry.id)}
               />
             ))}
 

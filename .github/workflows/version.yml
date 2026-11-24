@@ -1,0 +1,54 @@
+# On master: keeps a "Version packages" pull request open while changesets are
+# waiting. Merging it bumps the app's version and writes the changelog; the
+# next run sees no changesets left, tags the new version and starts the release.
+name: Version
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  group: version
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@v3
+        with:
+          cache: true
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Open or update the version pull request, or tag a merged one
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: pnpm version-packages
+          publish: node scripts/release-tag.mjs
+          title: Version packages
+          commit: Release the next version of faws
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # A tag pushed with GITHUB_TOKEN starts no workflow, so the release is
+      # started explicitly. Dispatch is the one trigger that token may fire.
+      - name: Start the release
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          tag="v$(node -p "require('./apps/desktop/package.json').version")"
+          gh workflow run release.yml -f tag="$tag"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

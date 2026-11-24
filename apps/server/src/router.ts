@@ -1,37 +1,46 @@
-import { apiGatewayRouter } from "./api/api-gateway/api-gateway.router.ts";
-import { awsRouter } from "./api/aws/aws.router.ts";
-import { cloudwatchRouter } from "./api/cloudwatch/cloudwatch.router.ts";
+import { mountProviders } from "@faws/kit/server";
+import {
+  apiGatewayRouter,
+  awsRouter,
+  cloudwatchRouter,
+  ecsActionsRouter,
+  ecsRouter,
+} from "@faws/provider-aws/server";
+import { kubernetesServer } from "@faws/provider-kubernetes/server";
+
+import { appRouter as hostAppRouter } from "./api/app/app.router.ts";
 import { desktopRouter } from "./api/desktop/desktop.router.ts";
-import { ecsActionsRouter } from "./api/ecs/actions.router.ts";
-import { ecsRouter } from "./api/ecs/ecs.router.ts";
 import { execRouter } from "./api/exec/exec.router.ts";
-import { kubeRouter } from "./api/kube/kube.router.ts";
-import { s3ActionsRouter } from "./api/s3/actions.router.ts";
-import { s3ConnectionsRouter } from "./api/s3/connections.router.ts";
-import { s3Router } from "./api/s3/s3.router.ts";
+import { s3ConnectionsRouter } from "@faws/provider-s3compat/server";
+import { providersRouter } from "./api/providers/providers.router.ts";
+import { storageRouter } from "./api/storage/storage.router.ts";
+import { trustRouter } from "./api/trust/trust.router.ts";
 import { settingsRouter } from "./api/settings/settings.router.ts";
 import { router } from "./trpc/index.ts";
 
 /**
- * One namespace per AWS service, plus the cross-cutting `aws` (identity) and
- * `desktop` (shell) namespaces.
+ * One namespace per AWS service, one per other provider (keyed by its
+ * manifest id through `mountProviders`), plus the host's own namespaces such
+ * as `desktop` (shell) and `settings`.
  *
- * A new service is a new key here and a new directory under `api/` — the
- * client picks it up through the same typed `AppRouter`.
+ * A new provider joins through `mountProviders`; the client picks it up
+ * through the same typed `AppRouter`.
  */
 export const appRouter = router({
   apiGateway: apiGatewayRouter,
+  app: hostAppRouter,
   aws: awsRouter,
   cloudwatch: cloudwatchRouter,
   desktop: desktopRouter,
   ecs: ecsRouter,
   ecsActions: ecsActionsRouter,
   exec: execRouter,
-  kube: kubeRouter,
-  s3: s3Router,
-  s3Actions: s3ActionsRouter,
+  ...mountProviders([kubernetesServer]),
+  providers: providersRouter,
   s3Connections: s3ConnectionsRouter,
   settings: settingsRouter,
+  storage: storageRouter,
+  trust: trustRouter,
 });
 
 export type AppRouter = typeof appRouter;

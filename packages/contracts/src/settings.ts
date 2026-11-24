@@ -22,9 +22,11 @@
 import { z } from "zod";
 
 import { recordOfEach } from "./persisted.ts";
+import { manifestFor, type ProviderId } from "./providers.ts";
 import { recentsSettingsSchema } from "./recents.ts";
 import { s3ConnectionSchema } from "./s3-connections.ts";
 import { tablesSettingsSchema } from "./tables.ts";
+import { trustSettingsSchema } from "./trust.ts";
 
 /**
  * Bumped whenever a migration is needed to read an older file. Contracts owns
@@ -115,13 +117,16 @@ export type SilenceEntry = z.infer<typeof silenceEntrySchema>;
 
 const silenceMapSchema = recordOfEach(silenceEntrySchema);
 
-export const scopeSettingsSchema = z.object({
+/** Which AWS account and region the AWS pages are looking at. */
+export const awsScopeSettingsSchema = z.object({
   profile: z.string().min(1).catch("default"),
   /** Empty means "ask the CLI what this profile's default region is". */
   region: z.string().catch(""),
-  /** Empty points S3 at AWS; otherwise the id of a saved S3 endpoint. */
-  connectionId: z.string().catch(""),
-  refreshSeconds: z.number().refine(isRefreshChoice).catch(DEFAULT_REFRESH_SECONDS),
+});
+
+/** How often live lists poll, whichever provider they belong to. */
+export const refreshSettingsSchema = z.object({
+  seconds: z.number().refine(isRefreshChoice).catch(DEFAULT_REFRESH_SECONDS),
 });
 
 export const logSettingsSchema = z.object({
@@ -169,36 +174,32 @@ export const terminalSettingsSchema = z.object({
  * because this file is read by the renderer on first paint and broadcast to
  * every open window.
  */
-export const s3SettingsSchema = z.object({
-  /**
-   * Parsed one entry at a time, because `array(...).catch([])` would answer a
-   * single unreadable endpoint by dropping every endpoint. One that cannot be
-   * read costs itself.
-   */
-  connections: z
-    .array(z.unknown())
-    .catch([])
-    .transform((entries) =>
-      entries.flatMap((entry) => {
-        const parsed = s3ConnectionSchema.safeParse(entry);
-        return parsed.success ? [parsed.data] : [];
-      }),
-    ),
-});
+/**
+ * Parsed one entry at a time, because `array(...).catch([])` would answer a
+ * single unreadable endpoint by dropping every endpoint. One that cannot be
+ * read costs itself.
+ */
+export const s3ConnectionListSchema = z
+  .array(z.unknown())
+  .catch([])
+  .transform((entries) =>
+    entries.flatMap((entry) => {
+      const parsed = s3ConnectionSchema.safeParse(entry);
+      return parsed.success ? [parsed.data] : [];
+    }),
+  );
 
 /**
- * Which cluster the Kubernetes pages are looking at.
+ * Which context and namespace the Kubernetes pages are looking at.
  *
- * Its own section rather than two more fields on `scope`, because it is a
- * different axis entirely: a context and a namespace scope only the Kubernetes
- * pages, and an AWS profile means nothing to them. Keeping them apart is what
- * lets a profile switch leave a pod list alone.
+ * A different axis from AWS's profile and region entirely, which is why each
+ * provider keeps its own scope: a profile switch leaves a pod list alone.
  *
  * Both empty by default, meaning "whatever the kubeconfig's own current-context
  * and namespace are". Storing a guess at those here would go stale the first
  * time someone ran `kubectl config use-context` in a terminal.
  */
-export const kubeSettingsSchema = z.object({
+export const kubeScopeSettingsSchema = z.object({
   context: z.string().catch(""),
   namespace: z.string().catch(""),
 });
@@ -210,6 +211,74 @@ export const ecsSettingsSchema = z.object({
     .catch(DEFAULT_DEPLOYED_LINGER_SECONDS),
 });
 
+function enabledFor(id: ProviderId) {
+  return z.boolean().catch(manifestFor(id).defaultEnabled);
+}
+
+/**
+ * One section per provider, keyed by its id: whether it is on, which of its
+ * connections is in view, and anything else only it has an opinion about.
+ *
+ * `satisfies` holds the list to the manifests: a provider added to
+ * `PROVIDER_MANIFESTS` without a section here fails to compile.
+ */
+const providerSections = {
+  aws: section(
+    z.object({
+      /** Off means no page, query, menu entry or background call for it anywhere. */
+      enabled: enabledFor("aws"),
+      scope: section(awsScopeSettingsSchema),
+    }),
+  ),
+  kubernetes: section(
+    z.object({
+      enabled: enabledFor("kubernetes"),
+      scope: section(kubeScopeSettingsSchema),
+    }),
+  ),
+  s3: section(
+    z.object({
+      enabled: enabledFor("s3"),
+      /**
+       * The records only: a key, a token or a passphrase belongs to none of
+       * this, because this file is read by the renderer on first paint and
+       * broadcast to every open window.
+       */
+      connections: s3ConnectionListSchema,
+    }),
+  ),
+} satisfies Record<ProviderId, z.ZodType>;
+
+export const providersSettingsSchema = z.object(providerSections);
+
+/**
+ * Whether the first-run screen has been through. Off until someone picks
+ * which providers to use, or skips the choice.
+ */
+export const onboardingSettingsSchema = z.object({
+  completed: z.boolean().catch(false),
+});
+
+/**
+ * How the app keeps itself current.
+ *
+ * `autoCheck` off means the app never contacts GitHub on its own, which is
+ * what an air-gapped or strictly on-prem install wants; "Check now" still
+ * works when asked.
+ */
+export const updatesSettingsSchema = z.object({
+  autoCheck: z.boolean().catch(true),
+  /** `beta` also offers pre-releases. */
+  channel: z.enum(["stable", "beta"]).catch("stable"),
+  /** A version the user chose to skip; not offered again until a newer one. */
+  skippedVersion: z.string().catch(""),
+  /**
+   * The newest version this install has been opened on, so the first launch
+   * after an update can say what changed. Empty until the first launch.
+   */
+  lastSeenVersion: z.string().catch(""),
+});
+
 export const silencedSettingsSchema = z.object({
   /** Per-incident, keyed by ARN; comes back when the fingerprint changes. */
   dismissed: silenceMapSchema,
@@ -219,28 +288,34 @@ export const silencedSettingsSchema = z.object({
 
 export const settingsSchema = z.object({
   version: z.literal(SETTINGS_VERSION).catch(SETTINGS_VERSION),
-  scope: section(scopeSettingsSchema),
+  providers: section(providersSettingsSchema),
+  onboarding: section(onboardingSettingsSchema),
+  refresh: section(refreshSettingsSchema),
+  updates: section(updatesSettingsSchema),
+  trust: section(trustSettingsSchema),
   logs: section(logSettingsSchema),
   appearance: section(appearanceSettingsSchema),
   layout: section(layoutSettingsSchema),
   terminal: section(terminalSettingsSchema),
-  kube: section(kubeSettingsSchema),
   ecs: section(ecsSettingsSchema),
-  s3: section(s3SettingsSchema),
   silenced: section(silencedSettingsSchema),
   recents: section(recentsSettingsSchema),
   tables: section(tablesSettingsSchema),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
-export type ScopeSettings = Settings["scope"];
 export type LogSettings = Settings["logs"];
 export type LayoutSettings = Settings["layout"];
 export type TerminalSettings = Settings["terminal"];
-export type KubeSettings = Settings["kube"];
 export type EcsSettings = Settings["ecs"];
-export type S3Settings = Settings["s3"];
 export type SilencedSettings = Settings["silenced"];
+export type ProvidersSettings = Settings["providers"];
+export type AwsScopeSettings = ProvidersSettings["aws"]["scope"];
+export type KubeScopeSettings = ProvidersSettings["kubernetes"]["scope"];
+export type RefreshSettings = Settings["refresh"];
+export type UpdatesSettings = Settings["updates"];
+export type TrustSettings = Settings["trust"];
+export type OnboardingSettings = Settings["onboarding"];
 
 export const DEFAULT_SETTINGS: Settings = settingsSchema.parse({});
 
@@ -261,14 +336,31 @@ export const DEFAULT_SETTINGS: Settings = settingsSchema.parse({});
  * and `strict()` turns an attempt to slip one through here into a validation
  * error rather than a silent no-op.
  */
+/**
+ * What a patch may say about providers: on or off, and which connection is in
+ * view. Saved S3 endpoints are a list and change through `s3ConnectionOpSchema`.
+ */
+const providersPatchSchema = z
+  .object({
+    aws: z.object({ enabled: z.boolean(), scope: awsScopeSettingsSchema.partial() }).partial(),
+    kubernetes: z
+      .object({ enabled: z.boolean(), scope: kubeScopeSettingsSchema.partial() })
+      .partial(),
+    s3: z.object({ enabled: z.boolean() }).partial(),
+  } satisfies Record<ProviderId, z.ZodType>)
+  .partial()
+  .strict();
+
 export const settingsPatchSchema = z
   .object({
-    scope: scopeSettingsSchema.partial(),
+    providers: providersPatchSchema,
+    onboarding: onboardingSettingsSchema.partial(),
+    refresh: refreshSettingsSchema.partial(),
+    updates: updatesSettingsSchema.partial(),
     logs: logSettingsSchema.partial(),
     appearance: appearanceSettingsSchema.partial(),
     layout: layoutSettingsSchema.partial(),
     terminal: terminalSettingsSchema.partial(),
-    kube: kubeSettingsSchema.partial(),
     ecs: ecsSettingsSchema.partial(),
   })
   .partial()
@@ -333,13 +425,46 @@ function pruneMap(map: Record<string, SilenceEntry>): Record<string, SilenceEntr
 export function applyPatch(current: Settings, patch: SettingsPatch): Settings {
   return {
     ...current,
-    scope: mergeSection(current.scope, patch.scope),
+    providers: mergeProviders(current.providers, patch.providers),
+    onboarding: mergeSection(current.onboarding, patch.onboarding),
+    refresh: mergeSection(current.refresh, patch.refresh),
+    updates: mergeSection(current.updates, patch.updates),
     logs: mergeSection(current.logs, patch.logs),
     appearance: mergeSection(current.appearance, patch.appearance),
     layout: mergeSection(current.layout, patch.layout),
     terminal: mergeSection(current.terminal, patch.terminal),
-    kube: mergeSection(current.kube, patch.kube),
     ecs: mergeSection(current.ecs, patch.ecs),
+  };
+}
+
+function mergeProviders(
+  current: ProvidersSettings,
+  patch: SettingsPatch["providers"],
+): ProvidersSettings {
+  if (!patch) return current;
+  return {
+    aws: mergeProvider(current.aws, patch.aws),
+    kubernetes: mergeProvider(current.kubernetes, patch.kubernetes),
+    // Saved endpoints are the s3 provider's connections, chosen per page
+    // rather than held as a scope, so only the switch is patched here.
+    s3: { ...current.s3, enabled: patch.s3?.enabled ?? current.s3.enabled },
+  };
+}
+
+function mergeProvider<T extends { enabled: boolean; scope: object }>(
+  current: T,
+  patch:
+    | {
+        enabled?: boolean | undefined;
+        scope?: { [K in keyof T["scope"]]?: T["scope"][K] | undefined } | undefined;
+      }
+    | undefined,
+): T {
+  if (!patch) return current;
+  return {
+    ...current,
+    enabled: patch.enabled ?? current.enabled,
+    scope: mergeSection(current.scope, patch.scope),
   };
 }
 

@@ -1,5 +1,6 @@
 import type { S3Connection } from "@faws/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { Plus, ShieldAlert } from "lucide-react";
 import * as React from "react";
 
@@ -7,7 +8,6 @@ import { EntityRow } from "~/components/entity-row";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
-import { useScope } from "~/contexts/ScopeContext";
 import { ConnectionDialog } from "~/features/s3/components/ConnectionDialog";
 import { useS3Connections } from "~/features/s3/useS3Connections";
 import { trpc } from "~/lib/trpc";
@@ -21,7 +21,7 @@ import { trpc } from "~/lib/trpc";
  * described per endpoint here.
  */
 export function ConnectionsList() {
-  const { connectionId, setConnectionId } = useScope();
+  const navigate = useNavigate();
   const [editing, setEditing] = React.useState<S3Connection | null | "new">(null);
 
   // Saving and removing land in the settings snapshot, which every window is
@@ -68,7 +68,6 @@ export function ConnectionsList() {
                 detail={`${connection.endpoint} · ${describeCredentials(connection, keys)}`}
                 badges={
                   <>
-                    {connection.id === connectionId ? <Badge tone="primary">in use</Badge> : null}
                     {connection.tls.verify ? null : (
                       <Badge tone="warning">
                         <ShieldAlert className="size-3" strokeWidth={2} /> unverified
@@ -83,10 +82,13 @@ export function ConnectionsList() {
                       size="sm"
                       variant="ghost"
                       onClick={() =>
-                        setConnectionId(connection.id === connectionId ? "" : connection.id)
+                        void navigate({
+                          to: "/s3/buckets",
+                          search: { connection: connection.id },
+                        })
                       }
                     >
-                      {connection.id === connectionId ? "Leave" : "Use"}
+                      Browse
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setEditing(connection)}>
                       Edit
@@ -94,12 +96,7 @@ export function ConnectionsList() {
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={() => {
-                        // The stored keys go with it, so the id in scope has to
-                        // stop pointing at it in the same act.
-                        if (connection.id === connectionId) setConnectionId("");
-                        remove.mutate({ id: connection.id });
-                      }}
+                      onClick={() => remove.mutate({ id: connection.id })}
                     >
                       Remove
                     </Button>

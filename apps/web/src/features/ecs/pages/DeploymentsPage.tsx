@@ -15,7 +15,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { serviceRef } from "~/features/ecs/refs";
 import { serviceTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
@@ -157,7 +157,7 @@ export function DeploymentsPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={[clusters, ...serviceQueries]} refreshLabel="Refresh deployments">
         <PanelTitle>Recently deployed</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {loadingServices ? "…" : rows.length}

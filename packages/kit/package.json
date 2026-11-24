@@ -1,0 +1,51 @@
+{
+  "name": "@faws/kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./guard": {
+      "types": "./src/guard.ts",
+      "default": "./src/guard.ts"
+    },
+    "./server": {
+      "types": "./src/server/index.ts",
+      "default": "./src/server/index.ts"
+    },
+    "./testing": {
+      "types": "./src/testing/objectStorage.ts",
+      "default": "./src/testing/objectStorage.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@trpc/server": "catalog:trpc",
+    "superjson": "catalog:trpc",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:build",
+    "typescript": "catalog:build",
+    "vitest": "catalog:build",
+    "node-pty": "catalog:"
+  },
+  "peerDependencies": {
+    "node-pty": "catalog:",
+    "vitest": "catalog:build"
+  },
+  "peerDependenciesMeta": {
+    "node-pty": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
+  }
+}

@@ -38,6 +38,7 @@ import {
   type SilencedSettings,
   settingsSchema,
   type TableLayoutOp,
+  type TrustSettings,
 } from "@faws/contracts";
 
 import { createLogger } from "../../shared/logger.ts";
@@ -86,16 +87,8 @@ export interface SettingsStore {
   applyRecents(op: RecentOp, originId?: string | null): SettingsSnapshot;
   /** Sets or resets one table's column layout, leaving every other table's alone. */
   applyTableLayout(op: TableLayoutOp, originId?: string | null): SettingsSnapshot;
-  /**
-   * Adopts preferences a browser had in `localStorage` before this existed.
-   * A no-op unless the store is still pristine, so two tabs racing to import
-   * is harmless - the second one loses and can see that it did.
-   */
-  importLegacy(
-    patch: SettingsPatch,
-    silenced: { [K in keyof SilencedSettings]?: SilencedSettings[K] | undefined },
-    originId?: string | null,
-  ): { snapshot: SettingsSnapshot; imported: boolean };
+  /** Replaces the trusted certificates; the trust router owns what goes in. */
+  setTrust(trust: TrustSettings, originId?: string | null): SettingsSnapshot;
   reset(originId?: string | null): SettingsSnapshot;
   subscribe(listener: SettingsListener): () => void;
   /** Awaits any pending write. For the shutdown path and for tests. */
@@ -306,8 +299,12 @@ export function createSettingsStore(options: SettingsStoreOptions): SettingsStor
     },
 
     applyS3Connection(op, originId = null) {
-      const connections = applyS3ConnectionOp(settings.s3.connections, op);
-      return commit({ ...settings, s3: { ...settings.s3, connections } }, originId);
+      const s3 = settings.providers.s3;
+      const connections = applyS3ConnectionOp(s3.connections, op);
+      return commit(
+        { ...settings, providers: { ...settings.providers, s3: { ...s3, connections } } },
+        originId,
+      );
     },
 
     applyRecents(op, originId = null) {
@@ -319,28 +316,8 @@ export function createSettingsStore(options: SettingsStoreOptions): SettingsStor
       return commit({ ...settings, tables: applyTableLayoutOp(settings.tables, op) }, originId);
     },
 
-    importLegacy(patch, silenced, originId = null) {
-      if (!pristine) {
-        log.info("skipped legacy settings import: settings already exist");
-        return { snapshot: snapshot(), imported: false };
-      }
-      const merged = applyPatch(settings, patch);
-      const next: Settings = {
-        ...merged,
-        silenced: pruneSilenced({
-          dismissed: { ...merged.silenced.dismissed, ...silenced.dismissed },
-          muted: { ...merged.silenced.muted, ...silenced.muted },
-        }),
-      };
-      log.info(
-        {
-          dismissed: Object.keys(next.silenced.dismissed).length,
-          muted: Object.keys(next.silenced.muted).length,
-          sections: Object.keys(patch),
-        },
-        "imported legacy settings from localStorage",
-      );
-      return { snapshot: commit(next, originId), imported: true };
+    setTrust(trust, originId = null) {
+      return commit({ ...settings, trust }, originId);
     },
 
     reset(originId = null) {

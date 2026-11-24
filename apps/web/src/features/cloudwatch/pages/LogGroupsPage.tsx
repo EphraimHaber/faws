@@ -13,7 +13,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { retentionLabel } from "~/features/cloudwatch/metric-ref";
 import { logGroupRef } from "~/features/cloudwatch/refs";
 import { fullTimestamp } from "~/lib/format";
@@ -111,7 +111,7 @@ export function LogGroupsPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={groups} refreshLabel="Refresh log groups">
         <PanelTitle>Log groups</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {groups.isPending ? "…" : rows.length}

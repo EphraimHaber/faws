@@ -18,13 +18,27 @@ type Section = keyof SettingsPatch;
 const SECTIONS = Object.keys(settingsPatchSchema.shape) as ReadonlyArray<Section>;
 
 export function mergePatches(base: SettingsPatch, next: SettingsPatch): SettingsPatch {
+  return deepMerge(base, next) as SettingsPatch;
+}
+
+/**
+ * Merged all the way down, because provider sections nest: a patch switching
+ * AWS off and a pending one changing its region are both `providers.aws`, and
+ * a one-level merge would let the later drop the earlier.
+ */
+function deepMerge(base: object, next: object): object {
   const merged: Record<string, unknown> = { ...base };
-  for (const key of SECTIONS) {
-    const incoming = next[key];
-    if (!incoming) continue;
-    merged[key] = { ...base[key], ...incoming };
+  for (const [key, incoming] of Object.entries(next)) {
+    if (incoming === undefined) continue;
+    const current = merged[key];
+    merged[key] =
+      isPlainObject(current) && isPlainObject(incoming) ? deepMerge(current, incoming) : incoming;
   }
-  return merged as SettingsPatch;
+  return merged;
+}
+
+function isPlainObject(value: unknown): value is object {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** Whether a patch would change anything, so an empty flush can be skipped. */

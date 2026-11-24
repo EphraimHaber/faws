@@ -18,7 +18,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useScope } from "~/stores/scope";
 import {
   type LogOrder,
   LogViewControls,
@@ -97,7 +97,7 @@ export function LogGroupPage({ group }: { group: string }) {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={[groups, logs]} refreshLabel="Refresh log events">
         <Button
           type="button"
           variant="ghost"

@@ -12,6 +12,7 @@
  * settings file: it names a credential rather than carrying one, so the only
  * thing that crosses the wire is which credential an endpoint uses.
  */
+import type { ConnectionRef, StorageFeatures } from "@faws/kit";
 import { z } from "zod";
 
 /**
@@ -125,62 +126,25 @@ export interface S3Connection {
   readonly updatedAt: string;
 }
 
-/**
- * Where an S3 call is pointed.
- *
- * Without a connection this is the AWS profile and region every other service
- * uses, so an AWS scope is a valid S3 scope as it stands.
- */
-export interface S3Scope {
-  readonly profile: string;
-  readonly region: string;
-  readonly connectionId?: string | null | undefined;
-}
+/** The provider id saved endpoints are served under. */
+export const S3_ENDPOINTS_PROVIDER = "s3";
 
-/** What the UI may offer for the connection in scope. */
-export interface S3Capabilities {
-  /** Buckets are addressed in their own region, which only AWS reports. */
-  readonly bucketRegions: boolean;
-  readonly storageMetrics: boolean;
-  readonly presign: boolean;
+/** The connection a saved endpoint is reached through. */
+export function s3EndpointRef(id: string): ConnectionRef {
+  return { provider: S3_ENDPOINTS_PROVIDER, id };
 }
 
 /**
- * What a connection can answer, decided in one place.
+ * What a saved endpoint can answer, decided from its record alone.
  *
- * A pure function of the record, so the server and the renderer cannot come to
- * different conclusions about which panes exist: a bucket outside AWS has no
- * home region to resolve and no CloudWatch behind it unless the endpoint says
- * it is fronting some.
+ * A bucket outside AWS has no home region to resolve, and no metrics service
+ * behind it unless the endpoint says it is fronting AWS.
  */
-export function s3CapabilitiesFor(connection: S3Connection | null): S3Capabilities {
-  if (!connection) return { bucketRegions: true, storageMetrics: true, presign: true };
+export function s3EndpointFeatures(connection: S3Connection): StorageFeatures {
   return {
     bucketRegions: false,
     storageMetrics: connection.features.storageMetrics,
     presign: connection.features.presign,
-  };
-}
-
-/**
- * An S3 scope, with an absent connection left out rather than set to
- * undefined.
- *
- * Every caller that builds one from a request or a form was writing the same
- * conditional spread, which this workspace's optionality requires and which is
- * easy to drop by accident - and dropping it points S3 at AWS.
- */
-export function toS3Scope(source: {
-  profile: string;
-  region: string;
-  connectionId?: string | null | undefined;
-  // Narrower than `S3Scope`, whose connection may also be null because that is
-  // what arrives over the wire: what comes out of here is set or absent.
-}): { profile: string; region: string; connectionId?: string } {
-  return {
-    profile: source.profile,
-    region: source.region,
-    ...(source.connectionId ? { connectionId: source.connectionId } : {}),
   };
 }
 
@@ -464,16 +428,3 @@ export function applyS3ConnectionOp(
   const without = current.filter((entry) => entry.id !== op.connection.id);
   return [...without, op.connection];
 }
-
-/**
- * The scope an S3 procedure takes.
- *
- * The profile and region stay even when a connection is chosen: they are what
- * the bucket listing falls back to, and what a connection borrowing AWS
- * credentials resolves against.
- */
-export const s3ScopeSchema = z.object({
-  profile: z.string(),
-  region: z.string().min(1),
-  connectionId: z.string().min(1).nullish(),
-});

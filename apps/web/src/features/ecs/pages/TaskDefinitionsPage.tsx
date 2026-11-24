@@ -11,7 +11,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { taskDefinitionRef } from "~/features/ecs/refs";
 import { cpuLabel, memoryLabel } from "~/lib/format";
 import { trpc } from "~/lib/trpc";
@@ -77,7 +77,7 @@ export function TaskDefinitionsPage() {
   return (
     <div className="flex min-h-0 flex-1 gap-3">
       <Panel className="w-72 shrink-0">
-        <PanelHeader>
+        <PanelHeader refresh={families} refreshLabel="Refresh families">
           <PanelTitle>Families</PanelTitle>
           <span className="ml-auto font-mono text-[11px] text-muted-foreground tabular">
             {families.data ? visible.length : "…"}
@@ -117,7 +117,10 @@ export function TaskDefinitionsPage() {
       </Panel>
 
       <Panel className="min-h-0 flex-1">
-        <PanelHeader>
+        <PanelHeader
+          refresh={[...(family ? [revisions] : []), ...(revision ? [definition] : [])]}
+          refreshLabel="Refresh task definition"
+        >
           <PanelTitle>{family ?? "Task definition"}</PanelTitle>
           <div className="flex flex-wrap items-center gap-1">
             {(revisions.data ?? []).slice(0, 12).map((arn) => {

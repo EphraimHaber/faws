@@ -17,7 +17,8 @@ import { SSMClient } from "@aws-sdk/client-ssm";
 import { STSClient } from "@aws-sdk/client-sts";
 import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
 import type { AwsScope } from "@faws/contracts";
-import { AwsRequestError, ProfileNotFoundError } from "@faws/contracts";
+import { AwsRequestError, EndpointTrustError, ProfileNotFoundError } from "@faws/contracts";
+import { trustReason } from "@faws/shared";
 
 type ClientBundle = {
   readonly ecs: ECSClient;
@@ -136,6 +137,10 @@ export async function callAws<T>(service: string, fn: () => Promise<T>): Promise
     if (name === "CredentialsProviderError" || /could not be found/i.test(message)) {
       throw new ProfileNotFoundError(message);
     }
+    // A refused certificate is a trust decision, not an AWS fault: typically a
+    // proxy re-signing traffic with a CA this machine does not trust yet.
+    const trust = trustReason(err);
+    if (trust) throw new EndpointTrustError(`AWS ${service}`, trust);
     throw new AwsRequestError(message, { code: name, service });
   }
 }

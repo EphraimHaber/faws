@@ -11,7 +11,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows, Spinner } from "~/components/ui/spinner";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useScope } from "~/stores/scope";
 import { AuthorizersPane } from "~/features/api-gateway/components/AuthorizersPane";
 import { DeploymentsPane } from "~/features/api-gateway/components/DeploymentsPane";
 import { ExportPane } from "~/features/api-gateway/components/ExportPane";
@@ -104,12 +104,26 @@ export function RestApiPage({ apiId }: { apiId: string }) {
   }
 
   const api = detail.data;
+  const tabRefresh =
+    tab === "resources"
+      ? { source: resources, label: "Refresh resources" }
+      : tab === "stages"
+        ? { source: stages, label: "Refresh stages" }
+        : tab === "deployments"
+          ? { source: [deployments, stages], label: "Refresh deployments" }
+          : tab === "authorizers"
+            ? { source: authorizers, label: "Refresh authorizers" }
+            : tab === "overview"
+              ? { source: detail, label: "Refresh REST API" }
+              : tab === "metrics"
+                ? { source: stages, label: "Refresh stages" }
+                : null;
   const consoleUrl = `https://${region}.console.aws.amazon.com/apigateway/main/apis/${encodeURIComponent(api.id)}/resources?api=${encodeURIComponent(api.id)}&region=${region}`;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto">
       <Panel className="shrink-0">
-        <PanelHeader>
+        <PanelHeader refresh={detail} refreshLabel="Refresh REST API">
           <PanelTitle className="truncate text-[13px] font-medium tracking-normal text-foreground normal-case">
             {api.name}
           </PanelTitle>
@@ -133,7 +147,9 @@ export function RestApiPage({ apiId }: { apiId: string }) {
       </Panel>
 
       <Panel className="min-h-[22rem] flex-1">
-        <PanelHeader>
+        <PanelHeader
+          {...(tabRefresh ? { refresh: tabRefresh.source, refreshLabel: tabRefresh.label } : {})}
+        >
           <Segmented<Tab>
             value={tab}
             onChange={setTab}

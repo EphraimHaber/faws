@@ -3,7 +3,7 @@ import { Boxes, Monitor, Ship } from "lucide-react";
 
 import { SectionCard } from "~/components/section-card";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
-import { useKubeScope } from "~/contexts/ScopeContext";
+import { useKubeScope } from "~/stores/scope";
 import { KubeScopePicker } from "~/features/kube/components/KubeScopePicker";
 import { hasNoCli, NoKubectl } from "~/features/kube/components/NoKubectl";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
@@ -23,12 +23,12 @@ export function KubeIndexPage() {
 
   const scope = { context, namespace };
   const pods = useQuery({
-    ...trpc.kube.pods.queryOptions(scope),
+    ...trpc.kubernetes.pods.queryOptions(scope),
     enabled: ready,
     retry: false,
   });
   const machines = useQuery({
-    ...trpc.kube.virtualMachines.queryOptions(scope),
+    ...trpc.kubernetes.virtualMachines.queryOptions(scope),
     enabled: ready && (diagnostics.data?.kubeVirt ?? false),
     retry: false,
   });
@@ -39,7 +39,14 @@ export function KubeIndexPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader
+        refresh={[
+          diagnostics,
+          ...(ready ? [pods] : []),
+          ...(ready && (diagnostics.data?.kubeVirt ?? false) ? [machines] : []),
+        ]}
+        refreshLabel="Refresh Kubernetes"
+      >
         <PanelTitle>Kubernetes</PanelTitle>
         <div className="ml-auto">
           <KubeScopePicker />

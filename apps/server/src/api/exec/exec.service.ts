@@ -10,8 +10,18 @@
  * could only ever describe one session. It is the handshake's job, because two
  * tabs open at once are routinely different kinds.
  */
-import type { ExecHandshakeAuth, ExecPrompt, ExecPromptResponse } from "@faws/contracts";
+import type {
+  ExecErrorCode,
+  ExecHandshakeAuth,
+  ExecPrompt,
+  ExecPromptResponse,
+} from "@faws/contracts";
 import { execHandshakeSchema, execPromptResponseSchema } from "@faws/contracts";
+import {
+  providerDisabledError,
+  type ExecContext as KitExecContext,
+  type ExecDriverFactory as KitExecDriverFactory,
+} from "@faws/kit/server";
 
 import { createLogger } from "../../shared/logger.ts";
 import type { ExecNamespace } from "../../shared/socket-io.ts";
@@ -28,55 +38,62 @@ import {
 
 const log = createLogger("exec");
 
-export interface ExecDriver {
-  write(chunk: Uint8Array): void;
-  resize(cols: number, rows: number): void;
-  /** Idempotent: every teardown path funnels here, and several can race. */
-  close(reason: string): void | Promise<void>;
-}
+export type { ExecDriver, ExecSink } from "@faws/kit/server";
 
-/** What a driver can send back without knowing a socket exists. */
-export interface ExecSink {
-  data(chunk: Uint8Array): void;
-  exit(code: number | null, reason: string | null): void;
-  error(code: string, userMessage: string): void;
-  /** One line of connect progress, for the several-second paths. */
-  status(message: string): void;
-}
+export type ExecContext = KitExecContext<ExecPrompt, ExecPromptResponse>;
+export type ExecDriverFactory = KitExecDriverFactory<
+  ExecHandshakeAuth,
+  ExecPrompt,
+  ExecPromptResponse
+>;
 
-export interface ExecContext {
-  readonly log: ReturnType<typeof createLogger>;
+interface RegisteredDriver {
+  readonly factory: ExecDriverFactory;
   /**
-   * Asks the person something and waits. Rejects if they cancel, if the tab
-   * goes away, or on timeout - all three are refusals, never consent.
+   * The provider whose contribution would serve this handshake, or null for
+   * the host's own. A function because one kind can be served by several:
+   * SSH is the host's, but an SSH handshake over an SSM tunnel is AWS's.
    */
-  ask(prompt: ExecPrompt): Promise<ExecPromptResponse>;
-  /**
-   * Aborts when the client disconnects, so a slow connect actually cancels its
-   * AWS calls instead of finishing into a socket nobody is holding.
-   */
-  readonly signal: AbortSignal;
+  readonly provider: (auth: ExecHandshakeAuth) => string | null;
 }
 
-/**
- * Async because every driver awaits before its first byte - ExecuteCommand,
- * StartSession, an SSH handshake. A synchronous factory would force each one to
- * fire-and-forget its setup and hand-roll a buffer for input that arrives
- * before the connection is up.
- */
-export type ExecDriverFactory = (
-  auth: ExecHandshakeAuth,
-  sink: ExecSink,
-  ctx: ExecContext,
-) => Promise<ExecDriver>;
-
-const drivers = new Map<ExecHandshakeAuth["kind"], ExecDriverFactory>();
+const drivers = new Map<ExecHandshakeAuth["kind"], RegisteredDriver>();
 
 export function registerExecDriver(
   kind: ExecHandshakeAuth["kind"],
   factory: ExecDriverFactory,
+  provider: string | null | ((auth: ExecHandshakeAuth) => string | null) = null,
 ): void {
-  drivers.set(kind, factory);
+  drivers.set(kind, {
+    factory,
+    provider: typeof provider === "function" ? provider : () => provider,
+  });
+}
+
+export type DriverChoice =
+  | { readonly ok: true; readonly factory: ExecDriverFactory }
+  | { readonly ok: false; readonly code: ExecErrorCode; readonly userMessage: string };
+
+/**
+ * The driver that would open this handshake, or why none will.
+ *
+ * Checked on every connection rather than by leaving drivers unregistered, so
+ * switching a provider back on takes effect without a restart - the same rule
+ * its tRPC procedures follow.
+ */
+export function chooseDriver(auth: ExecHandshakeAuth): DriverChoice {
+  const registered = drivers.get(auth.kind);
+  if (!registered) {
+    return {
+      ok: false,
+      code: "NoDriver",
+      userMessage: `No ${auth.kind} driver is available in this build.`,
+    };
+  }
+  const provider = registered.provider(auth);
+  const refused = provider === null ? null : providerDisabledError(provider);
+  if (refused) return { ok: false, code: "ProviderDisabled", userMessage: refused.message };
+  return { ok: true, factory: registered.factory };
 }
 
 /**
@@ -108,17 +125,18 @@ export function attachExecNamespace(namespace: ExecNamespace): void {
 
   namespace.on("connection", (socket) => {
     const auth = socket.data.auth;
-    const factory = drivers.get(auth.kind);
+    const choice = chooseDriver(auth);
 
-    if (!factory) {
-      log.warn({ socketId: socket.id, kind: auth.kind }, "exec connection with no driver");
-      socket.emit("exec:error", {
-        code: "NoDriver",
-        userMessage: `No ${auth.kind} driver is available in this build.`,
-      });
+    if (!choice.ok) {
+      log.warn(
+        { socketId: socket.id, kind: auth.kind, code: choice.code },
+        "exec connection refused",
+      );
+      socket.emit("exec:error", { code: choice.code, userMessage: choice.userMessage });
       socket.disconnect(true);
       return;
     }
+    const factory = choice.factory;
 
     const client: SessionClient = {
       data: (chunk) => socket.emit("exec:data", { chunk }),

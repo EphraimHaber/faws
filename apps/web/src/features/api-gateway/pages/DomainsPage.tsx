@@ -10,7 +10,7 @@ import { EmptyState } from "~/components/ui/empty";
 import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { DomainPanel } from "~/features/api-gateway/components/DomainPanel";
 import { TruncatedNote } from "~/features/api-gateway/components/parts";
 import { dnsTarget, domainKey, statusTone } from "~/features/api-gateway/domains";
@@ -117,7 +117,7 @@ export function DomainsPage() {
       ) : null}
 
       <Panel className="flex-1">
-        <PanelHeader>
+        <PanelHeader refresh={domains} refreshLabel="Refresh custom domains">
           <PanelTitle>Custom domains</PanelTitle>
           <span className="font-mono text-[11px] text-muted-foreground tabular">
             {domains.isPending ? "…" : rows.length}

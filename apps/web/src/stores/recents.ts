@@ -8,7 +8,7 @@ import {
 } from "@faws/contracts";
 import * as React from "react";
 
-import { useScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { withScopedLink } from "~/features/kube/scope-link";
 import { applyRecent, useSettings } from "./settings";
 
@@ -27,8 +27,7 @@ import { applyRecent, useSettings } from "./settings";
  * Scope is filtered **here, on read**, rather than at the point of writing.
  * Switching profile for an hour and switching back should not cost you the
  * list you built up - the other account's rows are still in the file, and they
- * come back with it. See `inScope` for why `connectionId` is only compared for
- * the S3 kinds.
+ * come back with it.
  */
 export type { RecentEntry, ResourceRef };
 export { resourceKey };
@@ -54,8 +53,8 @@ export const recentActions: RecentActions = {
 
 /** The scope every list on screen is filtered against. */
 function useResourceScope(): ResourceScope {
-  const { profile, region, connectionId } = useScope();
-  return React.useMemo(() => ({ profile, region, connectionId }), [profile, region, connectionId]);
+  const { profile, region } = useAwsScope();
+  return React.useMemo(() => ({ profile, region, connectionId: "" }), [profile, region]);
 }
 
 function newestFirst(a: RecentEntry, b: RecentEntry): number {

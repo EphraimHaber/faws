@@ -20,7 +20,7 @@ function entry(arn: string, at: string): SilenceEntry {
 
 describe("settingsSchema", () => {
   it("fills every section from an empty object", () => {
-    expect(DEFAULT_SETTINGS.scope.profile).toBe("default");
+    expect(DEFAULT_SETTINGS.providers.aws.scope.profile).toBe("default");
     expect(DEFAULT_SETTINGS.logs.gutter).toBe(DEFAULT_LOG_GUTTER);
     expect(DEFAULT_SETTINGS.appearance.theme).toBe("dark");
     expect(DEFAULT_SETTINGS.terminal.recordByDefault).toBe(true);
@@ -46,21 +46,67 @@ describe("settingsSchema", () => {
     expect(applyPatch(DEFAULT_SETTINGS, patch).layout.sidebarWidth).toBe(300);
   });
 
-  it("carries a kube patch through applyPatch", () => {
+  it("carries a provider scope patch through applyPatch, leaving the rest of it", () => {
     // The easy miss, and the reason this test exists: `settingsPatchSchema` is
     // strict, so a section added there and forgotten in `applyPatch` validates
     // cleanly and is then dropped by the merge - which looks from the outside
     // exactly like a preference that will not stick.
-    const patch = settingsPatchSchema.parse({ kube: { context: "prod", namespace: "payments" } });
-    expect(applyPatch(DEFAULT_SETTINGS, patch).kube).toEqual({
-      context: "prod",
-      namespace: "payments",
+    const patch = settingsPatchSchema.parse({
+      providers: { kubernetes: { scope: { context: "prod", namespace: "payments" } } },
     });
+    const next = applyPatch(DEFAULT_SETTINGS, patch);
+    expect(next.providers.kubernetes).toEqual({
+      enabled: true,
+      scope: { context: "prod", namespace: "payments" },
+    });
+    expect(next.providers.aws).toBe(DEFAULT_SETTINGS.providers.aws);
+  });
+
+  it("switches a provider off without touching where it was pointed", () => {
+    const pointed = applyPatch(DEFAULT_SETTINGS, {
+      providers: { aws: { scope: { profile: "prod" } } },
+    });
+    const off = applyPatch(pointed, { providers: { aws: { enabled: false } } });
+    expect(off.providers.aws).toEqual({ enabled: false, scope: { profile: "prod", region: "" } });
+  });
+
+  it("starts every provider on, and falls back to on for a value that is not a boolean", () => {
+    expect(DEFAULT_SETTINGS.providers.aws.enabled).toBe(true);
+    expect(DEFAULT_SETTINGS.providers.kubernetes.enabled).toBe(true);
+    expect(DEFAULT_SETTINGS.providers.s3.enabled).toBe(true);
+    expect(
+      settingsSchema.parse({ providers: { aws: { enabled: "no" } } }).providers.aws.enabled,
+    ).toBe(true);
+  });
+
+  it("refuses a patch naming a provider this build does not have", () => {
+    expect(() => settingsPatchSchema.parse({ providers: { azure: { enabled: true } } })).toThrow();
   });
 
   it("starts with no kube scope, meaning the kubeconfig's own", () => {
-    expect(DEFAULT_SETTINGS.kube).toEqual({ context: "", namespace: "" });
-    expect(settingsSchema.parse({ kube: { context: 7 } }).kube.context).toBe("");
+    expect(DEFAULT_SETTINGS.providers.kubernetes.scope).toEqual({ context: "", namespace: "" });
+    expect(
+      settingsSchema.parse({ providers: { kubernetes: { scope: { context: 7 } } } }).providers
+        .kubernetes.scope.context,
+    ).toBe("");
+  });
+
+  it("checks for stable updates by default, and carries a choice to stop", () => {
+    expect(DEFAULT_SETTINGS.updates).toEqual({
+      autoCheck: true,
+      channel: "stable",
+      skippedVersion: "",
+      lastSeenVersion: "",
+    });
+    expect(settingsSchema.parse({ updates: { channel: "nightly" } }).updates.channel).toBe(
+      "stable",
+    );
+    const patch = settingsPatchSchema.parse({ updates: { autoCheck: false } });
+    expect(applyPatch(DEFAULT_SETTINGS, patch).updates.autoCheck).toBe(false);
+  });
+
+  it("starts the first-run screen not yet done", () => {
+    expect(DEFAULT_SETTINGS.onboarding.completed).toBe(false);
   });
 
   it("leaves SSM shells on the default shell unless asked, and carries the choice", () => {
@@ -91,17 +137,20 @@ describe("settingsSchema", () => {
   });
 
   it("replaces a section of the wrong type with a defaulted one", () => {
-    expect(settingsSchema.parse({ version: 1, scope: "nonsense" }).scope).toEqual(
-      DEFAULT_SETTINGS.scope,
+    expect(settingsSchema.parse({ version: 1, providers: "nonsense" }).providers).toEqual(
+      DEFAULT_SETTINGS.providers,
     );
+    expect(
+      settingsSchema.parse({ providers: { aws: { scope: "nonsense" } } }).providers.aws.scope,
+    ).toEqual(DEFAULT_SETTINGS.providers.aws.scope);
   });
 
   it("only accepts refresh intervals that are on the menu", () => {
-    expect(settingsSchema.parse({ scope: { refreshSeconds: 60 } }).scope.refreshSeconds).toBe(60);
-    expect(settingsSchema.parse({ scope: { refreshSeconds: 7 } }).scope.refreshSeconds).toBe(30);
+    expect(settingsSchema.parse({ refresh: { seconds: 60 } }).refresh.seconds).toBe(60);
+    expect(settingsSchema.parse({ refresh: { seconds: 7 } }).refresh.seconds).toBe(30);
     // A missing key coerces to nothing, not to 0 - an interval that isn't even
     // on the menu is exactly what the membership check exists to stop.
-    expect(settingsSchema.parse({ scope: {} }).scope.refreshSeconds).toBe(30);
+    expect(settingsSchema.parse({ refresh: {} }).refresh.seconds).toBe(30);
   });
 });
 
@@ -171,21 +220,23 @@ describe("s3 endpoints", () => {
 
   it("keeps the endpoints it can read and drops only the ones it cannot", () => {
     const parsed = settingsSchema.parse({
-      s3: { connections: [endpoint, { id: "broken" }, { ...endpoint, id: "def", name: "Ceph" }] },
+      providers: {
+        s3: { connections: [endpoint, { id: "broken" }, { ...endpoint, id: "def", name: "Ceph" }] },
+      },
     });
 
-    expect(parsed.s3.connections.map((entry) => entry.id)).toEqual(["abc", "def"]);
+    expect(parsed.providers.s3.connections.map((entry) => entry.id)).toEqual(["abc", "def"]);
   });
 
   it("turns an endpoint with an unreadable section back into a safe default", () => {
     const parsed = settingsSchema.parse({
-      s3: { connections: [{ ...endpoint, tls: "nonsense" }] },
+      providers: { s3: { connections: [{ ...endpoint, tls: "nonsense" }] } },
     });
 
-    expect(parsed.s3.connections[0]?.tls.verify).toBe(true);
+    expect(parsed.providers.s3.connections[0]?.tls.verify).toBe(true);
   });
 
   it("has no endpoints in a file written before they existed", () => {
-    expect(settingsSchema.parse({ scope: { profile: "prod" } }).s3.connections).toEqual([]);
+    expect(settingsSchema.parse({ version: 1 }).providers.s3.connections).toEqual([]);
   });
 });

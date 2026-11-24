@@ -12,7 +12,7 @@ import { ErrorState } from "~/components/ui/error-state";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { LoadingRows } from "~/components/ui/spinner";
 import { StatusDot } from "~/components/ui/status-dot";
-import { useAwsScope } from "~/contexts/ScopeContext";
+import { useAwsScope } from "~/stores/scope";
 import { clusterRef } from "~/features/ecs/refs";
 import { trpc } from "~/lib/trpc";
 import type { EcsCluster } from "@faws/contracts";
@@ -114,7 +114,7 @@ export function ClustersPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={clusters} refreshLabel="Refresh clusters">
         <PanelTitle>Clusters</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">
           {clusters.isPending ? "…" : rows.length}

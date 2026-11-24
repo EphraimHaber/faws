@@ -3,7 +3,7 @@ import { Globe, KeyRound, Network } from "lucide-react";
 
 import { SectionCard } from "~/components/section-card";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
-import { useAwsScope, useScope } from "~/contexts/ScopeContext";
+import { useAwsScope, useScope } from "~/stores/scope";
 import { trpc } from "~/lib/trpc";
 
 /** The front door of the API Gateway section. */
@@ -19,7 +19,7 @@ export function ApiGatewayIndexPage() {
 
   return (
     <Panel className="flex-1">
-      <PanelHeader>
+      <PanelHeader refresh={[apis, domains, plans]} refreshLabel="Refresh API Gateway">
         <PanelTitle>API Gateway</PanelTitle>
         <span className="font-mono text-[11px] text-muted-foreground tabular">{region}</span>
       </PanelHeader>
