@@ -22,6 +22,7 @@
     "fmt:check": "oxfmt --check '**/*.{ts,tsx,css}'",
     "clean:manual": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist apps/*/dist-electron packages/*/dist .turbo apps/*/.turbo packages/*/.turbo",
     "change": "node scripts/change.mjs",
+    "new:provider": "node scripts/new-provider.mjs",
     "version-packages": "changeset version && pnpm install --lockfile-only"
   },
   "devDependencies": {

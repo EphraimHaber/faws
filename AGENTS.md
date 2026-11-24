@@ -8,6 +8,11 @@ Desktop operations console for AWS, Kubernetes and S3-compatible storage. Read `
 - `pnpm check:catalog` fails on any other specifier.
 - Internal packages export TypeScript source and have no build script. The apps bundle them.
 
+## Providers
+- A new provider starts from `pnpm new:provider <id> "<Label>"`, which scaffolds the package and lists the four places that register it. `packages/providers/kubernetes` is the reference for a finished one.
+- A new service or section is an entry in its provider's `src/manifest.ts` plus a route in `apps/web/src/router.tsx`. `registry.test.ts` fails while a manifest links to a page that doesn't exist.
+- Provider code reaches host facilities only through `@faws/kit/server` (gate, logging, binaries, pty, terminal contract). It never imports `apps/*` or another provider; `pnpm check:deps` enforces this.
+
 ## Settings file
 - `packages/contracts/src/settings.ts` is the schema. Give every leaf a `.catch(default)`: that fallback is the single definition of the default, and one bad stored value costs only itself.
 - Adding a section needs no migration. Moving or renaming data in a file a release has shipped does:

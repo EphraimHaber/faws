@@ -2,33 +2,31 @@
  * Module boundaries for the workspace. ARCHITECTURE.md explains the layers
  * these rules keep apart; `pnpm check:deps` runs them.
  *
- * Severity is `warn` while the provider packages are carved out of `core`,
- * `apps/server/src/api` and `apps/web/src/features`; each rule turns to
- * `error` once nothing breaks it.
- *
- * Rules that name `packages/kit`, `packages/lib-*` or `packages/providers`
- * describe packages that do not exist yet; they hold the moment one does.
+ * Every rule is an error: CI fails on a new violation. Rules naming
+ * `packages/lib-*` describe packages that do not exist yet; they hold the
+ * moment one does.
  */
 /** @type {import("dependency-cruiser").IConfiguration} */
 module.exports = {
   forbidden: [
     {
       name: "no-circular",
-      severity: "warn",
-      comment: "A cycle means two modules are one module; merge them or cut the edge.",
+      severity: "error",
+      comment:
+        "A cycle means two modules are one module; merge them or cut the edge. A cycle made only of type imports does not exist at runtime and is allowed.",
       from: {},
-      to: { circular: true },
+      to: { circular: true, viaOnly: { dependencyTypesNot: ["type-only"] } },
     },
     {
       name: "packages-never-import-apps",
-      severity: "warn",
+      severity: "error",
       comment: "Packages are compiled by the apps that use them, never the other way round.",
       from: { path: "^packages/" },
       to: { path: "^apps/" },
     },
     {
       name: "contracts-stay-runtime-free",
-      severity: "warn",
+      severity: "error",
       comment:
         "Contracts are zod and types, imported by every layer including the renderer. Provider manifests are plain data and the settings file is shaped by them, so those alone may be imported.",
       from: { path: "^packages/contracts/" },
@@ -39,21 +37,21 @@ module.exports = {
     },
     {
       name: "kit-never-imports-providers",
-      severity: "warn",
+      severity: "error",
       comment: "The provider SDK defines the contract; providers implement it.",
       from: { path: "^packages/kit/" },
       to: { path: "^packages/providers/" },
     },
     {
       name: "providers-stay-independent",
-      severity: "warn",
+      severity: "error",
       comment: "One provider never reaches into another; shared code belongs in kit or a lib-*.",
       from: { path: "^packages/providers/([^/]+)/" },
       to: { path: "^packages/providers/", pathNot: "^packages/providers/$1/" },
     },
     {
       name: "web-never-imports-server-code",
-      severity: "warn",
+      severity: "error",
       comment: "The renderer may only see server types (the tRPC router), never server code.",
       from: { path: "^(apps/web/|packages/[^/]+/src/web/|packages/providers/[^/]+/src/web/)" },
       to: {
