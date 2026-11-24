@@ -31,7 +31,7 @@ Desktop operations console for AWS, Kubernetes and S3-compatible storage. Read `
 - Expected failures extend `DomainError` from `@faws/kit` and are thrown directly. The transport turns them into their declared status and `error.data.cause`.
 - The app is read-only by default. A write goes through the server's write-mode guard. A delete needs the second, never-persisted switch.
 - Byte transfer and any other non-tRPC HTTP route lives under `/api/`.
-- TLS trust is app-wide: `settings.trust` is installed as Node's default CA set (`apps/server/src/api/trust/trust.ts`). A refused certificate surfaces as `EndpointTrustError`, and `ErrorState` offers to review it. Never add a switch that turns verification off globally.
+- TLS trust is app-wide: `settings.trust` is installed as Node's default CA set (`apps/server/src/api/trust/trust.ts`), and the Electron main process follows the same store through a certificate verify proc (`apps/desktop/src/trust.ts`) that only ever overturns an untrusted-issuer refusal. A refused certificate surfaces as `EndpointTrustError`, and `ErrorState` offers to review it. Never add a switch that turns verification off globally.
 
 ## Vocabulary
 - "cluster" means an ECS cluster and nothing else. Kubernetes UI says context, namespace and workload.
