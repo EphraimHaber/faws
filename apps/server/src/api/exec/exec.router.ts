@@ -4,7 +4,7 @@ import { z } from "zod";
 import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
 import { deleteRecording, listRecordings } from "./recorder.ts";
 import { listSessions } from "./session.registry.ts";
-import { resolveSessionPlugin } from "./sessionPlugin.ts";
+import { resolveSessionPlugin } from "@faws/provider-aws/server";
 
 /**
  * Everything about shells that is a question rather than a stream.

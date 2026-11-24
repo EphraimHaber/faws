@@ -11,14 +11,18 @@
  * It is held as a Buffer rather than a string specifically so it can be zeroed
  * after the handshake: a string is immutable and would sit in the heap until
  * the collector felt like it.
+ *
+ * Contributed to the host's SSH driver as the `ec2-instance-connect` route:
+ * this module picks the address and pushes the key, and the host does the SSH.
  */
 import * as crypto from "node:crypto";
 
 import { SendSSHPublicKeyCommand } from "@aws-sdk/client-ec2-instance-connect";
-import type { AwsScope } from "@faws/contracts";
-import { ec2InstanceConnectClient } from "@faws/core";
+import type { AwsScope, ExecInstanceTarget } from "@faws/contracts";
+import { ec2InstanceConnectClient, listExecTargets } from "@faws/core";
 
-import { ExecSessionError } from "../errors.ts";
+import { ExecSessionError } from "./errors.ts";
+import type { SshRouteFor } from "./types.ts";
 
 export interface EphemeralKey {
   readonly privateKey: Buffer;
@@ -155,3 +159,70 @@ function translate(err: unknown, input: { instanceId: string; osUser: string }):
       );
   }
 }
+
+/** Where an Instance Connect key goes, and which address to dial after. */
+async function resolveInstance(
+  profile: string,
+  region: string,
+  instanceId: string,
+): Promise<ExecInstanceTarget> {
+  const targets = await listExecTargets({ profile, region });
+  const found = targets.find((target) => target.instanceId === instanceId);
+  if (!found) {
+    throw new ExecSessionError(
+      "InvalidInstanceId",
+      `${instanceId} is not an instance this region knows about.`,
+    );
+  }
+  return found;
+}
+
+/** An ordinary TCP connection to the instance, offering a key pushed for this session only. */
+export const instanceConnectRoute: SshRouteFor<"ec2-instance-connect"> = {
+  via: "ec2-instance-connect",
+  async open(transport, requested, ctx) {
+    const instance = await resolveInstance(
+      transport.profile,
+      transport.region,
+      transport.instanceId,
+    );
+    const address = instance.publicIp ?? instance.privateIp;
+    if (!address) {
+      throw new ExecSessionError(
+        "InstanceConnectFailed",
+        `${transport.instanceId} has no address to connect to. Reach it with an SSM tunnel instead.`,
+      );
+    }
+    if (!instance.availabilityZone) {
+      throw new ExecSessionError(
+        "InstanceConnectFailed",
+        `${transport.instanceId} reports no availability zone, which Instance Connect requires.`,
+      );
+    }
+
+    ctx.status(`Pushing a one-time key to ${transport.instanceId} for ${transport.osUser}...`);
+    const key = generateEphemeralKey();
+    try {
+      await sendPublicKey(
+        { profile: transport.profile, region: transport.region },
+        {
+          instanceId: transport.instanceId,
+          osUser: transport.osUser,
+          availabilityZone: instance.availabilityZone,
+          publicKeyOpenSsh: key.publicKeyOpenSsh,
+        },
+      );
+    } catch (err) {
+      key.scrub();
+      throw err;
+    }
+
+    return {
+      target: address,
+      port: requested.port ?? 22,
+      user: transport.osUser,
+      privateKey: key.privateKey,
+      scrub: () => key.scrub(),
+    };
+  },
+};

@@ -18,11 +18,11 @@ import {
 } from "@aws-sdk/client-ssm";
 import { ssmClient } from "@faws/core";
 
-import { ExecSessionError } from "../errors.ts";
-import type { ExecDriver, ExecDriverFactory } from "../exec.service.ts";
-import { resolveSessionPlugin } from "../sessionPlugin.ts";
+import { ExecSessionError } from "./errors.ts";
+import type { ExecDriver, ExecDriverFactory } from "./types.ts";
+import { resolveSessionPlugin } from "./sessionPlugin.ts";
 import { spawnInteractive, type InteractiveChild } from "@faws/kit/server";
-import { startPreferringBash, type StartRequest } from "../ssm/shell.ts";
+import { startPreferringBash, type StartRequest } from "./ssmShell.ts";
 
 /** How long to wait for a killed child before insisting. */
 const SIGKILL_AFTER_MS = 2000;

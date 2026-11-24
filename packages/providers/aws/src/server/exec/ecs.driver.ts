@@ -15,10 +15,10 @@
 import { DescribeTasksCommand, ExecuteCommandCommand } from "@aws-sdk/client-ecs";
 import { ecsClient } from "@faws/core";
 
-import { ExecSessionError } from "../errors.ts";
-import type { ExecDriver, ExecDriverFactory } from "../exec.service.ts";
+import { ExecSessionError } from "./errors.ts";
+import type { ExecDriver, ExecDriverFactory } from "./types.ts";
 import { spawnInteractive, type InteractiveChild } from "@faws/kit/server";
-import { resolveSessionPlugin } from "../sessionPlugin.ts";
+import { resolveSessionPlugin } from "./sessionPlugin.ts";
 
 const SIGKILL_AFTER_MS = 2000;
 

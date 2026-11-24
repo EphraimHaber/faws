@@ -1,8 +1,9 @@
 /**
  * Finds AWS's `session-manager-plugin` binary.
  *
- * The search itself is `shared/binaries.ts`, because the same PATH problem
- * applies verbatim to `kubectl`, `oc` and `virtctl`. What stays here is the
+ * The search itself is `resolveBinary` in `@faws/kit/server`, because the
+ * same PATH problem applies verbatim to `kubectl`, `oc` and `virtctl`. What
+ * stays here is the
  * part that is only true of this binary: the env var that overrides it, where
  * the official installers put it, and what to tell someone who does not have
  * it.

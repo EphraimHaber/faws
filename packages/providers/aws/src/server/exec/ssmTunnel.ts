@@ -1,61 +1,39 @@
 /**
- * Getting a byte stream to port 22, whatever stands between here and there.
+ * SSH to an instance with no route to it, over an SSM tunnel.
  *
- * Four answers to one question, behind one function, because "how do I reach
- * this host" is genuinely different from "what do I do once I get there" and
- * the SSH driver should only have to care about the second.
- *
- *   direct       the host is routable; ssh2 dials it itself
- *   ssm-tunnel   no public address, so AWS-StartSSHSession carries the bytes
- *   jump         reach the first hop, then forward a channel through it
- *   ec2-instance-connect  routable, but the key is pushed for this session only
- *
- * `jump` recurses through this same function, so a bastion can itself be
- * reached over SSM. Each hop verifies its own host key and the chain tears down
- * innermost first.
+ * `AWS-StartSSHSession` forwards the instance's port 22 rather than starting a
+ * shell, and the Session Manager plugin carries the raw bytes on its stdio.
+ * Contributed to the host's SSH driver as the `ssm-tunnel` route: this module
+ * hands it the stream, and the host does the SSH over it, host key and all.
  */
-import type { Duplex } from "node:stream";
-
 import type { SshTransport } from "@faws/contracts";
 import { ssmClient } from "@faws/core";
 import { StartSessionCommand, TerminateSessionCommand } from "@aws-sdk/client-ssm";
+import { spawnTunnel, type SshRoute } from "@faws/kit/server";
 
-import { ExecSessionError } from "../errors.ts";
-import { spawnTunnel } from "@faws/kit/server";
-import { resolveSessionPlugin } from "../sessionPlugin.ts";
+import { ExecSessionError } from "./errors.ts";
+import { resolveSessionPlugin } from "./sessionPlugin.ts";
+import type { SshRouteFor } from "./types.ts";
 
-export interface OpenTransport {
-  /** Passed to ssh2 as `sock`; absent means "dial it yourself". */
-  readonly sock?: Duplex;
-  close(): Promise<void>;
-}
-
-export async function openTransport(
-  transport: SshTransport,
-  report: (message: string) => void,
-): Promise<OpenTransport> {
-  switch (transport.via) {
-    case "direct":
-    case "ec2-instance-connect":
-      // Both are ordinary TCP from here; Instance Connect only changes which
-      // key is offered, which the driver handles.
-      return { close: async () => {} };
-
-    case "ssm-tunnel":
-      return openSsmTunnel(transport, report);
-
-    case "jump":
-      throw new ExecSessionError(
-        "Internal",
-        "Jump hosts are resolved by the driver, not the transport.",
-      );
-  }
-}
+export const ssmTunnelRoute: SshRouteFor<"ssm-tunnel"> = {
+  via: "ssm-tunnel",
+  async open(transport, requested, ctx) {
+    const tunnel = await openSsmTunnel(transport, (message) => ctx.status(message));
+    return {
+      // The instance id, not an address: the stream already reaches it, and
+      // the host key is remembered against the name the person picked.
+      target: transport.instanceId,
+      port: requested.port ?? 22,
+      user: requested.user,
+      ...tunnel,
+    };
+  },
+};
 
 async function openSsmTunnel(
   transport: Extract<SshTransport, { via: "ssm-tunnel" }>,
   report: (message: string) => void,
-): Promise<OpenTransport> {
+): Promise<Required<Pick<SshRoute, "sock" | "close">>> {
   const plugin = resolveSessionPlugin();
   if (!plugin.path) {
     throw new ExecSessionError(

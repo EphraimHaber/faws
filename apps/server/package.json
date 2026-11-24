@@ -23,10 +23,6 @@
     "postinstall": "node scripts/fix-native-perms.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-ec2": "catalog:aws",
-    "@aws-sdk/client-ec2-instance-connect": "catalog:aws",
-    "@aws-sdk/client-ecs": "catalog:aws",
-    "@aws-sdk/client-ssm": "catalog:aws",
     "@fastify/cors": "catalog:",
     "@fastify/static": "catalog:",
     "@faws/contracts": "workspace:*",

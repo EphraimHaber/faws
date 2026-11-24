@@ -9,6 +9,8 @@
  * Generic over the handshake and prompt shapes so this package needs no
  * contract types; the host and the providers fill them in from contracts.
  */
+import type { Duplex } from "node:stream";
+
 import type { Logger } from "./log.ts";
 
 export interface ExecDriver {
@@ -57,6 +59,47 @@ export type ExecDriverFactory<Auth = unknown, Prompt = unknown, PromptResponse =
 export interface TerminalContribution<Kind extends string = string, Auth = unknown> {
   readonly kind: Kind;
   readonly factory: ExecDriverFactory<Auth, any, any>;
+}
+
+/**
+ * The last hop of an SSH connection, reached some way other than dialling it.
+ *
+ * SSH itself belongs to the host: the handshake, host keys, jump chains and
+ * the shell channel. Getting a byte stream to the far sshd, or the key it will
+ * accept, can belong to a provider - an SSM tunnel, an EC2 Instance Connect key
+ * pushed for this session only. A provider contributes that part as an
+ * `SshRouteContribution`, and the host's SSH driver finishes the connection.
+ */
+export interface SshRoute {
+  /** The name the handshake dials or resolves through ~/.ssh/config, and verifies the host key for. */
+  readonly target: string;
+  readonly port: number;
+  readonly user: string | undefined;
+  /** A stream already connected to the far sshd; absent means dial `target`. */
+  readonly sock?: Duplex;
+  /** A key to offer before anything on disk, good for this handshake only. */
+  readonly privateKey?: Buffer;
+  /** Zeroes `privateKey`. The host calls it once the handshake is done with it, or failed. */
+  scrub?(): void;
+  /** Tears down whatever carries `sock`, after the SSH client has closed. */
+  close?(): Promise<void>;
+}
+
+export interface SshRouteContext {
+  readonly log: Logger;
+  /** One line of connect progress. */
+  status(message: string): void;
+  readonly signal: AbortSignal;
+}
+
+/** One way of reaching an SSH host, keyed by the handshake's `transport.via`. */
+export interface SshRouteContribution<Via extends string = string, Transport = unknown> {
+  readonly via: Via;
+  open(
+    transport: Transport,
+    requested: { readonly user: string | undefined; readonly port: number | undefined },
+    ctx: SshRouteContext,
+  ): Promise<SshRoute>;
 }
 
 /**
