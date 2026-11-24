@@ -26,7 +26,20 @@ env:
   TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
+  # Made once, before any build: runners that each create the release on
+  # first upload race, and the losers make extra drafts with the same tag.
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the draft release unless it exists
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "faws ${TAG#v}" --notes ""
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build:
+    needs: draft
     strategy:
       fail-fast: false
       matrix:
@@ -56,8 +69,7 @@ jobs:
 
       - run: pnpm build
 
-      # electron-builder uploads into a draft release named after the version,
-      # creating it on the first runner to get there.
+      # electron-builder uploads into the draft the draft job made.
       - name: Package and upload
         working-directory: apps/desktop
         run: pnpm exec electron-builder ${{ matrix.args }} --publish always
