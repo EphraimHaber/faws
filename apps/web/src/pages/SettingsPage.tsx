@@ -10,6 +10,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Switch } from "~/components/ui/switch";
+import { TrustPanel } from "~/features/trust/TrustPanel";
 import { UpdatesPanel } from "~/features/updates/UpdatesPanel";
 import { TextAction, textActionClass } from "~/components/ui/text-action";
 import {
@@ -91,6 +92,8 @@ export function SettingsPage() {
       <ProvidersPanel />
 
       <UpdatesPanel />
+
+      <TrustPanel />
 
       <Panel className="shrink-0">
         <PanelHeader>

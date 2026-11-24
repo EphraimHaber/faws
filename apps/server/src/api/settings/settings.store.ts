@@ -38,6 +38,7 @@ import {
   type SilencedSettings,
   settingsSchema,
   type TableLayoutOp,
+  type TrustSettings,
 } from "@faws/contracts";
 
 import { createLogger } from "../../shared/logger.ts";
@@ -86,6 +87,8 @@ export interface SettingsStore {
   applyRecents(op: RecentOp, originId?: string | null): SettingsSnapshot;
   /** Sets or resets one table's column layout, leaving every other table's alone. */
   applyTableLayout(op: TableLayoutOp, originId?: string | null): SettingsSnapshot;
+  /** Replaces the trusted certificates; the trust router owns what goes in. */
+  setTrust(trust: TrustSettings, originId?: string | null): SettingsSnapshot;
   reset(originId?: string | null): SettingsSnapshot;
   subscribe(listener: SettingsListener): () => void;
   /** Awaits any pending write. For the shutdown path and for tests. */
@@ -311,6 +314,10 @@ export function createSettingsStore(options: SettingsStoreOptions): SettingsStor
 
     applyTableLayout(op, originId = null) {
       return commit({ ...settings, tables: applyTableLayoutOp(settings.tables, op) }, originId);
+    },
+
+    setTrust(trust, originId = null) {
+      return commit({ ...settings, trust }, originId);
     },
 
     reset(originId = null) {

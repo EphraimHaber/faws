@@ -26,6 +26,7 @@ import { manifestFor, type ProviderId } from "./providers.ts";
 import { recentsSettingsSchema } from "./recents.ts";
 import { s3ConnectionSchema } from "./s3-connections.ts";
 import { tablesSettingsSchema } from "./tables.ts";
+import { trustSettingsSchema } from "./trust.ts";
 
 /**
  * Bumped whenever a migration is needed to read an older file. Contracts owns
@@ -298,6 +299,7 @@ export const settingsSchema = z.object({
   onboarding: section(onboardingSettingsSchema),
   refresh: section(refreshSettingsSchema),
   updates: section(updatesSettingsSchema),
+  trust: section(trustSettingsSchema),
   logs: section(logSettingsSchema),
   appearance: section(appearanceSettingsSchema),
   layout: section(layoutSettingsSchema),
@@ -320,6 +322,7 @@ export type KubeScopeSettings = ProvidersSettings["kubernetes"]["scope"];
 export type S3ScopeSettings = ProvidersSettings["s3"]["scope"];
 export type RefreshSettings = Settings["refresh"];
 export type UpdatesSettings = Settings["updates"];
+export type TrustSettings = Settings["trust"];
 export type OnboardingSettings = Settings["onboarding"];
 
 export const DEFAULT_SETTINGS: Settings = settingsSchema.parse({});

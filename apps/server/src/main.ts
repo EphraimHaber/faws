@@ -28,6 +28,7 @@ import { attachS3ScanNamespace } from "./api/s3/scan.service.ts";
 import { registerServerConnectionStores } from "./api/s3/connectionStore.ts";
 import { attachSettingsBroadcast } from "./api/settings/settings.events.ts";
 import { flushSettings, loadSettings, settingsStore } from "./api/settings/settings.instance.ts";
+import { applyTrust } from "./api/trust/trust.ts";
 import { appRouter, type AppRouter } from "./router.ts";
 import { createIndexHtmlRenderer } from "./shared/indexHtml.ts";
 import { getRootLogger } from "./shared/logger.ts";
@@ -105,6 +106,17 @@ await server.register(fastifyCors, {
 // Before listen, so the very first request already sees the stored values
 // rather than defaults it would have to correct a moment later.
 await loadSettings();
+// Trust what the settings say before the first outbound connection, and again
+// whenever they change (a reset, or another window removing a certificate).
+{
+  let lastTrust = settingsStore().get().settings.trust;
+  applyTrust(lastTrust);
+  settingsStore().subscribe((snapshot) => {
+    if (snapshot.settings.trust === lastTrust) return;
+    lastTrust = snapshot.settings.trust;
+    applyTrust(lastTrust);
+  });
+}
 // Saved S3 endpoints live in the settings file, so nothing may read one
 // before it has been loaded.
 registerServerConnectionStores();

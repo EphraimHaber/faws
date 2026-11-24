@@ -12,4 +12,5 @@ export * from "./s3.ts";
 export * from "./schemas.ts";
 export * from "./settings.ts";
 export * from "./tables.ts";
+export * from "./trust.ts";
 export * from "./updates.ts";
