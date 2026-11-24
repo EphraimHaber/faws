@@ -3,6 +3,7 @@ import { Command, MoonStar, Sun } from "lucide-react";
 
 import { AccountChip } from "~/components/AccountChip";
 import { Breadcrumb } from "~/components/Breadcrumb";
+import { LogoMark } from "~/components/Logo";
 import { RegionPicker } from "~/components/RegionPicker";
 import { WriteModePill } from "~/components/WriteModePill";
 import { Kbd } from "~/components/ui/kbd";
@@ -87,24 +88,11 @@ export function AppHeader({ onOpenPalette }: { onOpenPalette: () => void }) {
   );
 }
 
-/* Three stacked bars of decreasing length with a live dot: a container
-   manifest, not a generic cloud. */
+/* The radar: faws watching everything it is connected to. */
 function BrandMark() {
   return (
     <span className="grid size-6 place-items-center rounded-[6px] border border-primary/35 bg-primary/10 text-primary">
-      <svg
-        viewBox="0 0 16 16"
-        className="size-3.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      >
-        <path d="M3 4.5h10" />
-        <path d="M3 8h7" />
-        <path d="M3 11.5h4" />
-        <circle cx="12" cy="11.5" r="1.4" fill="currentColor" stroke="none" />
-      </svg>
+      <LogoMark className="size-3.5" />
     </span>
   );
 }

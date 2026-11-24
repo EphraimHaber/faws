@@ -32,6 +32,7 @@ publish:
   releaseType: draft
 
 mac:
+  icon: build/icon.png
   category: public.app-category.developer-tools
   # The zip is what the update check reads its metadata beside; the dmg is
   # what people download. Unsigned, so the arm64 build is ad-hoc signed by
@@ -44,12 +45,14 @@ mac:
   artifactName: "${productName}-${version}-${arch}.${ext}"
 
 linux:
+  icon: build/icon.png
   category: Development
   target:
     - target: AppImage
       arch: [x64]
 
 win:
+  icon: build/icon.png
   target:
     - target: nsis
       arch: [x64]

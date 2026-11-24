@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#13324A"/><stop offset="1" stop-color="#0A1826"/></linearGradient></defs><rect x="100" y="100" width="824" height="824" rx="184" fill="url(#bg)"/><rect x="104" y="104" width="816" height="816" rx="180" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="8"/>
+<g fill="none" stroke="#E8F7FC" stroke-width="112" stroke-linecap="round" stroke-linejoin="round"><path d="M440 790 V420 A160 160 0 0 1 600 260"/><path d="M320 480 H600"/></g>
+<circle cx="744" cy="260" r="84" fill="#22C3E6" fill-opacity="0.28"/>
+<circle cx="744" cy="260" r="54" fill="#22C3E6"/>
+<circle cx="716" cy="480" r="46" fill="#7FDBF2"/>
+</svg>

@@ -9,4 +9,6 @@ packages/*/dist
 .env
 .env.local
 build/
+# electron-builder resources (icons), not build output
+!apps/desktop/build/
 release/
