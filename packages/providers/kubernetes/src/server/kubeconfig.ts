@@ -21,7 +21,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import type { KubeContextInfo } from "@faws/contracts";
+import type { KubeAuthKind, KubeContextInfo } from "@faws/contracts";
 
 import { ExecSessionError } from "@faws/kit/server";
 import { resolveKubeBinary } from "./binaries.ts";
@@ -75,8 +75,29 @@ interface RawConfig {
   }>;
   readonly users?: ReadonlyArray<{
     readonly name?: string;
-    readonly user?: { readonly exec?: { readonly command?: string } };
+    readonly user?: RawUser;
   }>;
+}
+
+/** The user fields that say how it authenticates; secrets arrive redacted. */
+interface RawUser {
+  readonly exec?: { readonly command?: string };
+  readonly token?: string;
+  readonly tokenFile?: string;
+  readonly "client-certificate"?: string;
+  readonly "client-certificate-data"?: string;
+  readonly "auth-provider"?: unknown;
+  readonly username?: string;
+}
+
+export function authKindOf(user: RawUser | undefined): KubeAuthKind {
+  if (!user) return "none";
+  if (user.exec) return "exec";
+  if (user["auth-provider"]) return "auth-provider";
+  if (user.token || user.tokenFile) return "token";
+  if (user["client-certificate"] || user["client-certificate-data"]) return "certificate";
+  if (user.username) return "basic";
+  return "none";
 }
 
 let memo: { at: number; contexts: readonly KubeContextInfo[] } | null = null;
@@ -129,9 +150,7 @@ export async function listKubeContexts(
   const servers = new Map(
     (raw.clusters ?? []).map((entry) => [entry.name ?? "", entry.cluster?.server ?? null]),
   );
-  const plugins = new Map(
-    (raw.users ?? []).map((entry) => [entry.name ?? "", entry.user?.exec?.command ?? null]),
-  );
+  const users = new Map((raw.users ?? []).map((entry) => [entry.name ?? "", entry.user]));
   const current = raw["current-context"] ?? null;
 
   const contexts = (raw.contexts ?? [])
@@ -147,7 +166,8 @@ export async function listKubeContexts(
         namespace: entry.context?.namespace ?? null,
         server: servers.get(clusterName) ?? null,
         current: name === current,
-        execPlugin: plugins.get(userName) ?? null,
+        execPlugin: users.get(userName)?.exec?.command ?? null,
+        auth: authKindOf(users.get(userName)),
       };
     });
 

@@ -13,7 +13,15 @@
  * should be able to say so before anyone presses anything. It answers with
  * facts and never throws, so there is always something to render.
  */
-import { kubeContextSchema, kubeLabelSchema } from "@faws/contracts";
+import {
+  kubeBrowserLoginIdSchema,
+  kubeBrowserLoginStartSchema,
+  kubeContextSchema,
+  kubeLabelSchema,
+  kubeLoginInputSchema,
+  kubeReloginInputSchema,
+  kubeServerSchema,
+} from "@faws/contracts";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
@@ -22,6 +30,16 @@ import { isExecSessionError, providerProcedure, router, toTrpcError } from "@faw
 
 import { kubeDiagnostics } from "./diagnostics.ts";
 import { listKubeContexts } from "./kubeconfig.ts";
+import {
+  cancelBrowserLogin,
+  completeBrowserLogin,
+  login,
+  loginStatuses,
+  logout,
+  probeCluster,
+  relogin,
+  startBrowserLogin,
+} from "./login.ts";
 import { listNamespaces, listPods, listVirtualMachines, probeCapabilities } from "./resources.ts";
 
 /** A context alone: namespaces and capabilities are not namespaced. */
@@ -64,6 +82,54 @@ export const kubeRouter = router({
   virtualMachines: kubernetesProcedure
     .input(scopeInput)
     .query(({ input, signal }) => kube(() => listVirtualMachines(input, signal ? { signal } : {}))),
+
+  // Logging in changes only this machine's kubeconfig (and, for a logout, the
+  // token's record on the cluster), so these mutations are `local`.
+
+  /** What an API server is and whether its certificates are trusted, before anything is written. */
+  probeCluster: kubernetesProcedure
+    .input(z.object({ server: kubeServerSchema }))
+    .query(({ input, signal }) => probeCluster(input.server, signal ? { signal } : {})),
+
+  /** Each context's login: valid, expired or logged out, and its expiry when the cluster says. */
+  loginStatuses: kubernetesProcedure.query(({ signal }) =>
+    kube(() => loginStatuses(signal ? { signal } : {})),
+  ),
+
+  login: kubernetesProcedure
+    .meta({ effect: "local" })
+    .input(kubeLoginInputSchema)
+    .mutation(({ input, signal }) => kube(() => login(input, signal ? { signal } : {}))),
+
+  relogin: kubernetesProcedure
+    .meta({ effect: "local" })
+    .input(kubeReloginInputSchema)
+    .mutation(({ input, signal }) => kube(() => relogin(input, signal ? { signal } : {}))),
+
+  startBrowserLogin: kubernetesProcedure
+    .meta({ effect: "local" })
+    .input(kubeBrowserLoginStartSchema)
+    .mutation(({ input, signal }) =>
+      kube(() => startBrowserLogin(input, signal ? { signal } : {})),
+    ),
+
+  /** Resolves once the browser returns to the loopback listener; aborting the request cancels it. */
+  completeBrowserLogin: kubernetesProcedure
+    .meta({ effect: "local" })
+    .input(kubeBrowserLoginIdSchema)
+    .mutation(({ input, signal }) =>
+      kube(() => completeBrowserLogin(input.loginId, signal ? { signal } : {})),
+    ),
+
+  cancelBrowserLogin: kubernetesProcedure
+    .meta({ effect: "local" })
+    .input(kubeBrowserLoginIdSchema)
+    .mutation(({ input }) => cancelBrowserLogin(input.loginId)),
+
+  logout: kubernetesProcedure
+    .meta({ effect: "local" })
+    .input(contextInput)
+    .mutation(({ input }) => kube(() => logout(input.context))),
 });
 
 /**

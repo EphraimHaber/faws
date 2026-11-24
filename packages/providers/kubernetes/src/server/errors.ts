@@ -33,6 +33,23 @@ export class KubeUnauthorizedError extends DomainError {
   }
 }
 
+/** A login that did not go through, for a reason the person can act on: a wrong password, an expired token. */
+export class KubeLoginError extends DomainError {
+  readonly kind = "KubeLoginError";
+  readonly status = "BAD_REQUEST";
+  readonly server: string;
+
+  constructor(server: string, message: string) {
+    super(message);
+    this.name = "KubeLoginError";
+    this.server = server;
+  }
+
+  protected override details() {
+    return { server: this.server };
+  }
+}
+
 /** `alice/api-example-com:6443` is the user `alice` as `oc login` names it. */
 export function userLabel(user: string): string {
   const slash = user.indexOf("/");

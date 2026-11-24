@@ -13,6 +13,7 @@ const context: KubeContextInfo = {
   server: "https://api.ocp.example.com:6443",
   current: true,
   execPlugin: null,
+  auth: "token",
 };
 
 function cliError(stderr: string): KubeCliError {
