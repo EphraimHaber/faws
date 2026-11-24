@@ -1,6 +1,13 @@
 # On master: keeps a "Version packages" pull request open while changesets are
 # waiting. Merging it bumps the app's version and writes the changelog; the
-# next run sees no changesets left, tags the new version and starts the release.
+# next run sees no changesets left and tags the new version, and the tag push
+# starts the release.
+#
+# Everything here acts as the release GitHub App rather than GITHUB_TOKEN.
+# Events made with GITHUB_TOKEN start no workflows, so with it the pull request
+# would get no CI and the tag no release. The App needs Contents and Pull
+# requests read & write on this repository; its ID is the RELEASE_APP_ID
+# variable and its private key the RELEASE_APP_PRIVATE_KEY secret.
 name: Version
 
 on:
@@ -12,9 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  pull-requests: write
-  actions: write
+  contents: read
 
 jobs:
   version:
@@ -22,9 +27,19 @@ jobs:
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
     steps:
+      - name: Act as the release App
+        id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      # The App's token is kept as the checkout's credentials, so the tag
+      # release-tag.mjs pushes is the App's and starts the release workflow.
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          token: ${{ steps.app.outputs.token }}
 
       - uses: jdx/mise-action@v3
         with:
@@ -41,14 +56,4 @@ jobs:
           title: Version packages
           commit: Release the next version of faws
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # A tag pushed with GITHUB_TOKEN starts no workflow, so the release is
-      # started explicitly. Dispatch is the one trigger that token may fire.
-      - name: Start the release
-        if: steps.changesets.outputs.published == 'true'
-        run: |
-          tag="v$(node -p "require('./apps/desktop/package.json').version")"
-          gh workflow run release.yml -f tag="$tag"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app.outputs.token }}
