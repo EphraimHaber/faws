@@ -15,16 +15,18 @@
  */
 import type {
   KubeContainerInfo,
+  KubeContextInfo,
   KubeNamespaceInfo,
   KubePodInfo,
   KubeVirtualMachineInfo,
 } from "@faws/contracts";
 
 import { resolveKubeBinary } from "./binaries.ts";
-import { runKubeJson, runKubeText } from "./cli.ts";
+import { KubeCliError, runKubeJson, runKubeText } from "./cli.ts";
 import { ExecSessionError } from "@faws/kit/server";
+import { KubeUnauthorizedError } from "./errors.ts";
 import { kubeScopeFlags } from "./exec/argv.ts";
-import { translateKubeError } from "./exec/translate.ts";
+import { isUnauthorizedOutput, translateKubeError } from "./exec/translate.ts";
 import { assertKnownContext, pinnedKubeconfig } from "./kubeconfig.ts";
 
 export interface KubeScope {
@@ -52,7 +54,7 @@ function reader(): { file: string; kubeconfig: string | null } {
   if (!found) {
     throw new ExecSessionError(
       "KubeBinaryMissing",
-      kubectl.problem ?? "kubectl was not found on this machine.",
+      kubectl.problem ?? "Neither kubectl nor oc was found on this machine.",
     );
   }
   return { file: found, kubeconfig: pinnedKubeconfig() };
@@ -67,10 +69,10 @@ async function args(
   context: string,
   namespace: string | null,
   signal: AbortSignal | undefined,
-): Promise<{ file: string; prefix: string[] }> {
+): Promise<{ file: string; prefix: string[]; target: KubeContextInfo }> {
   const { file, kubeconfig } = reader();
-  await assertKnownContext(context, signal ? { signal } : {});
-  return { file, prefix: kubeScopeFlags({ kubeconfig, context, namespace }) };
+  const target = await assertKnownContext(context, signal ? { signal } : {});
+  return { file, prefix: kubeScopeFlags({ kubeconfig, context, namespace }), target };
 }
 
 interface ListOf<T> {
@@ -86,8 +88,9 @@ export async function listNamespaces(
   context: string,
   options: { signal?: AbortSignal } = {},
 ): Promise<readonly KubeNamespaceInfo[]> {
-  const { file, prefix } = await args(context, null, options.signal);
+  const { file, prefix, target } = await args(context, null, options.signal);
   const list = await get<ListOf<RawNamespace>>(
+    target,
     file,
     [...prefix, "get", "namespaces", "--output=json"],
     options.signal,
@@ -131,8 +134,9 @@ export async function listPods(
   scope: KubeScope,
   options: { signal?: AbortSignal } = {},
 ): Promise<readonly KubePodInfo[]> {
-  const { file, prefix } = await args(scope.context, scope.namespace, options.signal);
+  const { file, prefix, target } = await args(scope.context, scope.namespace, options.signal);
   const list = await get<ListOf<RawPod>>(
+    target,
     file,
     [...prefix, "get", "pods", "--output=json"],
     options.signal,
@@ -211,14 +215,16 @@ export async function listVirtualMachines(
   scope: KubeScope,
   options: { signal?: AbortSignal } = {},
 ): Promise<readonly KubeVirtualMachineInfo[]> {
-  const { file, prefix } = await args(scope.context, scope.namespace, options.signal);
+  const { file, prefix, target } = await args(scope.context, scope.namespace, options.signal);
 
   const machines = await get<ListOf<RawVirtualMachine>>(
+    target,
     file,
     [...prefix, "get", "virtualmachines.kubevirt.io", "--output=json"],
     options.signal,
   );
   const instances = await get<ListOf<RawVirtualMachineInstance>>(
+    target,
     file,
     [...prefix, "get", "virtualmachineinstances.kubevirt.io", "--output=json"],
     options.signal,
@@ -285,10 +291,27 @@ export async function probeCapabilities(
 }
 
 /** One read, with a Kubernetes failure turned into a coded one. */
-async function get<T>(file: string, argv: readonly string[], signal?: AbortSignal): Promise<T> {
+async function get<T>(
+  target: KubeContextInfo,
+  file: string,
+  argv: readonly string[],
+  signal?: AbortSignal,
+): Promise<T> {
   try {
     return await runKubeJson<T>(file, argv, signal ? { signal } : {});
   } catch (err) {
-    throw translateKubeError(err);
+    throw readFailure(err, target);
   }
+}
+
+/** An expired login becomes a `KubeUnauthorizedError` naming the context, so the page can offer to log in again. */
+export function readFailure(err: unknown, target: KubeContextInfo): Error {
+  if (err instanceof KubeCliError && isUnauthorizedOutput(err.stderr)) {
+    return new KubeUnauthorizedError({
+      context: target.name,
+      server: target.server,
+      user: target.userName,
+    });
+  }
+  return translateKubeError(err);
 }

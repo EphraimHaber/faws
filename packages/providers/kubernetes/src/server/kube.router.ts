@@ -17,7 +17,8 @@ import { kubeContextSchema, kubeLabelSchema } from "@faws/contracts";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { isExecSessionError, providerProcedure, router } from "@faws/kit/server";
+import { DomainError } from "@faws/kit";
+import { isExecSessionError, providerProcedure, router, toTrpcError } from "@faws/kit/server";
 
 import { kubeDiagnostics } from "./diagnostics.ts";
 import { listKubeContexts } from "./kubeconfig.ts";
@@ -77,6 +78,7 @@ async function kube<T>(fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
   } catch (err) {
+    if (err instanceof DomainError) throw toTrpcError(err);
     if (isExecSessionError(err)) {
       throw new TRPCError({ code: "BAD_REQUEST", message: err.message, cause: err });
     }

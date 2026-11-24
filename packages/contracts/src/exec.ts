@@ -293,6 +293,7 @@ export type ExecErrorCode =
   | "KubeContextUnknown"
   | "KubeApiUnreachable"
   | "KubeAuthFailed"
+  | "KubeUnauthorized"
   | "KubeForbidden"
   | "KubePodNotFound"
   | "KubeContainerNotFound"

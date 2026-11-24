@@ -89,7 +89,7 @@ function KubernetesTile({ provider }: { provider: ProviderDefinition }) {
   const diagnostics = useKubeDiagnostics();
   const { context, namespace } = useKubeScope();
   const data = diagnostics.data;
-  const tool = data?.kubectl.path ? "kubectl" : data?.oc.path ? "oc" : null;
+  const tool = data?.reader ?? null;
   const tone = diagnostics.isPending
     ? "neutral"
     : diagnostics.isError || !data?.kubeconfigFound || !tool

@@ -22,6 +22,15 @@ export interface KubeClassification {
   readonly message: string;
 }
 
+/** What `kubectl` and `oc` print for an HTTP 401. */
+const UNAUTHORIZED =
+  /you must be logged in|\(unauthorized\)|\bunauthorized\b|invalid bearer token|the server has asked for the client to provide credentials/i;
+
+/** True when a CLI's own words say the cluster refused the credentials. */
+export function isUnauthorizedOutput(text: string): boolean {
+  return UNAUTHORIZED.test(text);
+}
+
 /** The patterns, most specific first: several of these overlap. */
 const PATTERNS: ReadonlyArray<{ test: RegExp; code: ExecErrorCode; message: string }> = [
   {
@@ -66,16 +75,16 @@ const PATTERNS: ReadonlyArray<{ test: RegExp; code: ExecErrorCode; message: stri
       "Your account is allowed to see this but not to exec into it. Exec is a separate permission (`pods/exec`) from listing pods, so a role that shows you the workload can still refuse the shell.",
   },
   {
-    test: /error: you must be logged in|unauthorized|invalid bearer token|the server has asked for the client to provide credentials/i,
-    code: "KubeAuthFailed",
-    message:
-      "The cluster refused those credentials. They are usually short-lived - log in again with whatever your context authenticates through, then retry.",
-  },
-  {
     test: /exec plugin|getting credentials: exec|executable [\w.-]+ (?:not found|failed)/i,
     code: "KubeAuthFailed",
     message:
       "This context authenticates through an exec credential plugin, and that plugin failed. Run the same `kubectl` command in a terminal to see what it is asking for.",
+  },
+  {
+    test: UNAUTHORIZED,
+    code: "KubeUnauthorized",
+    message:
+      "The cluster refused this context's login: its token has expired or was revoked. Log in again, then retry.",
   },
   {
     test: /unable to connect to the server|dial tcp|connection refused|no such host|i\/o timeout|couldn't get current server api group list|tls: |certificate signed by unknown authority/i,

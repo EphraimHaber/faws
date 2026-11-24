@@ -25,3 +25,20 @@ export function untrustedEndpoint(error: unknown): { host: string; port: number 
     return { host: "", port: 443 };
   }
 }
+
+/** The kube context whose login has lapsed, when that is why a read failed. */
+export interface ExpiredKubeLogin {
+  readonly context: string;
+  readonly server: string | null;
+  readonly user: string;
+}
+
+export function expiredKubeLogin(error: unknown): ExpiredKubeLogin | null {
+  const cause = errorCause(error);
+  if (cause?.kind !== "KubeUnauthorized" || typeof cause["context"] !== "string") return null;
+  return {
+    context: cause["context"],
+    server: typeof cause["server"] === "string" ? cause["server"] : null,
+    user: typeof cause["user"] === "string" ? cause["user"] : "",
+  };
+}

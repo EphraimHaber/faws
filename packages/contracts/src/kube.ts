@@ -111,6 +111,11 @@ export interface KubeDiagnostics {
   readonly kubectl: KubeBinaryInfo;
   readonly oc: KubeBinaryInfo;
   readonly virtctl: KubeBinaryInfo;
+  /**
+   * The CLI lists and reads go through: `kubectl` when installed, else `oc`.
+   * Null when neither is, which is the one state where nothing can be listed.
+   */
+  readonly reader: "kubectl" | "oc" | null;
   /** Every file the KUBECONFIG search covered, whether or not it exists. */
   readonly kubeconfigPaths: ReadonlyArray<string>;
   readonly kubeconfigFound: boolean;

@@ -1,12 +1,11 @@
 /**
  * Which contexts exist, and whether the one we were handed is one of them.
  *
- * Read through `kubectl config view -o json` rather than by parsing the file,
- * which is the reason this feature needs no YAML parser and no new dependency.
- * It is also the only reading that is correct: `KUBECONFIG` is a list, the
- * merge rules between its entries are `kubectl`'s own, and a second
- * implementation of them would eventually disagree with the tool that actually
- * runs the session.
+ * Read through `kubectl config view -o json`, or `oc config view -o json` on a
+ * machine that only has the OpenShift CLI, rather than by parsing the file:
+ * `KUBECONFIG` is a list, the merge rules between its entries are the CLI's
+ * own, and a second implementation of them would eventually disagree with the
+ * tool that actually runs the session. Both redact credentials in this view.
  *
  * `assertKnownContext` is what lets a context name cross the wire at all. The
  * handshake's regex stops a value being read as a flag; this stops it naming a
@@ -59,7 +58,7 @@ export function pinnedKubeconfig(): string | null {
   return existing.length === 1 ? (existing[0] ?? null) : null;
 }
 
-/** The shape `kubectl config view -o json` prints, as far as this reads it. */
+/** The shape `config view -o json` prints, as far as this reads it. */
 interface RawConfig {
   readonly "current-context"?: string;
   readonly contexts?: ReadonlyArray<{
@@ -92,10 +91,11 @@ export async function listKubeContexts(
   if (memo && Date.now() - memo.at < MEMO_TTL_MS) return memo.contexts;
 
   const kubectl = resolveKubeBinary("kubectl");
-  if (!kubectl.path) {
+  const reader = kubectl.path ?? resolveKubeBinary("oc").path;
+  if (!reader) {
     throw new ExecSessionError(
       "KubeBinaryMissing",
-      kubectl.problem ?? "kubectl was not found on this machine.",
+      kubectl.problem ?? "Neither kubectl nor oc was found on this machine.",
     );
   }
 
@@ -113,7 +113,7 @@ export async function listKubeContexts(
   let raw: RawConfig;
   try {
     raw = await runKubeJson<RawConfig>(
-      kubectl.path,
+      reader,
       args,
       options.signal ? { signal: options.signal } : {},
     );

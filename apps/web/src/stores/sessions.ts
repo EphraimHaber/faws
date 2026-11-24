@@ -306,3 +306,9 @@ export const useSessions = create<SessionsStore>((set, get) => {
 export function useTerminalFocused(): boolean {
   return useSessions((state) => state.focused);
 }
+
+/** The kube context a tab connects to, or null for any other kind of tab. */
+export function kubeContextOf(id: string): string | null {
+  const target = targets.get(id);
+  return target?.kind === "kube" ? target.context : null;
+}

@@ -56,6 +56,7 @@ export async function kubeDiagnostics(
     kubectl,
     oc,
     virtctl,
+    reader: kubectl.found ? "kubectl" : oc.found ? "oc" : null,
     kubeconfigPaths: kubeconfigPaths(),
     kubeconfigFound,
     currentContext: current,
