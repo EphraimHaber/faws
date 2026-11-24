@@ -22,9 +22,9 @@ import type {
 
 import { resolveKubeBinary } from "./binaries.ts";
 import { runKubeJson, runKubeText } from "./cli.ts";
-import { ExecSessionError } from "../exec/errors.ts";
-import { kubeScopeFlags } from "../exec/kube/argv.ts";
-import { translateKubeError } from "../exec/kube/translate.ts";
+import { ExecSessionError } from "@faws/kit/server";
+import { kubeScopeFlags } from "./exec/argv.ts";
+import { translateKubeError } from "./exec/translate.ts";
 import { assertKnownContext, pinnedKubeconfig } from "./kubeconfig.ts";
 
 export interface KubeScope {

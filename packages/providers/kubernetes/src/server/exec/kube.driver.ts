@@ -17,24 +17,22 @@
  * for a cause as a fallback, and an exit nobody recognises keeps the behaviour
  * every other driver has.
  */
-import { ExecSessionError } from "../errors.ts";
-import type { ExecDriver, ExecDriverFactory } from "../exec.service.ts";
-import {
-  buildKubeArgv,
-  type KubeBinaries,
-  type KubeExecAuth,
-  kubeScopeFlags,
-} from "../kube/argv.ts";
-import { classifyKubeOutput, translateKubeError } from "../kube/translate.ts";
+import { ExecSessionError } from "@faws/kit/server";
+import type { ExecHandshakeAuth, ExecPrompt, ExecPromptResponse } from "@faws/contracts";
+import type { ExecDriver, ExecDriverFactory as KitExecDriverFactory } from "@faws/kit/server";
+
+type ExecDriverFactory = KitExecDriverFactory<ExecHandshakeAuth, ExecPrompt, ExecPromptResponse>;
+import { buildKubeArgv, type KubeBinaries, type KubeExecAuth, kubeScopeFlags } from "./argv.ts";
+import { classifyKubeOutput, translateKubeError } from "./translate.ts";
 import { spawnInteractive, type InteractiveChild } from "@faws/kit/server";
-import { resolveKubeBinary } from "../../kube/binaries.ts";
-import { runKubeJson } from "../../kube/cli.ts";
+import { resolveKubeBinary } from "../binaries.ts";
+import { runKubeJson } from "../cli.ts";
 import {
   assertKnownContext,
   existingKubeconfigPaths,
   kubeconfigPaths,
   pinnedKubeconfig,
-} from "../../kube/kubeconfig.ts";
+} from "../kubeconfig.ts";
 
 /** How long to wait for a killed child before insisting. */
 const SIGKILL_AFTER_MS = 2000;

@@ -6,10 +6,11 @@
  * kind fails at the handshake with a clear refusal instead of halfway through a
  * connection.
  */
+import { kubernetesTerminals } from "@faws/provider-kubernetes/server";
+
 import { createLogger } from "../../shared/logger.ts";
 import { echoDriverFactory } from "./drivers/echo.driver.ts";
 import { ecsDriverFactory } from "./drivers/ecs.driver.ts";
-import { kubeDriverFactory } from "./drivers/kube.driver.ts";
 import { sshDriverFactory } from "./drivers/ssh.driver.ts";
 import { ssmDriverFactory } from "./drivers/ssm.driver.ts";
 import { registerExecDriver } from "./exec.service.ts";
@@ -36,5 +37,6 @@ export function registerExecDrivers(): void {
   registerExecDriver("ssm", ssmDriverFactory);
   registerExecDriver("ecs", ecsDriverFactory);
   registerExecDriver("ssh", sshDriverFactory);
-  registerExecDriver("kube", kubeDriverFactory);
+  // Shells a provider contributes, rather than ones the host knows by name.
+  for (const terminal of kubernetesTerminals) registerExecDriver(terminal.kind, terminal.factory);
 }

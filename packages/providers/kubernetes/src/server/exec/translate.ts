@@ -15,7 +15,7 @@
  */
 import type { ExecErrorCode } from "@faws/contracts";
 
-import { ExecSessionError, isExecSessionError } from "../errors.ts";
+import { ExecSessionError, isExecSessionError } from "@faws/kit/server";
 
 export interface KubeClassification {
   readonly code: ExecErrorCode;

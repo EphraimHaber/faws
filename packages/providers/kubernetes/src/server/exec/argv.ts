@@ -20,7 +20,7 @@
  */
 import type { ExecHandshakeAuth } from "@faws/contracts";
 
-import { ExecSessionError } from "../errors.ts";
+import { ExecSessionError } from "@faws/kit/server";
 
 export type KubeExecAuth = Extract<ExecHandshakeAuth, { kind: "kube" }>;
 

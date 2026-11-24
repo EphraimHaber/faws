@@ -24,7 +24,7 @@ import * as path from "node:path";
 
 import type { KubeContextInfo } from "@faws/contracts";
 
-import { ExecSessionError } from "../exec/errors.ts";
+import { ExecSessionError } from "@faws/kit/server";
 import { resolveKubeBinary } from "./binaries.ts";
 import { KubeCliError, runKubeJson } from "./cli.ts";
 

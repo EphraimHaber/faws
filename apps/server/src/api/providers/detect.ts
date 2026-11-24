@@ -13,8 +13,7 @@ import path from "node:path";
 import type { ProviderId } from "@faws/contracts";
 
 import { settingsStore } from "../settings/settings.instance.ts";
-import { resolveKubeBinary } from "../kube/binaries.ts";
-import { existingKubeconfigPaths } from "../kube/kubeconfig.ts";
+import { existingKubeconfigPaths, resolveKubeBinary } from "@faws/provider-kubernetes/server";
 
 export interface ProviderDetection {
   readonly id: ProviderId;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ExecSessionError } from "../errors.ts";
+import { ExecSessionError } from "@faws/kit/server";
 import { classifyKubeOutput, translateKubeError } from "./translate.ts";
 
 function code(text: string): string | null {

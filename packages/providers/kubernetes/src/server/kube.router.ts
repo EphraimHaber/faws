@@ -17,9 +17,8 @@ import { kubeContextSchema, kubeLabelSchema } from "@faws/contracts";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { router } from "../../trpc/index.ts";
-import { kubernetesProcedure } from "../../trpc/providers.ts";
-import { isExecSessionError } from "../exec/errors.ts";
+import { isExecSessionError, providerProcedure, router } from "@faws/kit/server";
+
 import { kubeDiagnostics } from "./diagnostics.ts";
 import { listKubeContexts } from "./kubeconfig.ts";
 import { listNamespaces, listPods, listVirtualMachines, probeCapabilities } from "./resources.ts";
@@ -29,6 +28,9 @@ const contextInput = z.object({ context: kubeContextSchema });
 
 /** The pair every list of workloads is scoped by. */
 const scopeInput = contextInput.extend({ namespace: kubeLabelSchema });
+
+/** Every procedure here answers only while Kubernetes is switched on. */
+const kubernetesProcedure = providerProcedure("kubernetes");
 
 export const kubeRouter = router({
   diagnostics: kubernetesProcedure
