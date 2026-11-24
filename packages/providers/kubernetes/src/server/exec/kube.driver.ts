@@ -17,7 +17,7 @@
  * for a cause as a fallback, and an exit nobody recognises keeps the behaviour
  * every other driver has.
  */
-import { ExecSessionError } from "@faws/kit/server";
+import { ExecSessionError, isExecSessionError } from "@faws/kit/server";
 import type { ExecHandshakeAuth, ExecPrompt, ExecPromptResponse } from "@faws/contracts";
 import type { ExecDriver, ExecDriverFactory as KitExecDriverFactory } from "@faws/kit/server";
 
@@ -27,6 +27,7 @@ import { classifyKubeOutput, translateKubeError } from "./translate.ts";
 import { spawnInteractive, type InteractiveChild } from "@faws/kit/server";
 import { resolveKubeBinary } from "../binaries.ts";
 import { runKubeJson } from "../cli.ts";
+import { KubeUnauthorizedError } from "../errors.ts";
 import {
   assertKnownContext,
   existingKubeconfigPaths,
@@ -74,9 +75,24 @@ export const kubeDriverFactory: ExecDriverFactory = async (auth, sink, ctx) => {
   // The context name is the only cluster identifier that crosses the wire, and
   // this is what makes that safe: the flag's value is now a string we found in
   // our own kubeconfig rather than one the client chose.
-  await assertKnownContext(auth.context, { signal: ctx.signal });
+  const known = await assertKnownContext(auth.context, { signal: ctx.signal });
 
-  await preflightTarget(auth, binaries, scopeFlags, ctx.signal, (message) => sink.status(message));
+  try {
+    await preflightTarget(auth, binaries, scopeFlags, ctx.signal, (message) =>
+      sink.status(message),
+    );
+  } catch (err) {
+    // The generic sentence becomes one naming the server and user to log in as.
+    if (isExecSessionError(err) && err.code === "KubeUnauthorized") {
+      const named = new KubeUnauthorizedError({
+        context: known.name,
+        server: known.server,
+        user: known.userName,
+      });
+      throw new ExecSessionError("KubeUnauthorized", named.message);
+    }
+    throw err;
+  }
 
   const { file, args } = buildKubeArgv(auth, binaries);
   ctx.log.info({ file, args }, "starting a Kubernetes session");

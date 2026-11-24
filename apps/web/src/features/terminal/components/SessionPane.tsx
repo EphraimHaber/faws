@@ -3,7 +3,8 @@ import { RotateCw } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import type { TerminalSession } from "~/lib/terminal/sessions-model";
-import { useSessions } from "~/stores/sessions";
+import { openKubeLogin } from "~/features/kube/loginDialogs";
+import { kubeContextOf, useSessions } from "~/stores/sessions";
 import { HostKeyPrompt } from "./HostKeyPrompt";
 import { TerminalSurface } from "./TerminalSurface";
 
@@ -19,6 +20,10 @@ export function SessionPane({ session, active }: { session: TerminalSession; act
   const retry = useSessions((state) => state.retry);
   const close = useSessions((state) => state.close);
   const answerPrompt = useSessions((state) => state.answerPrompt);
+  const expiredContext =
+    session.status === "errored" && session.error?.code === "KubeUnauthorized"
+      ? kubeContextOf(session.id)
+      : null;
 
   return (
     <div
@@ -60,6 +65,11 @@ export function SessionPane({ session, active }: { session: TerminalSession; act
                 {session.error.userMessage}
               </p>
             </div>
+            {expiredContext ? (
+              <Button variant="default" onClick={() => openKubeLogin(expiredContext)}>
+                Log in again
+              </Button>
+            ) : null}
             <Button onClick={() => retry(session.id)} title="Connect again">
               <RotateCw className="size-3" /> Retry
             </Button>

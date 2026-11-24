@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
 
-import { textActionClass } from "~/components/ui/text-action";
+import { TextAction, textActionClass } from "~/components/ui/text-action";
 import { EmptyState } from "~/components/ui/empty";
+import { openAddCluster } from "~/features/kube/loginDialogs";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { useS3Connections } from "~/features/s3/useS3Connections";
 import { trpc } from "~/lib/trpc";
@@ -89,7 +90,7 @@ function KubernetesTile({ provider }: { provider: ProviderDefinition }) {
   const diagnostics = useKubeDiagnostics();
   const { context, namespace } = useKubeScope();
   const data = diagnostics.data;
-  const tool = data?.kubectl.path ? "kubectl" : data?.oc.path ? "oc" : null;
+  const tool = data?.reader ?? null;
   const tone = diagnostics.isPending
     ? "neutral"
     : diagnostics.isError || !data?.kubeconfigFound || !tool
@@ -130,6 +131,7 @@ function KubernetesTile({ provider }: { provider: ProviderDefinition }) {
             ]
           : []),
       ]}
+      action={<TextAction onClick={openAddCluster}>add a cluster</TextAction>}
     />
   );
 }

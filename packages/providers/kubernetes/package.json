@@ -21,6 +21,8 @@
     "@faws/contracts": "workspace:*",
     "@faws/kit": "workspace:*",
     "@faws/provider-kubernetes-manifest": "workspace:*",
+    "@faws/shared": "workspace:*",
+    "@kubernetes/client-node": "catalog:",
     "@trpc/server": "catalog:trpc",
     "zod": "catalog:"
   },

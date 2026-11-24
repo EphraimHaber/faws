@@ -19,7 +19,7 @@ describe("classifying what the child said", () => {
 
   it("recognises credentials the cluster would not take", () => {
     expect(code("error: You must be logged in to the server (Unauthorized)")).toBe(
-      "KubeAuthFailed",
+      "KubeUnauthorized",
     );
   });
 

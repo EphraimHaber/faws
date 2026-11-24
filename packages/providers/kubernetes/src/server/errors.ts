@@ -1,0 +1,54 @@
+import { kubeUserLabel } from "@faws/contracts";
+import { DomainError } from "@faws/kit";
+
+export { kubeUserLabel as userLabel };
+
+/** Where an expired or refused login points, so the renderer can offer to log in again. */
+export interface KubeLoginTarget {
+  readonly context: string;
+  readonly server: string | null;
+  readonly user: string;
+}
+
+/**
+ * The cluster answered 401: the token in the kubeconfig has expired or been
+ * revoked. OpenShift tokens last a day by default, so this is routine.
+ */
+export class KubeUnauthorizedError extends DomainError {
+  readonly kind = "KubeUnauthorized";
+  readonly status = "PRECONDITION_FAILED";
+  readonly context: string;
+  readonly server: string | null;
+  readonly user: string;
+
+  constructor(target: KubeLoginTarget) {
+    super(
+      `Your login to ${target.server ?? target.context}${target.user ? ` as ${kubeUserLabel(target.user)}` : ""} has expired or was revoked. Log in again to keep working with ${target.context}.`,
+    );
+    this.name = "KubeUnauthorizedError";
+    this.context = target.context;
+    this.server = target.server;
+    this.user = target.user;
+  }
+
+  protected override details() {
+    return { context: this.context, server: this.server, user: this.user };
+  }
+}
+
+/** A login that did not go through, for a reason the person can act on: a wrong password, an expired token. */
+export class KubeLoginError extends DomainError {
+  readonly kind = "KubeLoginError";
+  readonly status = "BAD_REQUEST";
+  readonly server: string;
+
+  constructor(server: string, message: string) {
+    super(message);
+    this.name = "KubeLoginError";
+    this.server = server;
+  }
+
+  protected override details() {
+    return { server: this.server };
+  }
+}

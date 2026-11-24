@@ -17,13 +17,16 @@ export function NoKubectl({ diagnostics }: { diagnostics: KubeDiagnostics }) {
   return (
     <EmptyState
       icon={Ship}
-      title="No kubectl on this machine"
-      hint={diagnostics.kubectl.problem ?? "Install kubectl, or point FAWS_KUBECTL at it."}
+      title="Neither kubectl nor oc is on this machine"
+      hint={
+        diagnostics.kubectl.problem ??
+        "Install kubectl or oc, or point FAWS_KUBECTL or FAWS_OC at one."
+      }
     />
   );
 }
 
 /** True when neither reading tool is installed, so nothing can be listed. */
 export function hasNoCli(diagnostics: KubeDiagnostics): boolean {
-  return !diagnostics.kubectl.found && !diagnostics.oc.found;
+  return diagnostics.reader === null;
 }

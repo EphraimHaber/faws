@@ -1,12 +1,11 @@
 /**
  * Which contexts exist, and whether the one we were handed is one of them.
  *
- * Read through `kubectl config view -o json` rather than by parsing the file,
- * which is the reason this feature needs no YAML parser and no new dependency.
- * It is also the only reading that is correct: `KUBECONFIG` is a list, the
- * merge rules between its entries are `kubectl`'s own, and a second
- * implementation of them would eventually disagree with the tool that actually
- * runs the session.
+ * Read through `kubectl config view -o json`, or `oc config view -o json` on a
+ * machine that only has the OpenShift CLI, rather than by parsing the file:
+ * `KUBECONFIG` is a list, the merge rules between its entries are the CLI's
+ * own, and a second implementation of them would eventually disagree with the
+ * tool that actually runs the session. Both redact credentials in this view.
  *
  * `assertKnownContext` is what lets a context name cross the wire at all. The
  * handshake's regex stops a value being read as a flag; this stops it naming a
@@ -22,7 +21,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import type { KubeContextInfo } from "@faws/contracts";
+import type { KubeAuthKind, KubeContextInfo } from "@faws/contracts";
 
 import { ExecSessionError } from "@faws/kit/server";
 import { resolveKubeBinary } from "./binaries.ts";
@@ -59,7 +58,7 @@ export function pinnedKubeconfig(): string | null {
   return existing.length === 1 ? (existing[0] ?? null) : null;
 }
 
-/** The shape `kubectl config view -o json` prints, as far as this reads it. */
+/** The shape `config view -o json` prints, as far as this reads it. */
 interface RawConfig {
   readonly "current-context"?: string;
   readonly contexts?: ReadonlyArray<{
@@ -76,8 +75,29 @@ interface RawConfig {
   }>;
   readonly users?: ReadonlyArray<{
     readonly name?: string;
-    readonly user?: { readonly exec?: { readonly command?: string } };
+    readonly user?: RawUser;
   }>;
+}
+
+/** The user fields that say how it authenticates; secrets arrive redacted. */
+interface RawUser {
+  readonly exec?: { readonly command?: string };
+  readonly token?: string;
+  readonly tokenFile?: string;
+  readonly "client-certificate"?: string;
+  readonly "client-certificate-data"?: string;
+  readonly "auth-provider"?: unknown;
+  readonly username?: string;
+}
+
+export function authKindOf(user: RawUser | undefined): KubeAuthKind {
+  if (!user) return "none";
+  if (user.exec) return "exec";
+  if (user["auth-provider"]) return "auth-provider";
+  if (user.token || user.tokenFile) return "token";
+  if (user["client-certificate"] || user["client-certificate-data"]) return "certificate";
+  if (user.username) return "basic";
+  return "none";
 }
 
 let memo: { at: number; contexts: readonly KubeContextInfo[] } | null = null;
@@ -92,10 +112,11 @@ export async function listKubeContexts(
   if (memo && Date.now() - memo.at < MEMO_TTL_MS) return memo.contexts;
 
   const kubectl = resolveKubeBinary("kubectl");
-  if (!kubectl.path) {
+  const reader = kubectl.path ?? resolveKubeBinary("oc").path;
+  if (!reader) {
     throw new ExecSessionError(
       "KubeBinaryMissing",
-      kubectl.problem ?? "kubectl was not found on this machine.",
+      kubectl.problem ?? "Neither kubectl nor oc was found on this machine.",
     );
   }
 
@@ -113,7 +134,7 @@ export async function listKubeContexts(
   let raw: RawConfig;
   try {
     raw = await runKubeJson<RawConfig>(
-      kubectl.path,
+      reader,
       args,
       options.signal ? { signal: options.signal } : {},
     );
@@ -129,9 +150,7 @@ export async function listKubeContexts(
   const servers = new Map(
     (raw.clusters ?? []).map((entry) => [entry.name ?? "", entry.cluster?.server ?? null]),
   );
-  const plugins = new Map(
-    (raw.users ?? []).map((entry) => [entry.name ?? "", entry.user?.exec?.command ?? null]),
-  );
+  const users = new Map((raw.users ?? []).map((entry) => [entry.name ?? "", entry.user]));
   const current = raw["current-context"] ?? null;
 
   const contexts = (raw.contexts ?? [])
@@ -147,7 +166,8 @@ export async function listKubeContexts(
         namespace: entry.context?.namespace ?? null,
         server: servers.get(clusterName) ?? null,
         current: name === current,
-        execPlugin: plugins.get(userName) ?? null,
+        execPlugin: users.get(userName)?.exec?.command ?? null,
+        auth: authKindOf(users.get(userName)),
       };
     });
 
