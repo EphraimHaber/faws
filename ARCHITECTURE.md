@@ -44,7 +44,8 @@ The app is moving from "an AWS console with extras" to **providers and capabilit
 - **Connection.** Where a provider points: an AWS profile and region, a kube context and namespace, or an S3 endpoint. Each provider has an active connection, stored as its scope.
 
 - `packages/providers/kubernetes` is the reference provider: `./manifest` for the nav, and `./server` for its tRPC router (built from `providerProcedure("kubernetes")`), the shell it contributes as a `TerminalContribution`, and the lookups the host's first-run detection uses. It depends on `@faws/kit/server` for everything host-like: the gate, logging, binary lookup, pty spawning and the terminal driver contract.
-- `packages/providers/{aws,s3compat}` exist with a `./manifest` subpath: plain data (services, sections, capabilities, runtime defaults, icon names) built with `defineProvider`. `apps/web/src/services/registry.ts` derives the nav from them. Each provider will grow `./contracts`, `./server` and `./web` subpaths as its code moves in.
+- `packages/providers/aws` has `./server` too: one router per AWS service, gated by `awsProcedure`, calling the engines in `@faws/core`. Its terminal drivers (ECS exec, SSM, EC2 Instance Connect) are still in the host's exec stack.
+- `packages/providers/s3compat` and the AWS manifest have a `./manifest` subpath: plain data (services, sections, capabilities, runtime defaults, icon names) built with `defineProvider`. `apps/web/src/services/registry.ts` derives the nav from them. Each provider will grow `./contracts`, `./server` and `./web` subpaths as its code moves in.
 - `packages/lib-aws` and `packages/lib-s3` (planned): engines with no UI, shared by providers.
 
 The boundary rules for them are already in `.dependency-cruiser.cjs`: providers never import each other, kit never imports providers, and web modules see server code as types only.

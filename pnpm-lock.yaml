@@ -479,6 +479,9 @@ importers:
       '@faws/kit':
         specifier: workspace:*
         version: link:../../packages/kit
+      '@faws/provider-aws':
+        specifier: workspace:*
+        version: link:../../packages/providers/aws
       '@faws/provider-kubernetes':
         specifier: workspace:*
         version: link:../../packages/providers/kubernetes
@@ -782,9 +785,21 @@ importers:
 
   packages/providers/aws:
     dependencies:
+      '@faws/contracts':
+        specifier: workspace:*
+        version: link:../../contracts
+      '@faws/core':
+        specifier: workspace:*
+        version: link:../../core
       '@faws/kit':
         specifier: workspace:*
         version: link:../../kit
+      '@trpc/server':
+        specifier: catalog:trpc
+        version: 11.18.0(typescript@7.0.2)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: catalog:build

@@ -1,9 +1,13 @@
-import { apiGatewayRouter } from "./api/api-gateway/api-gateway.router.ts";
-import { awsRouter } from "./api/aws/aws.router.ts";
-import { cloudwatchRouter } from "./api/cloudwatch/cloudwatch.router.ts";
+import {
+  apiGatewayRouter,
+  awsRouter,
+  cloudwatchRouter,
+  ecsActionsRouter,
+  ecsRouter,
+} from "@faws/provider-aws/server";
+
+import { appRouter as hostAppRouter } from "./api/app/app.router.ts";
 import { desktopRouter } from "./api/desktop/desktop.router.ts";
-import { ecsActionsRouter } from "./api/ecs/actions.router.ts";
-import { ecsRouter } from "./api/ecs/ecs.router.ts";
 import { execRouter } from "./api/exec/exec.router.ts";
 import { kubeRouter } from "@faws/provider-kubernetes/server";
 import { providersRouter } from "./api/providers/providers.router.ts";
@@ -23,6 +27,7 @@ import { router } from "./trpc/index.ts";
  */
 export const appRouter = router({
   apiGateway: apiGatewayRouter,
+  app: hostAppRouter,
   aws: awsRouter,
   cloudwatch: cloudwatchRouter,
   desktop: desktopRouter,

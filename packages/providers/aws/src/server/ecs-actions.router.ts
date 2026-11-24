@@ -13,8 +13,9 @@ import { stopTaskSchema, updateServiceSchema } from "@faws/contracts";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { router, scopeInput } from "../../trpc/index.ts";
-import { awsProcedure } from "../../trpc/providers.ts";
+import { router } from "@faws/kit/server";
+
+import { awsProcedure, scopeInput } from "./procedures.ts";
 
 function notImplemented(operation: string): never {
   throw new TRPCError({

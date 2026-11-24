@@ -30,7 +30,7 @@ export interface WriteModeState extends WriteMode {
  * The two switches, as the UI sees them.
  *
  * They live in the server process rather than in settings, so this is a query
- * rather than a store. What it adds over calling `trpc.aws.writeMode` directly
+ * rather than a store. What it adds over calling `trpc.app.writeMode` directly
  * is the two things every caller would otherwise repeat: the reason strings,
  * written once here so a disabled button and the Settings page cannot describe
  * the same state differently, and the socket subscription that keeps windows
@@ -42,7 +42,7 @@ export interface WriteModeState extends WriteMode {
  */
 export function useWriteMode(): WriteModeState {
   const queryClient = useQueryClient();
-  const mode = useQuery(trpc.aws.writeMode.queryOptions());
+  const mode = useQuery(trpc.app.writeMode.queryOptions());
 
   // Another window flipping a switch has to reach this one. Without it a
   // window keeps whatever it last queried, which for a safety switch is the
@@ -50,7 +50,7 @@ export function useWriteMode(): WriteModeState {
   React.useEffect(() => {
     const socket = getSocket();
     const handler = () => {
-      void queryClient.invalidateQueries({ queryKey: trpc.aws.writeMode.queryKey() });
+      void queryClient.invalidateQueries({ queryKey: trpc.app.writeMode.queryKey() });
     };
     socket.on("write-mode:changed", handler);
     return () => {
@@ -59,7 +59,7 @@ export function useWriteMode(): WriteModeState {
   }, [queryClient]);
 
   const setMode = useMutation(
-    trpc.aws.setWriteMode.mutationOptions({
+    trpc.app.setWriteMode.mutationOptions({
       // Everything the UI shows about what may be changed is downstream of
       // this, including lists whose rows carry their own actions.
       onSuccess: () => void queryClient.invalidateQueries(),

@@ -26,8 +26,9 @@ import {
 } from "@faws/core";
 import { z } from "zod";
 
-import { guard, router, scopeInput } from "../../trpc/index.ts";
-import { awsProcedure } from "../../trpc/providers.ts";
+import { guard, router } from "@faws/kit/server";
+
+import { awsProcedure, scopeInput } from "./procedures.ts";
 
 const clusterInput = scopeInput.extend({ cluster: z.string().min(1) });
 

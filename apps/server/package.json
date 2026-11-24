@@ -32,6 +32,7 @@
     "@faws/contracts": "workspace:*",
     "@faws/core": "workspace:*",
     "@faws/kit": "workspace:*",
+    "@faws/provider-aws": "workspace:*",
     "@faws/provider-kubernetes": "workspace:*",
     "@faws/shared": "workspace:*",
     "@faws/socket-io-events": "workspace:*",
