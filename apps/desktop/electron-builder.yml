@@ -1,5 +1,8 @@
 appId: net.cloudburst.faws
 productName: faws
+# Without it the binary is named after the npm package, "@faws/desktop", which
+# is not a usable file name.
+executableName: faws
 copyright: Copyright © 2026
 
 directories:

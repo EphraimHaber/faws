@@ -33,9 +33,9 @@ jobs:
         include:
           # One runner per macOS architecture: node-pty is staged as a native
           # binary for the machine that builds it.
-          - os: macos-14
+          - os: macos-15
             args: --mac --arm64
-          - os: macos-13
+          - os: macos-15-intel
             args: --mac --x64
           - os: windows-latest
             args: --win --x64
