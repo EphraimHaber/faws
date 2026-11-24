@@ -1,0 +1,12 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    // Contracts imports the provider manifests and every provider imports
+    // contracts. Contracts has no build of its own, so its build waits on
+    // nothing, which keeps that package cycle out of the task graph.
+    "build": {
+      "dependsOn": []
+    }
+  }
+}
