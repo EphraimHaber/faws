@@ -9,6 +9,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   Outlet,
   useRouterState,
 } from "@tanstack/react-router";
@@ -18,8 +19,8 @@ import { z } from "zod";
 import { AppHeader } from "~/components/AppHeader";
 import { AppSidebar } from "~/components/AppSidebar";
 import { ProviderGate } from "~/components/ProviderGate";
+import { LoadingRows } from "~/components/ui/spinner";
 import { WelcomePage } from "~/pages/WelcomePage";
-import { WhatsNewPage } from "~/pages/WhatsNewPage";
 import { UpdatedBanner } from "~/components/UpdatedBanner";
 import { initUpdates } from "~/stores/updates";
 import { useUpdatesConfig } from "~/hooks/useUpdatesConfig";
@@ -35,44 +36,121 @@ import { describe } from "~/lib/hotkeys";
 import { useLogIngest } from "~/lib/log-store";
 import { getSocket } from "~/lib/socket";
 import { findService } from "~/services/registry";
-import { ApiGatewayIndexPage } from "~/features/api-gateway/pages/ApiGatewayIndexPage";
-import { DomainsPage } from "~/features/api-gateway/pages/DomainsPage";
 import { REST_API_TABS, RestApiPage } from "~/features/api-gateway/pages/RestApiPage";
-import { RestApisPage } from "~/features/api-gateway/pages/RestApisPage";
 import { USAGE_PLAN_TABS, UsagePlansPage } from "~/features/api-gateway/pages/UsagePlansPage";
 import { STAGE_LOG_KINDS } from "~/features/api-gateway/stages";
-import { CloudWatchIndexPage } from "~/features/cloudwatch/pages/CloudWatchIndexPage";
-import { LogGroupPage } from "~/features/cloudwatch/pages/LogGroupPage";
-import { LogGroupsPage } from "~/features/cloudwatch/pages/LogGroupsPage";
-import { MetricsPage } from "~/features/cloudwatch/pages/MetricsPage";
-import { TailPage } from "~/features/cloudwatch/pages/TailPage";
 import { CLUSTER_TABS, ClusterPage } from "~/features/ecs/pages/ClusterPage";
-import { ClustersPage } from "~/features/ecs/pages/ClustersPage";
-import { DeploymentsPage } from "~/features/ecs/pages/DeploymentsPage";
-import { EcsIndexPage } from "~/features/ecs/pages/EcsIndexPage";
-import { Ec2IndexPage } from "~/features/ec2/pages/Ec2IndexPage";
-import { InstancesPage } from "~/features/ec2/pages/InstancesPage";
-import { ContextsPage } from "~/features/kube/pages/ContextsPage";
-import { KubeIndexPage } from "~/features/kube/pages/KubeIndexPage";
-import { VirtualMachinesPage } from "~/features/kube/pages/VirtualMachinesPage";
-import { WorkloadsPage } from "~/features/kube/pages/WorkloadsPage";
 import { kubeScopeSearch } from "~/features/kube/scope-link";
 import { HomePage } from "~/pages/HomePage";
 import { NewSessionDialog } from "~/features/terminal/components/NewSessionDialog";
-import { RecordingsPage } from "~/features/terminal/pages/RecordingsPage";
-import { SessionsPage } from "~/features/terminal/pages/SessionsPage";
 import { TerminalDock } from "~/features/terminal/components/TerminalDock";
 import { blurTerminal } from "~/lib/terminal/xterm";
 import { useSessions } from "~/stores/sessions";
-import { LogsPage } from "~/pages/LogsPage";
 import { SERVICE_TABS, ServicePage } from "~/features/ecs/pages/ServicePage";
 import { BUCKET_TABS, BucketPage } from "~/features/s3/pages/BucketPage";
-import { BucketsPage } from "~/features/s3/pages/BucketsPage";
-import { ConnectionsPage } from "~/features/s3/pages/ConnectionsPage";
-import { S3IndexPage } from "~/features/s3/pages/S3IndexPage";
-import { SettingsPage } from "~/pages/SettingsPage";
-import { TaskDefinitionsPage } from "~/features/ecs/pages/TaskDefinitionsPage";
-import { TaskPage } from "~/features/ecs/pages/TaskPage";
+
+/**
+ * Every page but the two a session can open on is its own chunk, fetched the
+ * first time it is needed - or earlier, when a link to it is hovered, which is
+ * what `defaultPreload: "intent"` does. The shell paints without waiting for
+ * Monaco, xterm or any one feature's code.
+ */
+const WhatsNewPage = lazyRouteComponent(() => import("~/pages/WhatsNewPage"), "WhatsNewPage");
+const ApiGatewayIndexPage = lazyRouteComponent(
+  () => import("~/features/api-gateway/pages/ApiGatewayIndexPage"),
+  "ApiGatewayIndexPage",
+);
+const DomainsPage = lazyRouteComponent(
+  () => import("~/features/api-gateway/pages/DomainsPage"),
+  "DomainsPage",
+);
+const RestApisPage = lazyRouteComponent(
+  () => import("~/features/api-gateway/pages/RestApisPage"),
+  "RestApisPage",
+);
+const CloudWatchIndexPage = lazyRouteComponent(
+  () => import("~/features/cloudwatch/pages/CloudWatchIndexPage"),
+  "CloudWatchIndexPage",
+);
+const LogGroupPage = lazyRouteComponent(
+  () => import("~/features/cloudwatch/pages/LogGroupPage"),
+  "LogGroupPage",
+);
+const LogGroupsPage = lazyRouteComponent(
+  () => import("~/features/cloudwatch/pages/LogGroupsPage"),
+  "LogGroupsPage",
+);
+const MetricsPage = lazyRouteComponent(
+  () => import("~/features/cloudwatch/pages/MetricsPage"),
+  "MetricsPage",
+);
+const TailPage = lazyRouteComponent(
+  () => import("~/features/cloudwatch/pages/TailPage"),
+  "TailPage",
+);
+const ClustersPage = lazyRouteComponent(
+  () => import("~/features/ecs/pages/ClustersPage"),
+  "ClustersPage",
+);
+const DeploymentsPage = lazyRouteComponent(
+  () => import("~/features/ecs/pages/DeploymentsPage"),
+  "DeploymentsPage",
+);
+const EcsIndexPage = lazyRouteComponent(
+  () => import("~/features/ecs/pages/EcsIndexPage"),
+  "EcsIndexPage",
+);
+const Ec2IndexPage = lazyRouteComponent(
+  () => import("~/features/ec2/pages/Ec2IndexPage"),
+  "Ec2IndexPage",
+);
+const InstancesPage = lazyRouteComponent(
+  () => import("~/features/ec2/pages/InstancesPage"),
+  "InstancesPage",
+);
+const ContextsPage = lazyRouteComponent(
+  () => import("~/features/kube/pages/ContextsPage"),
+  "ContextsPage",
+);
+const KubeIndexPage = lazyRouteComponent(
+  () => import("~/features/kube/pages/KubeIndexPage"),
+  "KubeIndexPage",
+);
+const VirtualMachinesPage = lazyRouteComponent(
+  () => import("~/features/kube/pages/VirtualMachinesPage"),
+  "VirtualMachinesPage",
+);
+const WorkloadsPage = lazyRouteComponent(
+  () => import("~/features/kube/pages/WorkloadsPage"),
+  "WorkloadsPage",
+);
+const RecordingsPage = lazyRouteComponent(
+  () => import("~/features/terminal/pages/RecordingsPage"),
+  "RecordingsPage",
+);
+const SessionsPage = lazyRouteComponent(
+  () => import("~/features/terminal/pages/SessionsPage"),
+  "SessionsPage",
+);
+const LogsPage = lazyRouteComponent(() => import("~/pages/LogsPage"), "LogsPage");
+const BucketsPage = lazyRouteComponent(
+  () => import("~/features/s3/pages/BucketsPage"),
+  "BucketsPage",
+);
+const ConnectionsPage = lazyRouteComponent(
+  () => import("~/features/s3/pages/ConnectionsPage"),
+  "ConnectionsPage",
+);
+const S3IndexPage = lazyRouteComponent(
+  () => import("~/features/s3/pages/S3IndexPage"),
+  "S3IndexPage",
+);
+const SettingsPage = lazyRouteComponent(() => import("~/pages/SettingsPage"), "SettingsPage");
+const TaskDefinitionsPage = lazyRouteComponent(
+  () => import("~/features/ecs/pages/TaskDefinitionsPage"),
+  "TaskDefinitionsPage",
+);
+const TaskPage = lazyRouteComponent(() => import("~/features/ecs/pages/TaskPage"), "TaskPage");
 
 const rootRoute = createRootRoute({ component: RootLayout });
 
@@ -484,7 +562,17 @@ const routeTree = rootRoute.addChildren([
   whatsNewRoute,
 ]);
 
-export const router = createRouter({ routeTree, defaultPreload: "intent" });
+export const router = createRouter({
+  routeTree,
+  defaultPreload: "intent",
+  // A chunk that arrives within this long never flashes a placeholder.
+  defaultPendingMs: 150,
+  defaultPendingComponent: PagePending,
+});
+
+function PagePending() {
+  return <LoadingRows />;
+}
 
 declare module "@tanstack/react-router" {
   interface Register {
