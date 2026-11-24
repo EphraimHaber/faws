@@ -15,6 +15,8 @@ export interface DesktopBridge {
   setNavMenu?(items: ReadonlyArray<DesktopNavItem>): void;
   /** Absent in desktop builds older than the update check. */
   readonly updates?: UpdatesBridge;
+  /** Absent in desktop builds older than browser sign in. */
+  openExternal?(url: string): Promise<void>;
 }
 
 export interface UpdatesBridge {
@@ -41,6 +43,16 @@ declare global {
 
 export function desktopBridge(): DesktopBridge | null {
   return typeof window === "undefined" ? null : (window.faws ?? null);
+}
+
+/** Opens a page in the person's own browser: the default browser on desktop, a new tab otherwise. */
+export function openExternal(url: string): void {
+  const bridge = desktopBridge();
+  if (bridge?.openExternal) {
+    void bridge.openExternal(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 /**

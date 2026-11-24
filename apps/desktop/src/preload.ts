@@ -13,6 +13,8 @@ const faws = {
   platform: process.platform,
   openLogFile: () => ipcRenderer.invoke("faws:open-log-file") as Promise<void>,
   showLogDir: () => ipcRenderer.invoke("faws:show-log-dir") as Promise<void>,
+  /** Opens an http(s) page in the default browser. */
+  openExternal: (url: string) => ipcRenderer.invoke("faws:open-external", url) as Promise<void>,
   /** Replaces the View menu's destinations; the main process checks every one. */
   setNavMenu: (items: ReadonlyArray<{ label: string; target: string; group: string }>) =>
     ipcRenderer.send("faws:set-nav", items),

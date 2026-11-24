@@ -18,6 +18,8 @@ export interface FakeOpenShiftOptions {
   /** Answer 404 at discovery, as a plain Kubernetes API server does. */
   readonly plainKubernetes?: boolean;
   readonly pods?: number;
+  /** A fixed port, for a server that must keep its address across restarts; any free one otherwise. */
+  readonly port?: number;
   /** Serve https with this key and certificate instead of plain http. */
   readonly tls?: { readonly key: string; readonly cert: string };
 }
@@ -87,6 +89,40 @@ export async function startFakeOpenShift(
     const path = url.pathname;
 
     if (path === "/version") return json(res, 200, { gitVersion: "v1.31.4" });
+
+    // Everything under the API needs a live token, as on a cluster with anonymous access off.
+    if (
+      (path === "/api" || path.startsWith("/api/") || path.startsWith("/apis")) &&
+      !bearerUser(req)
+    ) {
+      return unauthorized(res);
+    }
+    if (path === "/api") return json(res, 200, { kind: "APIVersions", versions: ["v1"] });
+    if (path === "/apis")
+      return json(res, 200, { kind: "APIGroupList", apiVersion: "v1", groups: [] });
+    if (path === "/api/v1") {
+      return json(res, 200, {
+        kind: "APIResourceList",
+        groupVersion: "v1",
+        resources: [
+          {
+            name: "namespaces",
+            singularName: "namespace",
+            namespaced: false,
+            kind: "Namespace",
+            verbs: ["get", "list"],
+          },
+          {
+            name: "pods",
+            singularName: "pod",
+            namespaced: true,
+            kind: "Pod",
+            verbs: ["get", "list"],
+            shortNames: ["po"],
+          },
+        ],
+      });
+    }
 
     if (path === "/.well-known/oauth-authorization-server") {
       if (options.plainKubernetes) return json(res, 404, {});
@@ -206,8 +242,11 @@ export async function startFakeOpenShift(
     if (path === "/api/v1/namespaces") {
       if (!bearerUser(req)) return unauthorized(res);
       return json(res, 200, {
+        apiVersion: "v1",
         kind: "NamespaceList",
         items: (options.projects ?? ["payments", "default"]).map((name) => ({
+          apiVersion: "v1",
+          kind: "Namespace",
           metadata: { name, creationTimestamp: "2026-01-01T00:00:00Z" },
           status: { phase: "Active" },
         })),
@@ -218,8 +257,11 @@ export async function startFakeOpenShift(
     if (pods) {
       if (!bearerUser(req)) return unauthorized(res);
       return json(res, 200, {
+        apiVersion: "v1",
         kind: "PodList",
         items: Array.from({ length: options.pods ?? 3 }, (_, index) => ({
+          apiVersion: "v1",
+          kind: "Pod",
           metadata: {
             name: `api-${index}`,
             namespace: pods[1],
@@ -240,7 +282,9 @@ export async function startFakeOpenShift(
     return json(res, 404, { kind: "Status", code: 404 });
   }
 
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+  await new Promise<void>((resolve) =>
+    server.listen(options.port ?? 0, "127.0.0.1", () => resolve()),
+  );
   base = `${options.tls ? "https" : "http"}://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
   return {

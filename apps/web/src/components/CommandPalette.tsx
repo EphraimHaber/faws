@@ -7,6 +7,7 @@ import {
   Layers,
   ScrollText,
   Settings2,
+  Ship,
   TerminalSquare,
   Sparkles,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import {
 import { Kbd } from "~/components/ui/kbd";
 import { rankBy } from "~/lib/rank";
 import { useAwsScope, useEnabledProviders } from "~/stores/scope";
+import { openAddCluster } from "~/features/kube/loginDialogs";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { trpc } from "~/lib/trpc";
 import { useOverlay } from "~/stores/overlays";
@@ -144,6 +146,19 @@ function PaletteBody({
         group: "action",
         run: onOpenKube,
       },
+      ...(enabledProviders.includes("kubernetes")
+        ? [
+            {
+              id: "kube:add-cluster",
+              icon: Ship,
+              label: "Add a cluster",
+              hint: "log in to a Kubernetes or OpenShift API server",
+              keywords: ["kube", "kubernetes", "openshift", "oc", "login", "context", "cluster"],
+              group: "action" as const,
+              run: openAddCluster,
+            },
+          ]
+        : []),
       ...refEntries(pinned, "pinned", go),
       ...refEntries(recent, "recent", go),
       ...navEntries(go, { kubernetes: { kubevirt: kubeVirt } }, enabledProviders),

@@ -220,6 +220,19 @@ ipcMain.on("faws:set-nav", (_event, raw: unknown) => {
   buildMenu();
 });
 ipcMain.handle("faws:open-log-file", () => shell.openPath(logFilePath()));
+/** Opens a web page in the default browser, such as a cluster's sign in page; nothing but http(s). */
+ipcMain.handle("faws:open-external", async (_event, raw: unknown) => {
+  if (typeof raw !== "string") return;
+  let target: URL;
+  try {
+    target = new URL(raw);
+  } catch {
+    return;
+  }
+  if (target.protocol === "https:" || target.protocol === "http:") {
+    await shell.openExternal(target.toString());
+  }
+});
 ipcMain.handle("faws:show-log-dir", () => {
   const file = logFilePath();
   if (fs.existsSync(file)) shell.showItemInFolder(file);

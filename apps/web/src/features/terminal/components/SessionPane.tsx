@@ -1,10 +1,9 @@
 import { RotateCw } from "lucide-react";
-import * as React from "react";
 
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import type { TerminalSession } from "~/lib/terminal/sessions-model";
-import { LoginDialog } from "~/features/kube/components/LoginDialog";
+import { openKubeLogin } from "~/features/kube/loginDialogs";
 import { kubeContextOf, useSessions } from "~/stores/sessions";
 import { HostKeyPrompt } from "./HostKeyPrompt";
 import { TerminalSurface } from "./TerminalSurface";
@@ -21,7 +20,6 @@ export function SessionPane({ session, active }: { session: TerminalSession; act
   const retry = useSessions((state) => state.retry);
   const close = useSessions((state) => state.close);
   const answerPrompt = useSessions((state) => state.answerPrompt);
-  const [loggingIn, setLoggingIn] = React.useState(false);
   const expiredContext =
     session.status === "errored" && session.error?.code === "KubeUnauthorized"
       ? kubeContextOf(session.id)
@@ -68,7 +66,7 @@ export function SessionPane({ session, active }: { session: TerminalSession; act
               </p>
             </div>
             {expiredContext ? (
-              <Button variant="default" onClick={() => setLoggingIn(true)}>
+              <Button variant="default" onClick={() => openKubeLogin(expiredContext)}>
                 Log in again
               </Button>
             ) : null}
@@ -77,12 +75,6 @@ export function SessionPane({ session, active }: { session: TerminalSession; act
             </Button>
           </div>
         </div>
-      ) : null}
-      {loggingIn && expiredContext ? (
-        <LoginDialog
-          login={{ context: expiredContext, server: null, user: "" }}
-          onClose={() => setLoggingIn(false)}
-        />
       ) : null}
 
       {session.status === "exited" && session.exit ? (

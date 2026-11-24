@@ -1,4 +1,7 @@
+import { kubeUserLabel } from "@faws/contracts";
 import { DomainError } from "@faws/kit";
+
+export { kubeUserLabel as userLabel };
 
 /** Where an expired or refused login points, so the renderer can offer to log in again. */
 export interface KubeLoginTarget {
@@ -20,7 +23,7 @@ export class KubeUnauthorizedError extends DomainError {
 
   constructor(target: KubeLoginTarget) {
     super(
-      `Your login to ${target.server ?? target.context}${target.user ? ` as ${userLabel(target.user)}` : ""} has expired or was revoked. Log in again to keep working with ${target.context}.`,
+      `Your login to ${target.server ?? target.context}${target.user ? ` as ${kubeUserLabel(target.user)}` : ""} has expired or was revoked. Log in again to keep working with ${target.context}.`,
     );
     this.name = "KubeUnauthorizedError";
     this.context = target.context;
@@ -48,10 +51,4 @@ export class KubeLoginError extends DomainError {
   protected override details() {
     return { server: this.server };
   }
-}
-
-/** `alice/api-example-com:6443` is the user `alice` as `oc login` names it. */
-export function userLabel(user: string): string {
-  const slash = user.indexOf("/");
-  return slash > 0 ? user.slice(0, slash) : user;
 }

@@ -25,6 +25,7 @@ import { UpdatedBanner } from "~/components/UpdatedBanner";
 import { initUpdates } from "~/stores/updates";
 import { useUpdatesConfig } from "~/hooks/useUpdatesConfig";
 import { useDesktopMenu } from "~/hooks/useDesktopMenu";
+import { KubeLoginDialogs } from "~/features/kube/components/KubeLoginDialogs";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { useSettings } from "~/stores/settings";
 import { CommandPalette } from "~/components/CommandPalette";
@@ -828,6 +829,7 @@ function AppShell() {
         onOpenKube={() => setNewSession("kube")}
       />
       <KeyboardHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <KubeLoginDialogs />
     </div>
   );
 }

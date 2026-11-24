@@ -1,7 +1,7 @@
 import { AlertTriangle, KeyRound, RotateCw, ShieldAlert } from "lucide-react";
 import * as React from "react";
 
-import { LoginDialog } from "~/features/kube/components/LoginDialog";
+import { openKubeLogin } from "~/features/kube/loginDialogs";
 import { CertificateTrustDialog } from "~/features/trust/CertificateTrustDialog";
 import { expiredKubeLogin, untrustedEndpoint } from "~/lib/errorCause";
 
@@ -21,7 +21,6 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   const untrusted = untrustedEndpoint(error);
   const [reviewing, setReviewing] = React.useState(false);
   const expired = expiredKubeLogin(error);
-  const [loggingIn, setLoggingIn] = React.useState(false);
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-12 text-center">
@@ -40,7 +39,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
           </Button>
         ) : null}
         {expired ? (
-          <Button variant="default" onClick={() => setLoggingIn(true)}>
+          <Button variant="default" onClick={() => openKubeLogin(expired.context)}>
             Log in again
           </Button>
         ) : null}
@@ -55,9 +54,6 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
           {...(untrusted.host ? { host: untrusted.host, port: untrusted.port } : {})}
           onClose={() => setReviewing(false)}
         />
-      ) : null}
-      {loggingIn && expired ? (
-        <LoginDialog login={expired} onClose={() => setLoggingIn(false)} />
       ) : null}
     </div>
   );

@@ -140,6 +140,12 @@ export interface KubeDiagnostics {
 // ---------------------------------------------------------------------------
 // Logging in
 
+/** `alice/api-example-com:6443` is the user `alice`, as `oc login` names its user entries. */
+export function kubeUserLabel(user: string): string {
+  const slash = user.indexOf("/");
+  return slash > 0 ? user.slice(0, slash) : user;
+}
+
 function isLoopback(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
 }
@@ -172,6 +178,9 @@ export const kubeServerSchema = z
     }
     return url.origin;
   });
+
+/** The first step of adding a cluster: where its API server is. */
+export const kubeServerFormSchema = z.object({ server: kubeServerSchema });
 
 /**
  * A bearer token, fenced to the characters tokens are made of so a pasted
@@ -223,6 +232,13 @@ function requireCredentials(
     });
   }
 }
+
+/** The login form's fields: credentials, plus the namespace a new login starts in. */
+export const kubeLoginFormSchema = z
+  .object({ namespace: optionalNamespace, ...credentials })
+  .superRefine(requireCredentials);
+export type KubeLoginFormInput = z.input<typeof kubeLoginFormSchema>;
+export type KubeLoginFormValues = z.output<typeof kubeLoginFormSchema>;
 
 /** Logging in to an API server, writing the context `oc login` would. */
 export const kubeLoginInputSchema = z
