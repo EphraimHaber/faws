@@ -54,7 +54,7 @@ export function VirtualMachinesPage() {
   }, [diagnostics.data, navigate]);
 
   const machines = useQuery({
-    ...trpc.kube.virtualMachines.queryOptions({ context, namespace }),
+    ...trpc.kubernetes.virtualMachines.queryOptions({ context, namespace }),
     enabled: ready && kubeVirt,
     retry: false,
   });

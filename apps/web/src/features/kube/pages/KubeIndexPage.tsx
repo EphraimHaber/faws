@@ -23,12 +23,12 @@ export function KubeIndexPage() {
 
   const scope = { context, namespace };
   const pods = useQuery({
-    ...trpc.kube.pods.queryOptions(scope),
+    ...trpc.kubernetes.pods.queryOptions(scope),
     enabled: ready,
     retry: false,
   });
   const machines = useQuery({
-    ...trpc.kube.virtualMachines.queryOptions(scope),
+    ...trpc.kubernetes.virtualMachines.queryOptions(scope),
     enabled: ready && (diagnostics.data?.kubeVirt ?? false),
     retry: false,
   });

@@ -21,7 +21,7 @@ export function useKubeDiagnostics() {
   // Switched off, nothing spawns kubectl - not even to say it is missing.
   const enabled = useProviderEnabled("kubernetes");
   return useQuery({
-    ...trpc.kube.diagnostics.queryOptions(context ? { context } : {}),
+    ...trpc.kubernetes.diagnostics.queryOptions(context ? { context } : {}),
     enabled,
     staleTime: 30_000,
     retry: false,
