@@ -22,8 +22,18 @@ export function setProviderGate(next: Gate): void {
   gate = next;
 }
 
+/**
+ * The refusal for a provider that is switched off, or null while it is on.
+ * For callers outside tRPC, such as the terminal handshake, that report a
+ * refusal their own way.
+ */
+export function providerDisabledError(id: string): ProviderDisabledError | null {
+  return gate.isEnabled(id) ? null : new ProviderDisabledError(id, gate.label(id));
+}
+
 export function assertProviderEnabled(id: string): void {
-  if (!gate.isEnabled(id)) throw toTrpcError(new ProviderDisabledError(id, gate.label(id)));
+  const refused = providerDisabledError(id);
+  if (refused) throw toTrpcError(refused);
 }
 
 export function providerProcedure(id: string) {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { BASH_COMMAND, startPreferringBash, type StartRequest } from "./shell.ts";
+import { BASH_COMMAND, startPreferringBash, type StartRequest } from "./ssmShell.ts";
 
 function denied(): Error {
   return Object.assign(new Error("not authorized to use AWS-StartInteractiveCommand"), {

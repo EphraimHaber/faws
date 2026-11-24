@@ -18,6 +18,9 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@aws-sdk/client-ec2-instance-connect": "catalog:aws",
+    "@aws-sdk/client-ecs": "catalog:aws",
+    "@aws-sdk/client-ssm": "catalog:aws",
     "@faws/contracts": "workspace:*",
     "@faws/core": "workspace:*",
     "@faws/kit": "workspace:*",

@@ -14,7 +14,7 @@ import { readSshConfig, resolveSshHost } from "@faws/core";
 import { Client, type ConnectConfig } from "ssh2";
 import type { Duplex } from "node:stream";
 
-import { ExecSessionError } from "../errors.ts";
+import { ExecSessionError, isExecSessionError, type AnyExecSessionError } from "../errors.ts";
 import {
   appendKnownHost,
   defaultKnownHostsPath,
@@ -92,8 +92,8 @@ export interface Hop {
   readonly user: string;
 }
 
-export function translateSshError(err: unknown, user?: string): ExecSessionError {
-  if (err instanceof ExecSessionError) return err;
+export function translateSshError(err: unknown, user?: string): AnyExecSessionError {
+  if (isExecSessionError(err)) return err;
   const message = err instanceof Error ? err.message : String(err);
   const level = (err as { level?: string }).level;
 

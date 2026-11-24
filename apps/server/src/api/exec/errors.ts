@@ -10,7 +10,10 @@ import { ExecSessionError as KitExecSessionError } from "@faws/kit/server";
 
 export class ExecSessionError extends KitExecSessionError<ExecErrorCode> {}
 
+/** An exec error from anywhere: the host's own, or one a provider's driver threw. */
+export type AnyExecSessionError = KitExecSessionError<ExecErrorCode>;
+
 /** True for an error that already carries a code worth showing. */
-export function isExecSessionError(err: unknown): err is KitExecSessionError<ExecErrorCode> {
+export function isExecSessionError(err: unknown): err is AnyExecSessionError {
   return err instanceof KitExecSessionError;
 }
