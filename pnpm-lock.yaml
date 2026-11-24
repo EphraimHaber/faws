@@ -416,6 +416,9 @@ importers:
 
   apps/desktop:
     devDependencies:
+      '@faws/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@faws/server':
         specifier: workspace:*
         version: link:../server

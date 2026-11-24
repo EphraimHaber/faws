@@ -22,6 +22,15 @@ import {
 
 import { parseBackendPort } from "./backendPort.ts";
 import { DEFAULT_NAV, type NavMenuItem, navMenuItems, sanitizeNavItems } from "./menu.ts";
+import {
+  checkForUpdates,
+  configureUpdates,
+  downloadUpdate,
+  installUpdate,
+  onUpdateStatus,
+  openReleases,
+  updateStatus,
+} from "./updater.ts";
 
 const isDevelopment = Boolean(process.env["VITE_DEV_SERVER_URL"]);
 const VITE_DEV_URL = process.env["VITE_DEV_SERVER_URL"] ?? "";
@@ -160,6 +169,15 @@ function buildMenu(): void {
     {
       role: "help",
       submenu: [
+        { label: "What's new", click: () => void navigate("/whats-new") },
+        {
+          label: "Check for updates…",
+          click: () => {
+            void navigate("/settings");
+            void checkForUpdates();
+          },
+        },
+        { type: "separator" },
         { label: "Open log file", click: () => void shell.openPath(logFilePath()) },
         {
           label: "Reveal logs folder",
@@ -170,6 +188,25 @@ function buildMenu(): void {
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
+
+// Update check: the window asks, the main process answers and then reports
+// every change of state on "faws:update-status" until the window goes away.
+ipcMain.handle("faws:update-status", () => updateStatus());
+ipcMain.handle("faws:update-check", () => checkForUpdates());
+ipcMain.handle("faws:update-download", () => downloadUpdate());
+ipcMain.handle("faws:update-install", () => installUpdate());
+ipcMain.handle("faws:update-open-release", () => openReleases());
+ipcMain.on("faws:update-configure", (_event, raw: unknown) => {
+  const config = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
+  configureUpdates({
+    autoCheck: config["autoCheck"] === true,
+    channel: config["channel"] === "beta" ? "beta" : "stable",
+  });
+});
+onUpdateStatus((status) => {
+  if (mainWindow && !mainWindow.isDestroyed())
+    mainWindow.webContents.send("faws:update-status", status);
+});
 
 ipcMain.on("faws:set-nav", (_event, raw: unknown) => {
   navItems = sanitizeNavItems(raw);

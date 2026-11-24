@@ -3,9 +3,10 @@
  *
  * Everything the renderer needs from AWS goes over tRPC to the server, so the
  * bridge only carries what genuinely requires Electron main: the log file
- * helpers, the app menu's destinations and the platform flag the renderer uses
- * for its titlebar padding.
+ * helpers, the app menu's destinations, the update check and the platform
+ * flag the renderer uses for its titlebar padding.
  */
+import type { UpdateConfig, UpdateStatus } from "@faws/contracts";
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 
 const faws = {
@@ -20,6 +21,20 @@ const faws = {
     const handler = (_event: IpcRendererEvent, fullscreen: boolean) => listener(fullscreen);
     ipcRenderer.on("faws:fullscreen", handler);
     return () => ipcRenderer.off("faws:fullscreen", handler);
+  },
+  updates: {
+    status: () => ipcRenderer.invoke("faws:update-status") as Promise<UpdateStatus>,
+    check: () => ipcRenderer.invoke("faws:update-check") as Promise<UpdateStatus>,
+    download: () => ipcRenderer.invoke("faws:update-download") as Promise<void>,
+    install: () => ipcRenderer.invoke("faws:update-install") as Promise<void>,
+    openRelease: () => ipcRenderer.invoke("faws:update-open-release") as Promise<void>,
+    configure: (config: UpdateConfig) => ipcRenderer.send("faws:update-configure", config),
+    /** Fires on every change of update state; returns an unsubscribe function. */
+    onStatus: (listener: (status: UpdateStatus) => void) => {
+      const handler = (_event: IpcRendererEvent, status: UpdateStatus) => listener(status);
+      ipcRenderer.on("faws:update-status", handler);
+      return () => ipcRenderer.off("faws:update-status", handler);
+    },
   },
 };
 

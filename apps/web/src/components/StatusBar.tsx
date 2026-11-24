@@ -5,6 +5,7 @@ import { Pause, RotateCw, TerminalSquare, Timer } from "lucide-react";
 import { Kbd } from "~/components/ui/kbd";
 import { REFRESH_CHOICES, useKubeScope, useScope, useProviderEnabled } from "~/stores/scope";
 import { useAutoRefresh } from "~/hooks/useAutoRefresh";
+import { UpdatePill } from "~/features/updates/UpdatePill";
 import { describe } from "~/lib/hotkeys";
 import { useSessions } from "~/stores/sessions";
 import { useOverlaysOpen } from "~/stores/overlays";
@@ -56,6 +57,8 @@ export function StatusBar({
       ) : null}
 
       <KubeChip />
+
+      <UpdatePill />
 
       <span aria-hidden className="h-3 w-px bg-border" />
 

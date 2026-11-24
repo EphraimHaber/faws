@@ -45,7 +45,7 @@ function GateFor({
       <p className="max-w-sm text-[12px] text-muted-foreground">
         Nothing here asks {provider.label} anything while it is off. Turn it on to see this page.
       </p>
-      <Button size="sm" onClick={() => setProviderEnabled(id, true)}>
+      <Button size="sm" variant="default" onClick={() => setProviderEnabled(id, true)}>
         Turn on {provider.label}
       </Button>
     </div>

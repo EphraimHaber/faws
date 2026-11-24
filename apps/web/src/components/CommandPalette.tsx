@@ -1,7 +1,15 @@
 import { useHotkeys } from "@tanstack/react-hotkeys";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Boxes, CornerDownLeft, Layers, ScrollText, Settings2, TerminalSquare } from "lucide-react";
+import {
+  Boxes,
+  CornerDownLeft,
+  Layers,
+  ScrollText,
+  Settings2,
+  TerminalSquare,
+  Sparkles,
+} from "lucide-react";
 import * as React from "react";
 
 import {
@@ -139,7 +147,7 @@ function PaletteBody({
       ...refEntries(pinned, "pinned", go),
       ...refEntries(recent, "recent", go),
       ...navEntries(go, { kubernetes: { kubevirt: kubeVirt } }, enabledProviders),
-      ...shellEntries(go, { diagnostics: ScrollText, settings: Settings2 }),
+      ...shellEntries(go, { diagnostics: ScrollText, settings: Settings2, whatsNew: Sparkles }),
     ];
 
     for (const cluster of clusters.data ?? []) {

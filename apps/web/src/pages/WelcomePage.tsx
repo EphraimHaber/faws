@@ -76,7 +76,9 @@ export function WelcomePage() {
         </ul>
 
         <footer className="flex items-center gap-3">
-          <Button onClick={() => finish(true)}>{anyOn ? "Continue" : "Continue with none"}</Button>
+          <Button variant="default" size="md" onClick={() => finish(true)}>
+            {anyOn ? "Continue" : "Continue with none"}
+          </Button>
           <button
             type="button"
             onClick={() => finish(false)}

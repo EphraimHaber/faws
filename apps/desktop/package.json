@@ -13,6 +13,7 @@
     "dist": "electron-builder --publish never"
   },
   "devDependencies": {
+    "@faws/contracts": "workspace:*",
     "@faws/server": "workspace:*",
     "@trpc/client": "catalog:trpc",
     "@types/node": "catalog:build",

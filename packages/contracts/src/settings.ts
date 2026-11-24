@@ -265,6 +265,26 @@ export const onboardingSettingsSchema = z.object({
   completed: z.boolean().catch(false),
 });
 
+/**
+ * How the app keeps itself current.
+ *
+ * `autoCheck` off means the app never contacts GitHub on its own, which is
+ * what an air-gapped or strictly on-prem install wants; "Check now" still
+ * works when asked.
+ */
+export const updatesSettingsSchema = z.object({
+  autoCheck: z.boolean().catch(true),
+  /** `beta` also offers pre-releases. */
+  channel: z.enum(["stable", "beta"]).catch("stable"),
+  /** A version the user chose to skip; not offered again until a newer one. */
+  skippedVersion: z.string().catch(""),
+  /**
+   * The newest version this install has been opened on, so the first launch
+   * after an update can say what changed. Empty until the first launch.
+   */
+  lastSeenVersion: z.string().catch(""),
+});
+
 export const silencedSettingsSchema = z.object({
   /** Per-incident, keyed by ARN; comes back when the fingerprint changes. */
   dismissed: silenceMapSchema,
@@ -277,6 +297,7 @@ export const settingsSchema = z.object({
   providers: section(providersSettingsSchema),
   onboarding: section(onboardingSettingsSchema),
   refresh: section(refreshSettingsSchema),
+  updates: section(updatesSettingsSchema),
   logs: section(logSettingsSchema),
   appearance: section(appearanceSettingsSchema),
   layout: section(layoutSettingsSchema),
@@ -298,6 +319,7 @@ export type AwsScopeSettings = ProvidersSettings["aws"]["scope"];
 export type KubeScopeSettings = ProvidersSettings["kubernetes"]["scope"];
 export type S3ScopeSettings = ProvidersSettings["s3"]["scope"];
 export type RefreshSettings = Settings["refresh"];
+export type UpdatesSettings = Settings["updates"];
 export type OnboardingSettings = Settings["onboarding"];
 
 export const DEFAULT_SETTINGS: Settings = settingsSchema.parse({});
@@ -339,6 +361,7 @@ export const settingsPatchSchema = z
     providers: providersPatchSchema,
     onboarding: onboardingSettingsSchema.partial(),
     refresh: refreshSettingsSchema.partial(),
+    updates: updatesSettingsSchema.partial(),
     logs: logSettingsSchema.partial(),
     appearance: appearanceSettingsSchema.partial(),
     layout: layoutSettingsSchema.partial(),
@@ -410,6 +433,7 @@ export function applyPatch(current: Settings, patch: SettingsPatch): Settings {
     providers: mergeProviders(current.providers, patch.providers),
     onboarding: mergeSection(current.onboarding, patch.onboarding),
     refresh: mergeSection(current.refresh, patch.refresh),
+    updates: mergeSection(current.updates, patch.updates),
     logs: mergeSection(current.logs, patch.logs),
     appearance: mergeSection(current.appearance, patch.appearance),
     layout: mergeSection(current.layout, patch.layout),

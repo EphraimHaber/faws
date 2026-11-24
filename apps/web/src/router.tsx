@@ -19,6 +19,10 @@ import { AppHeader } from "~/components/AppHeader";
 import { AppSidebar } from "~/components/AppSidebar";
 import { ProviderGate } from "~/components/ProviderGate";
 import { WelcomePage } from "~/pages/WelcomePage";
+import { WhatsNewPage } from "~/pages/WhatsNewPage";
+import { UpdatedBanner } from "~/components/UpdatedBanner";
+import { initUpdates } from "~/stores/updates";
+import { useUpdatesConfig } from "~/hooks/useUpdatesConfig";
 import { useDesktopMenu } from "~/hooks/useDesktopMenu";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
 import { useSettings } from "~/stores/settings";
@@ -438,6 +442,12 @@ const settingsRoute = createRoute({
   component: SettingsPage,
 });
 
+const whatsNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/whats-new",
+  component: WhatsNewPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   ecsIndexRoute,
@@ -471,6 +481,7 @@ const routeTree = rootRoute.addChildren([
   sessionRecordingsRoute,
   logsRoute,
   settingsRoute,
+  whatsNewRoute,
 ]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
@@ -534,6 +545,8 @@ function AppShell() {
   useLogIngest();
 
   React.useEffect(() => installTrafficLightInset(), []);
+  React.useEffect(() => initUpdates(), []);
+  useUpdatesConfig();
 
   const kubeVirt = useKubeDiagnostics().data?.kubeVirt ?? false;
   useDesktopMenu(React.useMemo(() => ({ kubernetes: { kubevirt: kubeVirt } }), [kubeVirt]));
@@ -691,6 +704,7 @@ function AppShell() {
       <div className="flex min-h-0 flex-1">
         <AppSidebar />
         <main className="flex min-h-0 flex-1 flex-col overflow-auto p-3">
+          <UpdatedBanner />
           <ProviderGate pathname={location.pathname}>
             <Outlet />
           </ProviderGate>

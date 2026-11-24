@@ -87,6 +87,12 @@ function useCrumbNames(pathname: string): Readonly<Record<string, string>> {
  * `names` labels the crumbs whose path segment is an id rather than a name;
  * a crumb it has nothing for is labelled with the segment itself.
  */
+/** App pages whose crumb is not their path segment in title case. */
+const SHELL_LABELS: Readonly<Record<string, string>> = {
+  logs: "Diagnostics",
+  "whats-new": "What's new",
+};
+
 export function deriveCrumbs(
   pathname: string,
   names: Readonly<Record<string, string>> = {},
@@ -100,7 +106,7 @@ export function deriveCrumbs(
   const service = serviceForPath(pathname);
   if (!service) {
     // Shell-level routes (diagnostics, settings) are one level deep.
-    const label = segments[0] === "logs" ? "Diagnostics" : titleCase(segments[0] ?? "");
+    const label = SHELL_LABELS[segments[0] ?? ""] ?? titleCase(segments[0] ?? "");
     return [home, { label, to: `/${segments[0]}` }];
   }
 

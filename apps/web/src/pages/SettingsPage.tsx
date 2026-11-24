@@ -10,6 +10,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Panel, PanelHeader, PanelTitle } from "~/components/ui/panel";
 import { Switch } from "~/components/ui/switch";
+import { UpdatesPanel } from "~/features/updates/UpdatesPanel";
 import { TextAction, textActionClass } from "~/components/ui/text-action";
 import {
   DEFAULT_LOG_GUTTER,
@@ -88,6 +89,8 @@ export function SettingsPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto">
       <ProvidersPanel />
+
+      <UpdatesPanel />
 
       <Panel className="shrink-0">
         <PanelHeader>

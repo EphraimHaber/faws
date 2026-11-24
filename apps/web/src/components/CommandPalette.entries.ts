@@ -135,7 +135,7 @@ export function navEntries(
 /** The shell's own pages, which belong to no AWS service. */
 export function shellEntries(
   navigate: (to: string) => void,
-  icons: { diagnostics: LucideIcon; settings: LucideIcon },
+  icons: { diagnostics: LucideIcon; settings: LucideIcon; whatsNew?: LucideIcon },
 ): PaletteEntry[] {
   return [
     {
@@ -146,6 +146,15 @@ export function shellEntries(
       keywords: ["logs", "errors", "debug", "trace"],
       group: "nav",
       run: () => navigate("/logs"),
+    },
+    {
+      id: "nav:whats-new",
+      icon: icons.whatsNew ?? icons.settings,
+      label: "What's new",
+      hint: "release notes",
+      keywords: ["changelog", "release", "notes", "version", "update"],
+      group: "nav",
+      run: () => navigate("/whats-new"),
     },
     {
       id: "nav:settings",

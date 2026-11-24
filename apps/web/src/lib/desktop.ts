@@ -1,3 +1,5 @@
+import type { UpdateConfig, UpdateStatus } from "@faws/contracts";
+
 /**
  * The Electron preload bridge, as the renderer sees it.
  *
@@ -11,6 +13,18 @@ export interface DesktopBridge {
   onFullscreenChange(listener: (fullscreen: boolean) => void): () => void;
   /** Absent in desktop builds older than the provider menu. */
   setNavMenu?(items: ReadonlyArray<DesktopNavItem>): void;
+  /** Absent in desktop builds older than the update check. */
+  readonly updates?: UpdatesBridge;
+}
+
+export interface UpdatesBridge {
+  status(): Promise<UpdateStatus>;
+  check(): Promise<UpdateStatus>;
+  download(): Promise<void>;
+  install(): Promise<void>;
+  openRelease(): Promise<void>;
+  configure(config: UpdateConfig): void;
+  onStatus(listener: (status: UpdateStatus) => void): () => void;
 }
 
 export interface DesktopNavItem {

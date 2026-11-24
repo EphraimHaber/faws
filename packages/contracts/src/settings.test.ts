@@ -91,6 +91,20 @@ describe("settingsSchema", () => {
     ).toBe("");
   });
 
+  it("checks for stable updates by default, and carries a choice to stop", () => {
+    expect(DEFAULT_SETTINGS.updates).toEqual({
+      autoCheck: true,
+      channel: "stable",
+      skippedVersion: "",
+      lastSeenVersion: "",
+    });
+    expect(settingsSchema.parse({ updates: { channel: "nightly" } }).updates.channel).toBe(
+      "stable",
+    );
+    const patch = settingsPatchSchema.parse({ updates: { autoCheck: false } });
+    expect(applyPatch(DEFAULT_SETTINGS, patch).updates.autoCheck).toBe(false);
+  });
+
   it("starts the first-run screen not yet done", () => {
     expect(DEFAULT_SETTINGS.onboarding.completed).toBe(false);
   });
