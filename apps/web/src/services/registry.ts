@@ -94,6 +94,19 @@ export const HOST_SERVICES: ReadonlyArray<ServiceDefinition> = [
     basePath: "/sessions",
     sections: [{ id: "recordings", label: "Recordings", icon: "film", to: "/sessions/recordings" }],
   }),
+  /**
+   * Utilities that need no account and no network, for moving data on and off
+   * a machine that has nothing else installed.
+   */
+  toService("host", {
+    id: "tools",
+    label: "Tools",
+    description: "Offline utilities: text to QR codes",
+    icon: "wrench",
+    status: "available",
+    basePath: "/tools",
+    sections: [{ id: "qr", label: "Text to QR", icon: "qr-code", to: "/tools/qr" }],
+  }),
 ];
 
 /**

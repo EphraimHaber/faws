@@ -34,6 +34,7 @@
     "class-variance-authority": "catalog:",
     "lucide-react": "catalog:",
     "monaco-editor": "catalog:",
+    "qrcode": "catalog:",
     "react": "catalog:react",
     "react-dom": "catalog:react",
     "react-hook-form": "catalog:",
@@ -45,6 +46,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:build",
+    "@types/qrcode": "catalog:",
     "@types/react": "catalog:react",
     "@types/react-dom": "catalog:react",
     "@vitejs/plugin-react": "catalog:build",

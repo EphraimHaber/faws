@@ -152,6 +152,11 @@ const TaskDefinitionsPage = lazyRouteComponent(
   "TaskDefinitionsPage",
 );
 const TaskPage = lazyRouteComponent(() => import("~/features/ecs/pages/TaskPage"), "TaskPage");
+const QrPage = lazyRouteComponent(() => import("~/features/tools/pages/QrPage"), "QrPage");
+const ToolsIndexPage = lazyRouteComponent(
+  () => import("~/features/tools/pages/ToolsIndexPage"),
+  "ToolsIndexPage",
+);
 
 const rootRoute = createRootRoute({ component: RootLayout });
 
@@ -519,6 +524,18 @@ const sessionRecordingsRoute = createRoute({
   component: RecordingsPage,
 });
 
+const toolsIndexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/tools",
+  component: ToolsIndexPage,
+});
+
+const qrRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/tools/qr",
+  component: QrPage,
+});
+
 const logsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/logs",
@@ -569,6 +586,8 @@ const routeTree = rootRoute.addChildren([
   kubeVirtualMachinesRoute,
   sessionsRoute,
   sessionRecordingsRoute,
+  toolsIndexRoute,
+  qrRoute,
   logsRoute,
   settingsRoute,
   whatsNewRoute,

@@ -21,6 +21,12 @@ access and execution logs, read in place; the custom domains APIs are called
 on; and the usage plans and API keys callers are metered by, though never a
 key's value. Lambda and SQS are next.
 
+Beside the services sits a Tools section of utilities that need no account
+and no network. Text to QR turns pasted text into QR codes another device can
+read through its camera, splitting long text across numbered codes, with the
+largest code size and error correction level adjustable to trade density
+against how easily it scans.
+
 ## Running
 
 ```bash

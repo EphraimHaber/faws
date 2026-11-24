@@ -47,6 +47,7 @@ export const ICON_NAMES = [
   "monitor",
   "network",
   "plug",
+  "qr-code",
   "rocket",
   "scroll-text",
   "server",
@@ -54,6 +55,7 @@ export const ICON_NAMES = [
   "terminal-square",
   "warehouse",
   "waypoints",
+  "wrench",
 ] as const;
 export type IconName = (typeof ICON_NAMES)[number];
 

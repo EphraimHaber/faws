@@ -16,6 +16,7 @@ import {
   Monitor,
   Network,
   Plug,
+  QrCode,
   Rocket,
   ScrollText,
   Server,
@@ -23,6 +24,7 @@ import {
   TerminalSquare,
   Warehouse,
   Waypoints,
+  Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -44,6 +46,7 @@ export const ICONS: Readonly<Record<IconName, LucideIcon>> = {
   monitor: Monitor,
   network: Network,
   plug: Plug,
+  "qr-code": QrCode,
   rocket: Rocket,
   "scroll-text": ScrollText,
   server: Server,
@@ -51,4 +54,5 @@ export const ICONS: Readonly<Record<IconName, LucideIcon>> = {
   "terminal-square": TerminalSquare,
   warehouse: Warehouse,
   waypoints: Waypoints,
+  wrench: Wrench,
 };
