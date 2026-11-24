@@ -1,6 +1,6 @@
 # faws
 
-Desktop operations console for AWS, Kubernetes and S3-compatible storage. Read `ARCHITECTURE.md` before moving code between packages, adding a package, or adding a server route.
+Desktop operations console for AWS, Kubernetes and S3-compatible storage. Read `ARCHITECTURE.md` before moving code between packages, adding a package, or adding a server route; its "Known gaps" section lists what is unfinished or unverified, and is updated when an item is done.
 
 ## Dependencies
 - Every external dependency is declared once in `pnpm-workspace.yaml`, and a package references it as `catalog:` or `catalog:<family>`. Families that are upgraded together each get a named catalog: react, tanstack, trpc, aws, electron, build.

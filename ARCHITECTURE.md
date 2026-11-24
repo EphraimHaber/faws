@@ -75,4 +75,28 @@ A new capability follows the same shape: view models in kit's root, the port and
 
 The boundary rules for them are in `.dependency-cruiser.cjs`: providers never import each other, kit never imports providers, a lib never imports a provider or `core`, the renderer never imports a lib, and web modules see server code as types only.
 
-Code moves into this shape a step at a time, with the app working after every step. While it does, `apps/web/src/services/registry.ts` remains the nav seam, and `ScopeContext.tsx` remains where scope is read.
+Code moves into this shape a step at a time, with the app working after every step. `apps/web/src/services/registry.ts` is the nav seam, and provider scope is read through the selector hooks in `apps/web/src/stores/scope.ts`.
+
+## Known gaps
+
+What the current shape does not do yet, or has not been checked against the real thing. Remove an entry when it is done.
+
+**Architecture**
+- AWS routers sit directly under the root (`aws`, `ecs`, `ecsActions`, `cloudwatch`, `apiGateway`) rather than under one `aws` key through `mountProviders`. Nesting them renames every AWS call in the web app.
+- `@faws/core` is still the AWS engine; splitting it into `lib-aws` is planned, not done.
+- Pages keep their original URLs (`/ecs/...`, `/s3/...`) rather than living under `/<provider>/...`; bookmarks and recents depend on them.
+- Providers have no `./web` or `./contracts` subpaths yet: their pages are in `apps/web/src/features` and their types in `@faws/contracts`.
+- Providers cannot contribute a Socket.IO namespace, so there is no live pod watch: pod lists poll.
+
+**Not verified against the real thing**
+- OpenShift sign-in against a real cluster: whether `openshift-cli-client` accepts any loopback port for browser sign-in, token revoke under real RBAC (`oauthaccesstokens` vs `useroauthaccesstokens`), expiry reporting, and an OAuth host with a different CA from the API host. All are covered only by the fake in `packages/providers/kubernetes/src/server/testing`.
+- KubeVirt reads through `@kubernetes/client-node`, and contexts that use exec plugins (they stay on the CLI path by design).
+- The desktop `openExternal` bridge, and the desktop trust store against a real re-signing proxy (only the decision function is tested).
+- Object storage against a live S3-compatible server (MinIO, Ceph); uploads were not exercised in the app.
+- The release pipeline: `version.yml` and `release.yml` have never run on GitHub, so tagging, the per-platform builds and the update check between two published versions are untested. Builds are unsigned: macOS needs right-click > Open on first launch and never installs updates in place; Windows SmartScreen warns.
+
+**Known rough edges**
+- A Kubernetes username containing spaces (some LDAP setups) produces a context name the context schema refuses.
+- When faws creates a kubeconfig from nothing, its one-time backup is taken on the second write rather than the first.
+- Which saved S3 endpoint a storage page reads is set by its URL (`?connection=`); the sidebar's Buckets link always opens AWS.
+- Desktop ignores `trust.useSystemStore`, since Chromium already uses the operating system's store.
