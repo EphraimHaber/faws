@@ -17,6 +17,11 @@ import { z } from "zod";
 
 import { AppHeader } from "~/components/AppHeader";
 import { AppSidebar } from "~/components/AppSidebar";
+import { ProviderGate } from "~/components/ProviderGate";
+import { WelcomePage } from "~/pages/WelcomePage";
+import { useDesktopMenu } from "~/hooks/useDesktopMenu";
+import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
+import { useSettings } from "~/stores/settings";
 import { CommandPalette } from "~/components/CommandPalette";
 import { KeyboardHelp } from "~/components/KeyboardHelp";
 import { StatusBar } from "~/components/StatusBar";
@@ -506,7 +511,18 @@ function RestApiRoute() {
   return <RestApiPage apiId={apiId} />;
 }
 
+/**
+ * The first-run screen until someone has picked what to connect to, then the
+ * app. Waits for settings so a returning user never sees it flash.
+ */
 function RootLayout() {
+  const ready = useSettings((state) => state.ready);
+  const onboarded = useSettings((state) => state.settings.onboarding.completed);
+  if (ready && !onboarded) return <WelcomePage />;
+  return <AppShell />;
+}
+
+function AppShell() {
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
   const [newSession, setNewSession] = React.useState<"closed" | "instance" | "ssh" | "kube">(
@@ -518,6 +534,9 @@ function RootLayout() {
   useLogIngest();
 
   React.useEffect(() => installTrafficLightInset(), []);
+
+  const kubeVirt = useKubeDiagnostics().data?.kubeVirt ?? false;
+  useDesktopMenu(React.useMemo(() => ({ kubernetes: { kubevirt: kubeVirt } }), [kubeVirt]));
 
   // The desktop menu navigates by posting to the server, which fans the
   // target out as a `nav` event. The path comes from our own menu table.
@@ -672,7 +691,9 @@ function RootLayout() {
       <div className="flex min-h-0 flex-1">
         <AppSidebar />
         <main className="flex min-h-0 flex-1 flex-col overflow-auto p-3">
-          <Outlet />
+          <ProviderGate pathname={location.pathname}>
+            <Outlet />
+          </ProviderGate>
         </main>
       </div>
       <TerminalDock />

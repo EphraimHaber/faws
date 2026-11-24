@@ -18,15 +18,16 @@ import {
 } from "@faws/core";
 import { z } from "zod";
 
-import { guard, publicProcedure, router } from "../../trpc/index.ts";
+import { guard, router } from "../../trpc/index.ts";
+import { storageProcedure } from "../../trpc/providers.ts";
 
 export const s3Router = router({
-  buckets: publicProcedure
+  buckets: storageProcedure
     .input(s3ScopeSchema)
     .query(({ input }) => guard(() => listBuckets(input))),
 
   /** Resolved on demand, because a bucket is addressed in its own region. */
-  bucketRegion: publicProcedure
+  bucketRegion: storageProcedure
     .input(s3ScopeSchema.extend({ bucket: z.string().min(1) }))
     .query(({ input }) => guard(() => bucketRegion(input, input.bucket))),
 
@@ -34,22 +35,22 @@ export const s3Router = router({
    * One page of a listing. The client asks for the next one with the token
    * this returns, rather than the server walking the whole prefix.
    */
-  list: publicProcedure
+  list: storageProcedure
     .input(s3ScopeSchema.and(s3ListObjectsSchema))
     .query(({ input }) => guard(() => listObjectsPage(input, input))),
 
   /** Whether a delete on this bucket writes a recoverable marker. */
-  versioning: publicProcedure
+  versioning: storageProcedure
     .input(s3ScopeSchema.extend({ bucket: z.string().min(1) }))
     .query(({ input }) => guard(() => bucketVersioning(input, input.bucket))),
 
   /** Everything the properties pane shows, degrading per field. */
-  config: publicProcedure
+  config: storageProcedure
     .input(s3ScopeSchema.extend({ bucket: z.string().min(1) }))
     .query(({ input }) => guard(() => bucketConfig(input, input.bucket))),
 
   /** Versions and delete markers; this listing pages on two markers. */
-  versions: publicProcedure
+  versions: storageProcedure
     .input(
       s3ScopeSchema.extend({
         bucket: z.string().min(1),
@@ -70,7 +71,7 @@ export const s3Router = router({
     ),
 
   /** Daily size and object count, which is cheaper than counting. */
-  storageMetrics: publicProcedure
+  storageMetrics: storageProcedure
     .input(
       s3ScopeSchema.extend({
         bucket: z.string().min(1),
@@ -88,7 +89,7 @@ export const s3Router = router({
     ),
 
   /** What an object is, which decides whether and how its bytes are fetched. */
-  head: publicProcedure.input(s3ScopeSchema.and(s3ObjectRefSchema)).query(({ input }) =>
+  head: storageProcedure.input(s3ScopeSchema.and(s3ObjectRefSchema)).query(({ input }) =>
     guard(() =>
       headObject(input, {
         bucket: input.bucket,

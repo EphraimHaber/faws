@@ -13,6 +13,8 @@ const NON_RETRYABLE = new Set([
   "NOT_IMPLEMENTED",
   "METHOD_NOT_SUPPORTED",
   "CONFLICT",
+  // A provider switched off in Settings; asking again changes nothing until it is on.
+  "PRECONDITION_FAILED",
 ]);
 
 function isNonRetryable(error: unknown): boolean {

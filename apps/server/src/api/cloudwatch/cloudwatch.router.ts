@@ -17,29 +17,28 @@ import {
 } from "@faws/core";
 import { z } from "zod";
 
-import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
+import { guard, router, scopeInput } from "../../trpc/index.ts";
+import { awsProcedure } from "../../trpc/providers.ts";
 
 const windowInput = z.literal(CLOUDWATCH_WINDOWS);
 
 const logGroupInput = scopeInput.extend({ logGroup: z.string().min(1).max(512) });
 
 export const cloudwatchRouter = router({
-  logGroups: publicProcedure
-    .input(scopeInput)
-    .query(({ input }) => guard(() => listLogGroups(input))),
+  logGroups: awsProcedure.input(scopeInput).query(({ input }) => guard(() => listLogGroups(input))),
 
   /** One group by its exact name, or `null` when the region has none. */
-  logGroup: publicProcedure
+  logGroup: awsProcedure
     .input(logGroupInput)
     .query(({ input }) => guard(() => describeLogGroup(input, input.logGroup))),
 
-  logStreams: publicProcedure
+  logStreams: awsProcedure
     .input(logGroupInput.extend({ cursor: z.string().nullish() }))
     .query(({ input }) =>
       guard(() => listLogStreams(input, input.logGroup, input.cursor ?? undefined)),
     ),
 
-  logEvents: publicProcedure
+  logEvents: awsProcedure
     .input(
       logGroupInput.extend({
         logStream: z.string().min(1).max(512).optional(),
@@ -64,7 +63,7 @@ export const cloudwatchRouter = router({
    * One page of metrics, narrowed by the table's filter on the server. Shaped
    * for an infinite query: `cursor` in, `nextToken` out.
    */
-  metrics: publicProcedure
+  metrics: awsProcedure
     .input(
       scopeInput.extend({
         namespace: z.string().min(1).max(255).optional(),
@@ -82,7 +81,7 @@ export const cloudwatchRouter = router({
       ),
     ),
 
-  metricSeries: publicProcedure
+  metricSeries: awsProcedure
     .input(
       scopeInput.extend({
         namespace: z.string().min(1).max(255),

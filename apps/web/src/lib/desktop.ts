@@ -9,6 +9,14 @@ export interface DesktopBridge {
   openLogFile(): Promise<void>;
   showLogDir(): Promise<void>;
   onFullscreenChange(listener: (fullscreen: boolean) => void): () => void;
+  /** Absent in desktop builds older than the provider menu. */
+  setNavMenu?(items: ReadonlyArray<DesktopNavItem>): void;
+}
+
+export interface DesktopNavItem {
+  readonly label: string;
+  readonly target: string;
+  readonly group: string;
 }
 
 declare global {

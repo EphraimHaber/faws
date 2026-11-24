@@ -3,7 +3,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { Pause, RotateCw, TerminalSquare, Timer } from "lucide-react";
 
 import { Kbd } from "~/components/ui/kbd";
-import { REFRESH_CHOICES, useKubeScope, useScope } from "~/stores/scope";
+import { REFRESH_CHOICES, useKubeScope, useScope, useProviderEnabled } from "~/stores/scope";
 import { useAutoRefresh } from "~/hooks/useAutoRefresh";
 import { describe } from "~/lib/hotkeys";
 import { useSessions } from "~/stores/sessions";
@@ -27,6 +27,7 @@ export function StatusBar({
   const dockOpen = useSessions((state) => state.dockOpen);
   const toggleDock = useSessions((state) => state.toggleDock);
   const { profile, region, refreshSeconds, setRefreshSeconds } = useScope();
+  const awsEnabled = useProviderEnabled("aws");
   const overlayOpen = useOverlaysOpen();
   const { secondsLeft, refreshNow } = useAutoRefresh();
   const paused = refreshSeconds <= 0;
@@ -44,11 +45,15 @@ export function StatusBar({
 
   return (
     <footer className="flex h-7 shrink-0 items-center gap-3 border-t border-border bg-chrome px-3 font-mono text-[10.5px] text-muted-foreground">
-      <span className="text-foreground">{profile}</span>
-      <span aria-hidden className="text-muted-foreground/40">
-        /
-      </span>
-      <span className="text-foreground tabular">{region}</span>
+      {awsEnabled ? (
+        <>
+          <span className="text-foreground">{profile}</span>
+          <span aria-hidden className="text-muted-foreground/40">
+            /
+          </span>
+          <span className="text-foreground tabular">{region}</span>
+        </>
+      ) : null}
 
       <KubeChip />
 

@@ -26,24 +26,23 @@ import {
 } from "@faws/core";
 import { z } from "zod";
 
-import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
+import { guard, router, scopeInput } from "../../trpc/index.ts";
+import { awsProcedure } from "../../trpc/providers.ts";
 
 const clusterInput = scopeInput.extend({ cluster: z.string().min(1) });
 
 export const ecsRouter = router({
-  clusters: publicProcedure
-    .input(scopeInput)
-    .query(({ input }) => guard(() => listClusters(input))),
+  clusters: awsProcedure.input(scopeInput).query(({ input }) => guard(() => listClusters(input))),
 
-  services: publicProcedure
+  services: awsProcedure
     .input(clusterInput)
     .query(({ input }) => guard(() => listServices(input, input.cluster))),
 
-  service: publicProcedure
+  service: awsProcedure
     .input(clusterInput.extend({ service: z.string().min(1) }))
     .query(({ input }) => guard(() => getService(input, input.cluster, input.service))),
 
-  tasks: publicProcedure
+  tasks: awsProcedure
     .input(
       clusterInput.extend({
         service: z.string().optional(),
@@ -62,27 +61,27 @@ export const ecsRouter = router({
       ),
     ),
 
-  task: publicProcedure
+  task: awsProcedure
     .input(clusterInput.extend({ taskId: z.string().min(1) }))
     .query(({ input }) => guard(() => getTask(input, input.cluster, input.taskId))),
 
-  containerInstances: publicProcedure
+  containerInstances: awsProcedure
     .input(clusterInput)
     .query(({ input }) => guard(() => listContainerInstances(input, input.cluster))),
 
-  taskDefinitionFamilies: publicProcedure
+  taskDefinitionFamilies: awsProcedure
     .input(scopeInput)
     .query(({ input }) => guard(() => listTaskDefinitionFamilies(input))),
 
-  taskDefinitionRevisions: publicProcedure
+  taskDefinitionRevisions: awsProcedure
     .input(scopeInput.extend({ family: z.string().min(1) }))
     .query(({ input }) => guard(() => listTaskDefinitionRevisions(input, input.family))),
 
-  taskDefinition: publicProcedure
+  taskDefinition: awsProcedure
     .input(scopeInput.extend({ taskDefinition: z.string().min(1) }))
     .query(({ input }) => guard(() => getTaskDefinition(input, input.taskDefinition))),
 
-  metrics: publicProcedure
+  metrics: awsProcedure
     .input(
       clusterInput.extend({
         service: z.string().min(1),
@@ -103,7 +102,7 @@ export const ecsRouter = router({
    * Past deployments, which `service` cannot return — DescribeServices only
    * reports the deployments that are still active.
    */
-  deploymentHistory: publicProcedure
+  deploymentHistory: awsProcedure
     .input(
       clusterInput.extend({
         service: z.string().min(1),
@@ -119,7 +118,7 @@ export const ecsRouter = router({
    * it polls faster during a rollout and touches a different AWS API — a
    * missing elasticloadbalancing permission shouldn't blank the service page.
    */
-  targetHealth: publicProcedure
+  targetHealth: awsProcedure
     .input(clusterInput.extend({ service: z.string().min(1) }))
     .query(({ input }) =>
       guard(async () => {
@@ -130,11 +129,11 @@ export const ecsRouter = router({
     ),
 
   /** Where each container in a task definition writes its logs. */
-  logConfig: publicProcedure
+  logConfig: awsProcedure
     .input(scopeInput.extend({ taskDefinition: z.string().min(1) }))
     .query(({ input }) => guard(() => taskDefinitionLogConfigs(input, input.taskDefinition))),
 
-  logs: publicProcedure
+  logs: awsProcedure
     .input(
       scopeInput.extend({
         logGroup: z.string().min(1),

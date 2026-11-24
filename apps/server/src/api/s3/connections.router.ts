@@ -17,7 +17,8 @@ import {
 } from "@faws/core";
 
 import { createLogger } from "../../shared/logger.ts";
-import { guard, publicProcedure, router } from "../../trpc/index.ts";
+import { guard, router } from "../../trpc/index.ts";
+import { s3EndpointsProcedure } from "../../trpc/providers.ts";
 
 const log = createLogger("s3-connections");
 
@@ -28,9 +29,9 @@ export const s3ConnectionsRouter = router({
    * The half that proves the key is never part of this: a form needs to say
    * "this endpoint signs as AKIA..." and nothing more.
    */
-  credentials: publicProcedure.query(() => guard(() => credentialStore().summaries())),
+  credentials: s3EndpointsProcedure.query(() => guard(() => credentialStore().summaries())),
 
-  save: publicProcedure
+  save: s3EndpointsProcedure
     .meta({ effect: "local" })
     .input(s3ConnectionInputSchema)
     .mutation(({ input }) =>
@@ -47,7 +48,7 @@ export const s3ConnectionsRouter = router({
       }),
     ),
 
-  remove: publicProcedure
+  remove: s3EndpointsProcedure
     .meta({ effect: "local" })
     .input(s3ConnectionRefSchema)
     .mutation(({ input }) =>
@@ -65,7 +66,7 @@ export const s3ConnectionsRouter = router({
    * what an operator needs in front of them to decide between adding a CA,
    * pinning this one certificate, and turning verification off.
    */
-  test: publicProcedure
+  test: s3EndpointsProcedure
     .meta({ effect: "local" })
     .input(s3ConnectionInputSchema)
     .mutation(({ input }) => guard(() => probeConnection(input))),

@@ -13,7 +13,8 @@ import { stopTaskSchema, updateServiceSchema } from "@faws/contracts";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { publicProcedure, router, scopeInput } from "../../trpc/index.ts";
+import { router, scopeInput } from "../../trpc/index.ts";
+import { awsProcedure } from "../../trpc/providers.ts";
 
 function notImplemented(operation: string): never {
   throw new TRPCError({
@@ -23,21 +24,21 @@ function notImplemented(operation: string): never {
 }
 
 export const ecsActionsRouter = router({
-  updateService: publicProcedure
+  updateService: awsProcedure
     .meta({ effect: "write", operation: "ecs:UpdateService" })
     .input(scopeInput.and(updateServiceSchema))
     .mutation(() => {
       notImplemented("Update service");
     }),
 
-  stopTask: publicProcedure
+  stopTask: awsProcedure
     .meta({ effect: "destructive", operation: "ecs:StopTask" })
     .input(scopeInput.and(stopTaskSchema))
     .mutation(() => {
       notImplemented("Stop task");
     }),
 
-  registerTaskDefinition: publicProcedure
+  registerTaskDefinition: awsProcedure
     .meta({ effect: "write", operation: "ecs:RegisterTaskDefinition" })
     .input(scopeInput.extend({ taskDefinitionJson: z.string().min(1) }))
     .mutation(() => {

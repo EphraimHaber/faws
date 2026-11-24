@@ -71,3 +71,25 @@ export class ReadOnlyModeError extends DomainError {
     return { reason: this.reason };
   }
 }
+
+/**
+ * Raised when something asks a provider the user has switched off.
+ *
+ * A precondition rather than a permission: nothing is wrong with the request,
+ * only with the moment, and the fix is one switch in Settings.
+ */
+export class ProviderDisabledError extends DomainError {
+  readonly kind = "ProviderDisabledError";
+  readonly status = "PRECONDITION_FAILED";
+  readonly provider: string;
+
+  constructor(provider: string, label: string = provider) {
+    super(`${label} is switched off. Turn it on in Settings to use it.`);
+    this.name = "ProviderDisabledError";
+    this.provider = provider;
+  }
+
+  protected override details() {
+    return { provider: this.provider };
+  }
+}

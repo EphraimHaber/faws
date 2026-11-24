@@ -17,7 +17,8 @@ import { kubeContextSchema, kubeLabelSchema } from "@faws/contracts";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { publicProcedure, router } from "../../trpc/index.ts";
+import { router } from "../../trpc/index.ts";
+import { kubernetesProcedure } from "../../trpc/providers.ts";
 import { isExecSessionError } from "../exec/errors.ts";
 import { kubeDiagnostics } from "./diagnostics.ts";
 import { listKubeContexts } from "./kubeconfig.ts";
@@ -30,7 +31,7 @@ const contextInput = z.object({ context: kubeContextSchema });
 const scopeInput = contextInput.extend({ namespace: kubeLabelSchema });
 
 export const kubeRouter = router({
-  diagnostics: publicProcedure
+  diagnostics: kubernetesProcedure
     .input(z.object({ context: kubeContextSchema.optional() }).default({}))
     .query(({ input, signal }) =>
       kubeDiagnostics({
@@ -39,25 +40,25 @@ export const kubeRouter = router({
       }),
     ),
 
-  contexts: publicProcedure.query(({ signal }) =>
+  contexts: kubernetesProcedure.query(({ signal }) =>
     kube(() => listKubeContexts(signal ? { signal } : {})),
   ),
 
-  capabilities: publicProcedure
+  capabilities: kubernetesProcedure
     .input(contextInput)
     .query(({ input, signal }) => probeCapabilities(input.context, signal ? { signal } : {})),
 
-  namespaces: publicProcedure
+  namespaces: kubernetesProcedure
     .input(contextInput)
     .query(({ input, signal }) =>
       kube(() => listNamespaces(input.context, signal ? { signal } : {})),
     ),
 
-  pods: publicProcedure
+  pods: kubernetesProcedure
     .input(scopeInput)
     .query(({ input, signal }) => kube(() => listPods(input, signal ? { signal } : {}))),
 
-  virtualMachines: publicProcedure
+  virtualMachines: kubernetesProcedure
     .input(scopeInput)
     .query(({ input, signal }) => kube(() => listVirtualMachines(input, signal ? { signal } : {}))),
 });

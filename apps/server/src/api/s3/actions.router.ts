@@ -34,7 +34,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { createLogger } from "../../shared/logger.ts";
-import { guard, publicProcedure, router } from "../../trpc/index.ts";
+import { guard, router } from "../../trpc/index.ts";
+import { storageProcedure } from "../../trpc/providers.ts";
 import { closeUpload, discardUpload, findUpload, openUpload } from "./uploads.ts";
 
 const log = createLogger("s3-actions");
@@ -53,7 +54,7 @@ export const s3ActionsRouter = router({
    * one: "delete everything under here" is the operation people most want a
    * number in front of.
    */
-  dryRunDelete: publicProcedure
+  dryRunDelete: storageProcedure
     .input(s3ScopeSchema.extend({ bucket: z.string().min(1), prefix: z.string().max(1024) }))
     .query(({ input }) =>
       guard(async () => {
@@ -81,7 +82,7 @@ export const s3ActionsRouter = router({
       }),
     ),
 
-  createUpload: publicProcedure
+  createUpload: storageProcedure
     .meta({ effect: "write", operation: "s3:PutObject" })
     .input(s3ScopeSchema.and(s3CreateUploadSchema))
     .mutation(({ input }) =>
@@ -134,7 +135,7 @@ export const s3ActionsRouter = router({
    * useful for as long as it is valid, and a large upload outlives the URLs it
    * would have been given up front.
    */
-  presignPart: publicProcedure
+  presignPart: storageProcedure
     .meta({ effect: "write", operation: "s3:UploadPart" })
     .input(s3PresignPartSchema)
     .mutation(({ input }) =>
@@ -153,7 +154,7 @@ export const s3ActionsRouter = router({
       }),
     ),
 
-  completeUpload: publicProcedure
+  completeUpload: storageProcedure
     .meta({ effect: "write", operation: "s3:CompleteMultipartUpload" })
     .input(s3CompleteUploadSchema)
     .mutation(({ input }) =>
@@ -180,7 +181,7 @@ export const s3ActionsRouter = router({
       }),
     ),
 
-  abortUpload: publicProcedure
+  abortUpload: storageProcedure
     .meta({ effect: "write", operation: "s3:AbortMultipartUpload" })
     .input(s3AbortUploadSchema)
     .mutation(({ input }) =>
@@ -190,7 +191,7 @@ export const s3ActionsRouter = router({
       }),
     ),
 
-  deleteObjects: publicProcedure
+  deleteObjects: storageProcedure
     .meta({ effect: "destructive", operation: "s3:DeleteObjects" })
     .input(s3ScopeSchema.and(s3DeleteObjectsSchema))
     .mutation(({ input }) =>
@@ -213,7 +214,7 @@ export const s3ActionsRouter = router({
       }),
     ),
 
-  copyObject: publicProcedure
+  copyObject: storageProcedure
     .meta({ effect: "write", operation: "s3:CopyObject" })
     .input(s3ScopeSchema.and(s3CopyObjectSchema))
     .mutation(({ input }) =>
@@ -232,14 +233,14 @@ export const s3ActionsRouter = router({
       }),
     ),
 
-  createPrefix: publicProcedure
+  createPrefix: storageProcedure
     .meta({ effect: "write", operation: "s3:PutObject (prefix)" })
     .input(s3ScopeSchema.and(s3CreatePrefixSchema))
     .mutation(({ input }) =>
       guard(() => createPrefix(input, { bucket: input.bucket, prefix: input.prefix })),
     ),
 
-  putTags: publicProcedure
+  putTags: storageProcedure
     .meta({ effect: "write", operation: "s3:PutObjectTagging" })
     .input(s3ScopeSchema.and(s3PutTagsSchema))
     .mutation(({ input }) =>

@@ -11,16 +11,17 @@ import { z } from "zod";
 
 import { emitWriteModeChanged } from "../../shared/socket-io.ts";
 import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
+import { awsProcedure } from "../../trpc/providers.ts";
 
 export const awsRouter = router({
   /** Profiles from ~/.aws/config + ~/.aws/credentials, for the Ctrl+P picker. */
-  profiles: publicProcedure.query(() => guard(() => listProfiles())),
+  profiles: awsProcedure.query(() => guard(() => listProfiles())),
 
-  defaultRegion: publicProcedure
+  defaultRegion: awsProcedure
     .input(scopeInput.pick({ profile: true }))
     .query(({ input }) => guard(() => defaultRegionFor(input.profile))),
 
-  whoami: publicProcedure.input(scopeInput).query(({ input }) => guard(() => whoami(input))),
+  whoami: awsProcedure.input(scopeInput).query(({ input }) => guard(() => whoami(input))),
 
   /**
    * The two switches in front of every mutation, app wide rather than per
@@ -45,7 +46,7 @@ export const awsRouter = router({
     }),
 
   /** Forces the next call to re-resolve credentials (post SSO login, etc). */
-  refreshCredentials: publicProcedure
+  refreshCredentials: awsProcedure
     .meta({ effect: "local" })
     .input(scopeInput)
     .mutation(({ input }) => {

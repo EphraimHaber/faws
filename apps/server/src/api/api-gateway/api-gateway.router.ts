@@ -21,36 +21,35 @@ import {
 } from "@faws/core";
 import { z } from "zod";
 
-import { guard, publicProcedure, router, scopeInput } from "../../trpc/index.ts";
+import { guard, router, scopeInput } from "../../trpc/index.ts";
+import { awsProcedure } from "../../trpc/providers.ts";
 
 const restApiInput = scopeInput.extend({ apiId: z.string().min(1).max(64) });
 
 export const apiGatewayRouter = router({
-  restApis: publicProcedure
-    .input(scopeInput)
-    .query(({ input }) => guard(() => listRestApis(input))),
+  restApis: awsProcedure.input(scopeInput).query(({ input }) => guard(() => listRestApis(input))),
 
-  restApi: publicProcedure
+  restApi: awsProcedure
     .input(restApiInput)
     .query(({ input }) => guard(() => getRestApi(input, input.apiId))),
 
-  resources: publicProcedure
+  resources: awsProcedure
     .input(restApiInput)
     .query(({ input }) => guard(() => listResources(input, input.apiId))),
 
-  stages: publicProcedure
+  stages: awsProcedure
     .input(restApiInput)
     .query(({ input }) => guard(() => listStages(input, input.apiId))),
 
-  deployments: publicProcedure
+  deployments: awsProcedure
     .input(restApiInput)
     .query(({ input }) => guard(() => listDeployments(input, input.apiId))),
 
-  authorizers: publicProcedure
+  authorizers: awsProcedure
     .input(restApiInput)
     .query(({ input }) => guard(() => listAuthorizers(input, input.apiId))),
 
-  export: publicProcedure
+  export: awsProcedure
     .input(
       restApiInput.extend({
         stageName: z.string().min(1).max(128),
@@ -61,11 +60,11 @@ export const apiGatewayRouter = router({
       guard(() => exportApi(input, input.apiId, input.stageName, input.format)),
     ),
 
-  domainNames: publicProcedure
+  domainNames: awsProcedure
     .input(scopeInput)
     .query(({ input }) => guard(() => listDomainNames(input))),
 
-  basePathMappings: publicProcedure
+  basePathMappings: awsProcedure
     .input(
       scopeInput.extend({
         domainName: z.string().min(1).max(253),
@@ -76,17 +75,17 @@ export const apiGatewayRouter = router({
       guard(() => listBasePathMappings(input, input.domainName, input.domainNameId)),
     ),
 
-  usagePlans: publicProcedure
+  usagePlans: awsProcedure
     .input(scopeInput)
     .query(({ input }) => guard(() => listUsagePlans(input))),
 
-  usagePlanKeys: publicProcedure
+  usagePlanKeys: awsProcedure
     .input(scopeInput.extend({ usagePlanId: z.string().min(1).max(64) }))
     .query(({ input }) => guard(() => listUsagePlanKeys(input, input.usagePlanId))),
 
-  apiKeys: publicProcedure.input(scopeInput).query(({ input }) => guard(() => listApiKeys(input))),
+  apiKeys: awsProcedure.input(scopeInput).query(({ input }) => guard(() => listApiKeys(input))),
 
-  account: publicProcedure
+  account: awsProcedure
     .input(scopeInput)
     .query(({ input }) => guard(() => getApiGatewayAccount(input))),
 });

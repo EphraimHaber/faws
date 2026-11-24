@@ -8,19 +8,25 @@ import { WriteModePill } from "~/components/WriteModePill";
 import { Kbd } from "~/components/ui/kbd";
 import { useTheme } from "~/contexts/ThemeContext";
 import { serviceForPath } from "~/services/registry";
+import { useProviderEnabled } from "~/stores/scope";
 
 /**
- * Title bar: identity on the left, AWS context on the right.
+ * Title bar: identity on the left, what you are pointed at on the right.
  *
  * e1s answers "which account am I about to change?" in a footer line. Putting
- * account, profile and region in the title bar — always, in one place — is the
- * single biggest safety win a GUI gets over the TUI.
+ * account, profile and region in the title bar is the single biggest safety
+ * win a GUI gets over the TUI - so they are there on every AWS page and on the
+ * app's own pages, and nowhere a provider other than AWS is in view, where
+ * they would answer a question nobody asked.
  */
 export function AppHeader({ onOpenPalette }: { onOpenPalette: () => void }) {
   const { theme, toggle } = useTheme();
   const { location } = useRouterState();
   // Which section is open, so the wordmark on an S3 page does not say "ecs".
   const service = serviceForPath(location.pathname);
+  const awsEnabled = useProviderEnabled("aws");
+  const owner = service?.owner ?? "host";
+  const showAws = awsEnabled && (owner === "aws" || owner === "host");
 
   return (
     <header className="drag-region titlebar-inset z-30 flex h-12 shrink-0 items-center gap-3 border-b border-border bg-chrome px-4 whitespace-nowrap lg:gap-5">
@@ -29,7 +35,7 @@ export function AppHeader({ onOpenPalette }: { onOpenPalette: () => void }) {
         <span className="flex items-baseline gap-1.5 leading-none">
           <span className="text-[15px] font-semibold tracking-tight text-foreground">faws</span>
           <span className="font-mono text-[9px] tracking-[0.3em] text-muted-foreground uppercase">
-            {service?.id ?? "aws"}
+            {service?.id ?? "ops"}
           </span>
         </span>
       </Link>
@@ -55,10 +61,14 @@ export function AppHeader({ onOpenPalette }: { onOpenPalette: () => void }) {
           <Kbd>⌘K</Kbd>
         </button>
         <span aria-hidden className="h-3.5 w-px bg-border" />
-        <AccountChip />
-        <span aria-hidden className="h-3.5 w-px bg-border" />
-        <RegionPicker />
-        <span aria-hidden className="h-3.5 w-px bg-border" />
+        {showAws ? (
+          <>
+            <AccountChip />
+            <span aria-hidden className="h-3.5 w-px bg-border" />
+            <RegionPicker />
+            <span aria-hidden className="h-3.5 w-px bg-border" />
+          </>
+        ) : null}
         <WriteModePill />
         <button
           type="button"

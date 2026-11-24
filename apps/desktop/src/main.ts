@@ -21,6 +21,7 @@ import {
 } from "electron";
 
 import { parseBackendPort } from "./backendPort.ts";
+import { DEFAULT_NAV, type NavMenuItem, navMenuItems, sanitizeNavItems } from "./menu.ts";
 
 const isDevelopment = Boolean(process.env["VITE_DEV_SERVER_URL"]);
 const VITE_DEV_URL = process.env["VITE_DEV_SERVER_URL"] ?? "";
@@ -133,6 +134,9 @@ async function navigate(target: string): Promise<void> {
   }
 }
 
+/** What the renderer last said the View menu should offer. */
+let navItems: ReadonlyArray<NavMenuItem> = DEFAULT_NAV;
+
 function buildMenu(): void {
   const isMac = process.platform === "darwin";
   const template: MenuItemConstructorOptions[] = [
@@ -141,33 +145,7 @@ function buildMenu(): void {
     {
       label: "View",
       submenu: [
-        { label: "Overview", accelerator: "CmdOrCtrl+0", click: () => void navigate("/") },
-        {
-          label: "Clusters",
-          accelerator: "CmdOrCtrl+1",
-          click: () => void navigate("/ecs/clusters"),
-        },
-        {
-          label: "Recently deployed",
-          accelerator: "CmdOrCtrl+2",
-          click: () => void navigate("/ecs/deployments"),
-        },
-        {
-          label: "Task definitions",
-          accelerator: "CmdOrCtrl+3",
-          click: () => void navigate("/ecs/task-definitions"),
-        },
-        {
-          label: "Buckets",
-          accelerator: "CmdOrCtrl+4",
-          click: () => void navigate("/s3/buckets"),
-        },
-        {
-          label: "Instances",
-          accelerator: "CmdOrCtrl+5",
-          click: () => void navigate("/ec2/instances"),
-        },
-        { label: "Diagnostics", accelerator: "CmdOrCtrl+6", click: () => void navigate("/logs") },
+        ...navMenuItems(navItems, (target) => void navigate(target)),
         { type: "separator" },
         { role: "reload" },
         { role: "toggleDevTools" },
@@ -193,6 +171,10 @@ function buildMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+ipcMain.on("faws:set-nav", (_event, raw: unknown) => {
+  navItems = sanitizeNavItems(raw);
+  buildMenu();
+});
 ipcMain.handle("faws:open-log-file", () => shell.openPath(logFilePath()));
 ipcMain.handle("faws:show-log-dir", () => {
   const file = logFilePath();
