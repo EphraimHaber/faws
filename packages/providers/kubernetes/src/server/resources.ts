@@ -1,11 +1,13 @@
 /**
  * What a context can be asked about, flattened for the tables that read it.
  *
- * Every call here is `kubectl get ... -o json` through `runKubeJson`, for the
- * reason `binaries.ts` states at length: the tool that will run the shell is
- * the tool that should answer whether the shell can run. A client library with
- * a different set of supported authentications would list pods this app then
- * could not reach, which is the worst failure this feature can have.
+ * A context whose credentials faws can present itself (a bearer token or a
+ * client certificate) is read in process through `nativeReads.ts`, which
+ * saves a process spawn and a CLI start per list. Every other context, the
+ * ones that run an exec plugin or an auth provider, is read with
+ * `kubectl get ... -o json` (or `oc`), so a context is only ever listed by
+ * something that supports exactly how it authenticates. Both paths produce
+ * the same raw JSON and the same errors.
  *
  * The flattening happens here rather than in the components, matching `s3.ts`
  * and `ExecInstanceTarget`: a pod's readiness lives in three places at once -
@@ -28,6 +30,7 @@ import { KubeUnauthorizedError } from "./errors.ts";
 import { kubeScopeFlags } from "./exec/argv.ts";
 import { isUnauthorizedOutput, translateKubeError } from "./exec/translate.ts";
 import { assertKnownContext, pinnedKubeconfig } from "./kubeconfig.ts";
+import { type NativeList, type NativeReader, nativeReaderFor } from "./nativeReads.ts";
 
 export interface KubeScope {
   readonly context: string;
@@ -69,10 +72,31 @@ async function args(
   context: string,
   namespace: string | null,
   signal: AbortSignal | undefined,
-): Promise<{ file: string; prefix: string[]; target: KubeContextInfo }> {
+): Promise<ReadScope> {
   const { file, kubeconfig } = reader();
   const target = await assertKnownContext(context, signal ? { signal } : {});
-  return { file, prefix: kubeScopeFlags({ kubeconfig, context, namespace }), target };
+  return {
+    file,
+    prefix: kubeScopeFlags({ kubeconfig, context, namespace }),
+    target,
+    native: nativeReaderFor(target),
+    ...(signal ? { signal } : {}),
+  };
+}
+
+interface ReadScope {
+  readonly file: string;
+  readonly prefix: string[];
+  readonly target: KubeContextInfo;
+  /** Set when the context's credentials can be presented in process; the CLI reads otherwise. */
+  readonly native: NativeReader | null;
+  readonly signal?: AbortSignal;
+}
+
+/** One list, in process when the context allows it and through the CLI otherwise. */
+async function read<T>(scope: ReadScope, native: NativeList, argv: readonly string[]): Promise<T> {
+  if (scope.native) return (await scope.native.list(native, scope.signal)) as T;
+  return get<T>(scope.target, scope.file, [...scope.prefix, ...argv], scope.signal);
 }
 
 interface ListOf<T> {
@@ -88,13 +112,12 @@ export async function listNamespaces(
   context: string,
   options: { signal?: AbortSignal } = {},
 ): Promise<readonly KubeNamespaceInfo[]> {
-  const { file, prefix, target } = await args(context, null, options.signal);
-  const list = await get<ListOf<RawNamespace>>(
-    target,
-    file,
-    [...prefix, "get", "namespaces", "--output=json"],
-    options.signal,
-  );
+  const scope = await args(context, null, options.signal);
+  const list = await read<ListOf<RawNamespace>>(scope, { kind: "namespaces" }, [
+    "get",
+    "namespaces",
+    "--output=json",
+  ]);
   return (list.items ?? [])
     .filter((item) => typeof item.metadata?.name === "string")
     .map<KubeNamespaceInfo>((item) => ({
@@ -134,13 +157,12 @@ export async function listPods(
   scope: KubeScope,
   options: { signal?: AbortSignal } = {},
 ): Promise<readonly KubePodInfo[]> {
-  const { file, prefix, target } = await args(scope.context, scope.namespace, options.signal);
-  const list = await get<ListOf<RawPod>>(
-    target,
-    file,
-    [...prefix, "get", "pods", "--output=json"],
-    options.signal,
-  );
+  const reading = await args(scope.context, scope.namespace, options.signal);
+  const list = await read<ListOf<RawPod>>(reading, { kind: "pods", namespace: scope.namespace }, [
+    "get",
+    "pods",
+    "--output=json",
+  ]);
   return (list.items ?? [])
     .filter((item) => typeof item.metadata?.name === "string")
     .map((item) => toPod(item, scope.namespace));
@@ -215,19 +237,23 @@ export async function listVirtualMachines(
   scope: KubeScope,
   options: { signal?: AbortSignal } = {},
 ): Promise<readonly KubeVirtualMachineInfo[]> {
-  const { file, prefix, target } = await args(scope.context, scope.namespace, options.signal);
+  const reading = await args(scope.context, scope.namespace, options.signal);
+  const kubevirt = {
+    kind: "custom",
+    group: "kubevirt.io",
+    version: "v1",
+    namespace: scope.namespace,
+  } as const;
 
-  const machines = await get<ListOf<RawVirtualMachine>>(
-    target,
-    file,
-    [...prefix, "get", "virtualmachines.kubevirt.io", "--output=json"],
-    options.signal,
+  const machines = await read<ListOf<RawVirtualMachine>>(
+    reading,
+    { ...kubevirt, plural: "virtualmachines" },
+    ["get", "virtualmachines.kubevirt.io", "--output=json"],
   );
-  const instances = await get<ListOf<RawVirtualMachineInstance>>(
-    target,
-    file,
-    [...prefix, "get", "virtualmachineinstances.kubevirt.io", "--output=json"],
-    options.signal,
+  const instances = await read<ListOf<RawVirtualMachineInstance>>(
+    reading,
+    { ...kubevirt, plural: "virtualmachineinstances" },
+    ["get", "virtualmachineinstances.kubevirt.io", "--output=json"],
   );
 
   const running = new Map(
@@ -274,7 +300,14 @@ export async function probeCapabilities(
   options: { signal?: AbortSignal } = {},
 ): Promise<KubeCapabilities> {
   try {
-    const { file, prefix } = await args(context, null, options.signal);
+    const { file, prefix, native } = await args(context, null, options.signal);
+    if (native) {
+      const groups = await native.apiGroups(options.signal);
+      return {
+        openShift: groups.some((group) => group.endsWith(".openshift.io")),
+        kubeVirt: groups.includes("kubevirt.io"),
+      };
+    }
     const names = await runKubeText(
       file,
       [...prefix, "api-resources", "--output=name"],
