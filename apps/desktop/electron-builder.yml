@@ -25,6 +25,7 @@ extraResources:
     filter: ["**/*", "!**/*.map"]
 
 mac:
+  icon: build/icon.png
   category: public.app-category.developer-tools
   target:
     - target: dmg
@@ -32,12 +33,14 @@ mac:
   artifactName: "${productName}-${version}-${arch}.${ext}"
 
 linux:
+  icon: build/icon.png
   category: Development
   target:
     - target: AppImage
       arch: [x64]
 
 win:
+  icon: build/icon.png
   target:
     - target: nsis
       arch: [x64]
