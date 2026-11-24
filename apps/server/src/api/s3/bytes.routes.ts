@@ -98,7 +98,7 @@ export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
    * POST rather than PUT so the allowed method list stays as it is: opening a
    * write method across the origin policy buys nothing here.
    */
-  server.post("/s3/upload", async (request: FastifyRequest, reply: FastifyReply) => {
+  server.post("/api/storage/upload", async (request: FastifyRequest, reply: FastifyReply) => {
     const parsed = uploadQuery.safeParse(request.query);
     if (!parsed.success) {
       return reply.status(400).send({ error: "BadRequest", message: parsed.error.message });
@@ -162,7 +162,7 @@ export async function s3BytesRoutes(server: FastifyInstance): Promise<void> {
     }
   });
 
-  server.get("/s3/object", async (request: FastifyRequest, reply: FastifyReply) => {
+  server.get("/api/storage/object", async (request: FastifyRequest, reply: FastifyReply) => {
     const parsed = objectQuery.safeParse(request.query);
     if (!parsed.success) {
       return reply.status(400).send({ error: "BadRequest", message: parsed.error.message });

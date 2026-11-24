@@ -149,7 +149,7 @@ export function uploadFile(input: {
 }
 
 function proxyUrl(uploadToken: string, partNumber: number | null): string {
-  const url = new URL("/s3/upload", resolveServerOrigin());
+  const url = new URL("/api/storage/upload", resolveServerOrigin());
   url.searchParams.set("uploadToken", uploadToken);
   if (partNumber !== null) url.searchParams.set("partNumber", String(partNumber));
   return url.toString();

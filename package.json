@@ -16,12 +16,15 @@
     "test": "turbo run test",
     "lint": "oxlint --report-unused-disable-directives",
     "check:catalog": "node scripts/check-catalog.mjs",
+    "check:deps": "depcruise apps packages --output-type err",
     "fmt": "oxfmt '**/*.{ts,tsx,css}'",
     "fmt:check": "oxfmt --check '**/*.{ts,tsx,css}'",
     "clean:manual": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/dist apps/*/dist-electron packages/*/dist .turbo apps/*/.turbo packages/*/.turbo"
   },
   "devDependencies": {
+    "@swc/core": "catalog:build",
     "@types/node": "catalog:build",
+    "dependency-cruiser": "catalog:build",
     "oxfmt": "catalog:build",
     "oxlint": "catalog:build",
     "turbo": "catalog:build",

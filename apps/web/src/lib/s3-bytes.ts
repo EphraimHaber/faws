@@ -20,7 +20,7 @@ export function objectUrl(
   ref: ObjectRef,
   options: { disposition?: "inline" | "attachment"; raw?: boolean } = {},
 ): string {
-  const url = new URL("/s3/object", resolveServerOrigin());
+  const url = new URL("/api/storage/object", resolveServerOrigin());
   url.searchParams.set("profile", scope.profile);
   url.searchParams.set("region", scope.region);
   if (scope.connectionId) url.searchParams.set("connectionId", scope.connectionId);

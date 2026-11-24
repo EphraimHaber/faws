@@ -1,0 +1,61 @@
+# Every push to master and every pull request: the same checks a release
+# depends on, in the order that fails cheapest first.
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Nothing here launches Electron; the binary is only needed to package.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      TURBO_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v5
+
+      # Node and pnpm at the versions .mise.toml pins, so CI and a laptop agree.
+      - uses: jdx/mise-action@v3
+        with:
+          cache: true
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Dependencies come from catalogs
+        run: pnpm check:catalog
+
+      - name: Format
+        run: pnpm fmt:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Module boundaries
+        run: pnpm check:deps
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

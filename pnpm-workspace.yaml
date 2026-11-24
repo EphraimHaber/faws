@@ -15,6 +15,9 @@ allowBuilds:
   # Windows installer toolchain; its postinstall is irrelevant here.
   electron-winstaller: false
   esbuild: true
+  # Its postinstall only double-checks the platform binary, which arrives as an
+  # optional dependency either way. Used by dependency-cruiser, never shipped.
+  "@swc/core": false
 
 # Every external dependency is declared here once and referenced as
 # `catalog:` or `catalog:<family>`; scripts/check-catalog.mjs fails CI on
@@ -88,6 +91,8 @@ catalogs:
     "@tailwindcss/vite": ^4.0.0
     "@types/node": ^24.10.13
     "@vitejs/plugin-react": ^6.1.1
+    "@swc/core": ^1.16.22
+    dependency-cruiser: ^18.9.0
     oxfmt: ^0.68.0
     oxlint: ^1.55.0
     tailwindcss: ^4.0.0

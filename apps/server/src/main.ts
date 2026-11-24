@@ -137,8 +137,11 @@ if (webDist) {
       reply.type("text/html").send(await renderIndex(settingsStore().get().settings));
 
     server.get("/", (_request, reply) => sendShell(reply));
+    // Only the server's own namespaces answer 404. Everything else is a page
+    // of the web app, so a reload or a deep link gets the shell; that is why
+    // byte routes live under `/api/` rather than beside the pages they serve.
     server.setNotFoundHandler((request, reply) => {
-      if (request.url.startsWith("/trpc") || request.url.startsWith("/s3/")) {
+      if (request.url.startsWith("/trpc") || request.url.startsWith("/api/")) {
         return reply.status(404).send({ error: "Not Found", message: request.url });
       }
       return sendShell(reply);
