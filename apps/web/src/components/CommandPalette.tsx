@@ -134,7 +134,7 @@ function PaletteBody({
       },
       ...refEntries(pinned, "pinned", go),
       ...refEntries(recent, "recent", go),
-      ...navEntries(go, { kubeVirt }),
+      ...navEntries(go, { kubernetes: { kubevirt: kubeVirt } }),
       ...shellEntries(go, { diagnostics: ScrollText, settings: Settings2 }),
     ];
 

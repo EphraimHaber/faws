@@ -10,11 +10,11 @@ import {
   type PaletteEntry,
 } from "./CommandPalette.entries.ts";
 import { rankBy } from "~/lib/rank";
-import { AWS_SERVICES } from "~/services/registry";
+import { SERVICES } from "~/services/registry";
 
-const icons = { diagnostics: AWS_SERVICES[0].icon, settings: AWS_SERVICES[0].icon };
+const icons = { diagnostics: SERVICES[0].icon, settings: SERVICES[0].icon };
 
-const EVERYTHING = { kubeVirt: true };
+const EVERYTHING = { kubernetes: { kubevirt: true } };
 
 function allEntries(navigate = () => {}): PaletteEntry[] {
   return [...navEntries(navigate, EVERYTHING), ...shellEntries(navigate, icons)];
@@ -23,7 +23,7 @@ function allEntries(navigate = () => {}): PaletteEntry[] {
 describe("navEntries", () => {
   it("offers every available service and its sections", () => {
     const ids = new Set(allEntries().map((entry) => entry.id));
-    for (const service of AWS_SERVICES) {
+    for (const service of SERVICES) {
       if (service.status !== "available") continue;
       expect(ids.has(`nav:${service.id}`)).toBe(true);
       for (const section of service.sections) {
@@ -39,7 +39,7 @@ describe("navEntries", () => {
 
   it("leaves out services that are only planned", () => {
     const ids = allEntries().map((entry) => entry.id);
-    for (const service of AWS_SERVICES) {
+    for (const service of SERVICES) {
       if (service.status === "available") continue;
       expect(ids).not.toContain(`nav:${service.id}`);
     }
@@ -68,10 +68,14 @@ describe("navEntries", () => {
 
   it("offers Virtual machines only on a cluster that has KubeVirt, as the sidebar does", () => {
     const id = "nav:kubernetes:virtual-machines";
-    const without = navEntries(() => {}, { kubeVirt: false }).map((entry) => entry.id);
+    const without = navEntries(() => {}, { kubernetes: { kubevirt: false } }).map(
+      (entry) => entry.id,
+    );
     expect(without).not.toContain(id);
     expect(without).toContain("nav:kubernetes:workloads");
-    expect(navEntries(() => {}, { kubeVirt: true }).map((entry) => entry.id)).toContain(id);
+    expect(
+      navEntries(() => {}, { kubernetes: { kubevirt: true } }).map((entry) => entry.id),
+    ).toContain(id);
   });
 });
 

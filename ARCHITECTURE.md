@@ -43,9 +43,8 @@ The app is moving from "an AWS console with extras" to **providers and capabilit
 - **Capability.** A cross-provider interface such as `objectStorage`, `logs`, `terminal` or `workloads`. Generic UI is written once against a capability. For example, one bucket browser serves both AWS S3 and MinIO.
 - **Connection.** Where a provider points: an AWS profile and region, a kube context and namespace, or an S3 endpoint. Each provider has an active connection, stored as its scope.
 
-The planned packages are:
-- `packages/lib-aws` and `packages/lib-s3`: engines with no UI.
-- `packages/providers/{aws,kubernetes,s3compat}`: each with `./manifest`, `./contracts`, `./server` and `./web` subpaths.
+- `packages/providers/{aws,kubernetes,s3compat}` exist with a `./manifest` subpath: plain data (services, sections, capabilities, runtime defaults, icon names) built with `defineProvider`. `apps/web/src/services/registry.ts` derives the nav from them. Each provider will grow `./contracts`, `./server` and `./web` subpaths as its code moves in.
+- `packages/lib-aws` and `packages/lib-s3` (planned): engines with no UI, shared by providers.
 
 The boundary rules for them are already in `.dependency-cruiser.cjs`: providers never import each other, kit never imports providers, and web modules see server code as types only.
 

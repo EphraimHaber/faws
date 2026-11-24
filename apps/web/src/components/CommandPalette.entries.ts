@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { AWS_SERVICES, type NavCapabilities, visibleSections } from "~/services/registry";
+import { SERVICES, type NavRuntime, visibleSections } from "~/services/registry";
 
 /**
  * One row in the palette.
@@ -78,14 +78,11 @@ export function entryText(entry: PaletteEntry): ReadonlyArray<string> {
  * Planned services are left out. The sidebar lists them so the gap is known;
  * offering a jump to a page that does not exist is a different thing.
  */
-export function navEntries(
-  navigate: (to: string) => void,
-  capabilities: NavCapabilities,
-): PaletteEntry[] {
+export function navEntries(navigate: (to: string) => void, runtime: NavRuntime): PaletteEntry[] {
   const out: PaletteEntry[] = [
     {
       id: "nav:home",
-      icon: AWS_SERVICES[0].icon,
+      icon: SERVICES[0].icon,
       label: "Overview",
       hint: "account summary",
       keywords: ["home", "start", "dashboard"],
@@ -94,7 +91,7 @@ export function navEntries(
     },
   ];
 
-  for (const service of AWS_SERVICES) {
+  for (const service of SERVICES) {
     if (service.status !== "available") continue;
 
     out.push({
@@ -112,7 +109,7 @@ export function navEntries(
       run: () => navigate(service.basePath),
     });
 
-    for (const section of visibleSections(service, capabilities)) {
+    for (const section of visibleSections(service, runtime)) {
       const to = section.to ?? service.basePath;
       out.push({
         id: `nav:${service.id}:${section.id}`,

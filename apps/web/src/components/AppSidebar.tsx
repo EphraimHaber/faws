@@ -11,7 +11,13 @@ import { ResizeHandle } from "~/components/ui/resize-handle";
 import { SectionHeader } from "~/components/ui/section-header";
 import { StatusDot } from "~/components/ui/status-dot";
 import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "@faws/contracts";
-import { AWS_SERVICES, type AwsServiceDefinition, visibleSections } from "~/services/registry";
+import {
+  HOST_SERVICES,
+  type NavRuntime,
+  PROVIDERS,
+  type ServiceDefinition,
+  visibleSections,
+} from "~/services/registry";
 import { useAwsScope } from "~/contexts/ScopeContext";
 import { clusterRef } from "~/features/ecs/refs";
 import { useKubeDiagnostics } from "~/features/kube/useKubeDiagnostics";
@@ -43,6 +49,10 @@ export function AppSidebar() {
 
   const clusters = useQuery(trpc.ecs.clusters.queryOptions(scope));
   const kubeVirt = useKubeDiagnostics().data?.kubeVirt ?? false;
+  const runtime = React.useMemo<NavRuntime>(
+    () => ({ kubernetes: { kubevirt: kubeVirt } }),
+    [kubeVirt],
+  );
   // Both lists are scoped to the profile and region in view, so switching
   // account empties them rather than offering somewhere you cannot go.
   const pinned = usePinnedList(SIDEBAR_CAP);
@@ -88,33 +98,29 @@ export function AppSidebar() {
 
           <span aria-hidden className="mx-2 my-1.5 h-px bg-border" />
 
-          {AWS_SERVICES.map((service) =>
-            service.status === "available" ? (
-              <React.Fragment key={service.id}>
-                {/* The service root is its own destination - a card page naming
-                  what the section holds - so it gets a row above the sections
-                  rather than standing in for the first of them. */}
-                <NavLink
-                  to={service.basePath}
-                  icon={service.icon}
-                  label={service.label}
-                  active={location.pathname === service.basePath}
+          {PROVIDERS.map((provider) => (
+            <NavGroup key={provider.id} label={provider.label} icon={provider.icon}>
+              {provider.services.map((service) => (
+                <ServiceLinks
+                  key={service.id}
+                  service={service}
+                  runtime={runtime}
+                  pathname={location.pathname}
                 />
-                {visibleSections(service, { kubeVirt }).map((section) => (
-                  <NavLink
-                    key={`${service.id}:${section.id}`}
-                    to={section.to ?? service.basePath}
-                    icon={section.icon}
-                    label={section.label}
-                    indent
-                    active={location.pathname.startsWith(section.to ?? service.basePath)}
-                  />
-                ))}
-              </React.Fragment>
-            ) : (
-              <PlannedLink key={service.id} service={service} />
-            ),
-          )}
+              ))}
+            </NavGroup>
+          ))}
+
+          <NavGroup label="Workspace">
+            {HOST_SERVICES.map((service) => (
+              <ServiceLinks
+                key={service.id}
+                service={service}
+                runtime={runtime}
+                pathname={location.pathname}
+              />
+            ))}
+          </NavGroup>
 
           <span aria-hidden className="mx-2 my-1.5 h-px bg-border" />
 
@@ -288,10 +294,72 @@ function RefSection({
 }
 
 /**
+ * One provider's share of the rail, under its name.
+ *
+ * The heading is a label rather than a link: a provider is where its services
+ * come from, not a page of its own.
+ */
+function NavGroup({
+  label,
+  icon: Icon,
+  children,
+}: {
+  label: string;
+  icon?: LucideIcon;
+  children: React.ReactNode;
+}) {
+  return (
+    <div role="group" aria-label={label} className="flex flex-col gap-px pt-2 first:pt-0">
+      <span className="flex items-center gap-1.5 px-2 pb-1 font-mono text-[9.5px] tracking-[0.16em] text-muted-foreground/70 uppercase">
+        {Icon ? <Icon className="size-3" strokeWidth={1.8} aria-hidden /> : null}
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+/** A service's own row, and one row per section the connection in view can fill. */
+function ServiceLinks({
+  service,
+  runtime,
+  pathname,
+}: {
+  service: ServiceDefinition;
+  runtime: NavRuntime;
+  pathname: string;
+}) {
+  if (service.status !== "available") return <PlannedLink service={service} />;
+  return (
+    <>
+      {/* The service root is its own destination - a card page naming what
+          the section holds - so it gets a row above the sections rather than
+          standing in for the first of them. */}
+      <NavLink
+        to={service.basePath}
+        icon={service.icon}
+        label={service.label}
+        active={pathname === service.basePath}
+      />
+      {visibleSections(service, runtime).map((section) => (
+        <NavLink
+          key={`${service.id}:${section.id}`}
+          to={section.to ?? service.basePath}
+          icon={section.icon}
+          label={section.label}
+          indent
+          active={pathname.startsWith(section.to ?? service.basePath)}
+        />
+      ))}
+    </>
+  );
+}
+
+/**
  * Services faws doesn't cover yet are listed, not hidden: the gap between
  * "this tool can't do that" and "I can't find it" is worth a disabled row.
  */
-function PlannedLink({ service }: { service: AwsServiceDefinition }) {
+function PlannedLink({ service }: { service: ServiceDefinition }) {
   const Icon = service.icon;
   return (
     <span

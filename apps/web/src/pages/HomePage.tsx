@@ -21,7 +21,7 @@ import { deployedUntil } from "~/lib/deployment";
 import { serviceTone } from "~/lib/status";
 import { trpc } from "~/lib/trpc";
 import { HiddenCount, SilenceMenu } from "~/components/SilenceMenu";
-import { AWS_SERVICES, resolveService, type AwsServiceDefinition } from "~/services/registry";
+import { SERVICES, resolveService, type ServiceDefinition } from "~/services/registry";
 import { kindIcon } from "~/components/CommandPalette.entries";
 import {
   PIN_DROP_CLASS,
@@ -149,7 +149,7 @@ function ServiceSwitcher({
   active,
   onSelect,
 }: {
-  active: AwsServiceDefinition;
+  active: ServiceDefinition;
   onSelect: (id: string) => void;
 }) {
   return (
@@ -159,7 +159,7 @@ function ServiceSwitcher({
         aria-label="AWS service"
         className="grid gap-1 p-1.5 sm:grid-cols-3 lg:grid-cols-5"
       >
-        {AWS_SERVICES.map((service) => {
+        {SERVICES.map((service) => {
           const Icon = service.icon;
           const selected = service.id === active.id;
           return (
@@ -214,7 +214,7 @@ function ServiceSwitcher({
  * real contents, and the overview's job until one of them has numbers worth
  * putting here is to not be a dead end.
  */
-function AvailableService({ service }: { service: AwsServiceDefinition }) {
+function AvailableService({ service }: { service: ServiceDefinition }) {
   return (
     <Panel className="shrink-0">
       <PanelHeader>
@@ -250,7 +250,7 @@ function AvailableService({ service }: { service: AwsServiceDefinition }) {
  * A service faws will cover but doesn't yet. It names the work rather than
  * apologising, so the gap reads as unbuilt rather than broken.
  */
-function PlannedService({ service }: { service: AwsServiceDefinition }) {
+function PlannedService({ service }: { service: ServiceDefinition }) {
   return (
     <Panel className="shrink-0">
       <PanelHeader>

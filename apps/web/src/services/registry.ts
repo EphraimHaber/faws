@@ -1,246 +1,166 @@
-import {
-  Boxes,
-  Container,
-  Database,
-  FileJson,
-  Film,
-  FunctionSquare,
-  Gauge,
-  Globe,
-  HardDrive,
-  Inbox,
-  KeyRound,
-  Layers,
-  Monitor,
-  Network,
-  Plug,
-  Rocket,
-  ScrollText,
-  Server,
-  Ship,
-  TerminalSquare,
-  Waypoints,
-} from "lucide-react";
+import type { AnyProviderManifest, ProviderIdOf, ServiceManifest } from "@faws/kit";
+import { awsManifest } from "@faws/provider-aws/manifest";
+import { kubernetesManifest } from "@faws/provider-kubernetes/manifest";
+import { s3compatManifest } from "@faws/provider-s3compat/manifest";
 import type { LucideIcon } from "lucide-react";
 
+import { ICONS } from "~/providers/icons";
+
 /**
- * The AWS services faws knows about.
+ * Everything the app connects to, and the services each one offers.
  *
- * This is the seam the app is organised around: the sidebar, the command
- * palette and the breadcrumb trail all read it, so adding CloudWatch or S3
- * means adding an entry and a feature folder — not touching the shell.
- *
- * `planned` entries are listed deliberately rather than hidden: knowing what a
- * tool doesn't do yet is worth a disabled row.
+ * This is the seam the shell is organised around: the sidebar, the command
+ * palette, the breadcrumb trail and the front door all read it. It is derived
+ * from the provider manifests, so adding a service means adding it to its
+ * provider's manifest and a feature folder - not touching the shell.
  */
-export interface AwsServiceSection {
+const MANIFESTS = [awsManifest, kubernetesManifest, s3compatManifest] as const;
+
+export type ProviderId = ProviderIdOf<typeof MANIFESTS>;
+
+/** Who a service belongs to: a provider, or the app itself. */
+export type ServiceOwner = ProviderId | "host";
+
+export interface ServiceSection {
   readonly id: string;
   readonly label: string;
   readonly icon: LucideIcon;
   /** Route for this section; absent while planned. */
   readonly to?: string;
-  /**
-   * An add-on the cluster must have for this section to hold anything. Without
-   * it the page can only ever be empty, so the section is left out rather than
-   * offered.
-   */
-  readonly requires?: "kubevirt";
+  readonly requires?: (runtime: any) => boolean;
 }
 
-/** What the machine and the cluster in view turned out to have. */
-export interface NavCapabilities {
-  readonly kubeVirt: boolean;
-}
-
-/** The sections to offer, once what the cluster has is known. */
-export function visibleSections(
-  service: AwsServiceDefinition,
-  capabilities: NavCapabilities,
-): ReadonlyArray<AwsServiceSection> {
-  return service.sections.filter(
-    (section) => section.requires !== "kubevirt" || capabilities.kubeVirt,
-  );
-}
-
-export interface AwsServiceDefinition {
+export interface ServiceDefinition {
   readonly id: string;
-  /** Short name as AWS writes it. */
+  readonly owner: ServiceOwner;
+  /** Short name, as its provider writes it. */
   readonly label: string;
   readonly description: string;
   readonly icon: LucideIcon;
   readonly status: "available" | "planned";
   /** Root route; every section lives under it. */
   readonly basePath: string;
-  readonly sections: ReadonlyArray<AwsServiceSection>;
+  readonly sections: ReadonlyArray<ServiceSection>;
 }
 
+export interface ProviderDefinition {
+  readonly id: ProviderId;
+  readonly label: string;
+  readonly description: string;
+  readonly icon: LucideIcon;
+  readonly defaultEnabled: boolean;
+  readonly runtimeDefaults: object;
+  readonly services: ReadonlyArray<ServiceDefinition>;
+}
+
+function toService(owner: ServiceOwner, service: ServiceManifest<any>): ServiceDefinition {
+  return {
+    ...service,
+    owner,
+    icon: ICONS[service.icon],
+    sections: service.sections.map((section) => ({ ...section, icon: ICONS[section.icon] })),
+  };
+}
+
+function toProvider(manifest: AnyProviderManifest): ProviderDefinition {
+  return {
+    id: manifest.id as ProviderId,
+    label: manifest.label,
+    description: manifest.description,
+    icon: ICONS[manifest.icon],
+    defaultEnabled: manifest.defaultEnabled,
+    runtimeDefaults: manifest.runtimeDefaults,
+    services: manifest.services.map((service) => toService(manifest.id as ProviderId, service)),
+  };
+}
+
+/** Providers in the order they are listed everywhere. */
+export const PROVIDERS: ReadonlyArray<ProviderDefinition> = MANIFESTS.toSorted(
+  (a, b) => a.order - b.order,
+).map(toProvider);
+
 /**
- * Typed as non-empty so callers that need "some service" — a default
- * selection, a fallback for an unrecognised id — can take the first entry
- * without a runtime guard for a list that is never empty.
+ * Services the app offers whatever it is connected to.
+ *
+ * Sessions is here rather than under a provider because it is every open
+ * shell - ECS, SSM, SSH and Kubernetes - in one list, and SSH belongs to no
+ * provider at all.
  */
-export const AWS_SERVICES: readonly [AwsServiceDefinition, ...AwsServiceDefinition[]] = [
-  {
-    id: "ecs",
-    label: "ECS",
-    description: "Clusters, services, tasks and task definitions",
-    icon: Container,
-    status: "available",
-    basePath: "/ecs",
-    sections: [
-      { id: "clusters", label: "Clusters", icon: Layers, to: "/ecs/clusters" },
-      { id: "deployments", label: "Recently deployed", icon: Rocket, to: "/ecs/deployments" },
-      {
-        id: "task-definitions",
-        label: "Task definitions",
-        icon: FileJson,
-        to: "/ecs/task-definitions",
-      },
-    ],
-  },
-  {
-    id: "cloudwatch",
-    label: "CloudWatch",
-    description: "Log groups and metrics beyond the ones ECS surfaces",
-    icon: Gauge,
-    status: "available",
-    basePath: "/cloudwatch",
-    sections: [
-      { id: "log-groups", label: "Log groups", icon: ScrollText, to: "/cloudwatch/log-groups" },
-      { id: "metrics", label: "Metrics", icon: Gauge, to: "/cloudwatch/metrics" },
-    ],
-  },
-  {
-    id: "api-gateway",
-    label: "API Gateway",
-    description: "REST APIs, custom domains and usage plans in this region, read only",
-    icon: Waypoints,
-    status: "available",
-    basePath: "/api-gateway",
-    sections: [
-      { id: "rest-apis", label: "REST APIs", icon: Network, to: "/api-gateway/rest-apis" },
-      { id: "domains", label: "Custom domains", icon: Globe, to: "/api-gateway/domains" },
-      {
-        id: "usage-plans",
-        label: "Usage plans",
-        icon: KeyRound,
-        to: "/api-gateway/usage-plans",
-      },
-    ],
-  },
-  {
-    id: "s3",
-    label: "S3",
-    description: "Buckets, objects and what they hold",
-    icon: HardDrive,
-    status: "available",
-    basePath: "/s3",
-    sections: [
-      { id: "buckets", label: "Buckets", icon: Database, to: "/s3/buckets" },
-      // S3 is the one service that can be pointed somewhere other than AWS, so
-      // where it is pointed is part of S3 rather than a preference buried in
-      // Settings, where nobody would look for it.
-      { id: "connections", label: "Endpoints", icon: Plug, to: "/s3/connections" },
-    ],
-  },
-  {
-    id: "ec2",
-    label: "EC2",
-    description: "Instances, and shells onto them",
-    icon: Server,
-    status: "available",
-    basePath: "/ec2",
-    sections: [{ id: "instances", label: "Instances", icon: Server, to: "/ec2/instances" }],
-  },
-  /**
-   * The one entry here that is not an AWS service.
-   *
-   * It is in this list anyway because the list is what the shell is organised
-   * around - sidebar, breadcrumb, palette and front door all derive from it -
-   * and a section that opted out would need its own copy of all four.
-   *
-   * Never the word "cluster" anywhere in it. `cluster` means an ECS cluster
-   * everywhere else in this app, and `/ecs/clusters` owns it; a Kubernetes page
-   * using the same word for something else is the one piece of vocabulary
-   * guaranteed to be misread. The icon is `Ship` because `Container` is ECS's.
-   */
-  {
-    id: "kubernetes",
-    label: "Kubernetes",
-    description: "Contexts, workloads and virtual machines, through your own kubectl",
-    icon: Ship,
-    status: "available",
-    basePath: "/kubernetes",
-    sections: [
-      { id: "contexts", label: "Contexts", icon: Ship, to: "/kubernetes/contexts" },
-      { id: "workloads", label: "Workloads", icon: Boxes, to: "/kubernetes/workloads" },
-      {
-        id: "virtual-machines",
-        label: "Virtual machines",
-        icon: Monitor,
-        to: "/kubernetes/virtual-machines",
-        requires: "kubevirt",
-      },
-    ],
-  },
-  /**
-   * Every terminal the app has open, whatever it is connected to.
-   *
-   * Here rather than beside Diagnostics and Settings because it is somewhere
-   * you go to do something. The page itself lists what is open and what can be
-   * opened; recordings of past sessions are a section under it.
-   */
-  {
+export const HOST_SERVICES: ReadonlyArray<ServiceDefinition> = [
+  toService("host", {
     id: "sessions",
     label: "Sessions",
     description: "Every open shell - ECS, SSM, SSH and Kubernetes - in one list",
-    icon: TerminalSquare,
+    icon: "terminal-square",
     status: "available",
     basePath: "/sessions",
-    sections: [{ id: "recordings", label: "Recordings", icon: Film, to: "/sessions/recordings" }],
-  },
-  {
-    id: "lambda",
-    label: "Lambda",
-    description: "Functions, versions and invocations",
-    icon: FunctionSquare,
-    status: "planned",
-    basePath: "/lambda",
-    sections: [{ id: "functions", label: "Functions", icon: Boxes }],
-  },
-  {
-    id: "sqs",
-    label: "SQS",
-    description: "Queues, depth and redrive",
-    icon: Inbox,
-    status: "planned",
-    basePath: "/sqs",
-    sections: [{ id: "queues", label: "Queues", icon: Inbox }],
-  },
+    sections: [{ id: "recordings", label: "Recordings", icon: "film", to: "/sessions/recordings" }],
+  }),
 ];
 
-export function findService(id: string): AwsServiceDefinition | undefined {
-  return AWS_SERVICES.find((service) => service.id === id);
+/**
+ * Every service, providers' first and the app's own after them.
+ *
+ * Typed as non-empty so callers that need "some service" - a default
+ * selection, a fallback for an unrecognised id - can take the first entry
+ * without a runtime guard for a list that is never empty.
+ */
+export const SERVICES = [
+  ...PROVIDERS.flatMap((provider) => provider.services),
+  ...HOST_SERVICES,
+] as unknown as readonly [ServiceDefinition, ...ServiceDefinition[]];
+
+/**
+ * What each provider's connection in view turned out to have, by provider.
+ * A provider missing from it is assumed to have its manifest's defaults.
+ */
+export type NavRuntime = Partial<Readonly<Record<ProviderId, object>>>;
+
+/** The sections to offer, once what the connection in view has is known. */
+export function visibleSections(
+  service: ServiceDefinition,
+  runtime: NavRuntime,
+): ReadonlyArray<ServiceSection> {
+  const facts =
+    service.owner === "host"
+      ? {}
+      : (runtime[service.owner] ?? findProvider(service.owner)?.runtimeDefaults ?? {});
+  return service.sections.filter((section) => !section.requires || section.requires(facts));
+}
+
+export function findProvider(id: string): ProviderDefinition | undefined {
+  return PROVIDERS.find((provider) => provider.id === id);
+}
+
+export function findService(id: string): ServiceDefinition | undefined {
+  return SERVICES.find((service) => service.id === id);
 }
 
 /** What a caller lands on when it has no id of its own to offer. */
-export const DEFAULT_SERVICE: AwsServiceDefinition =
-  AWS_SERVICES.find((service) => service.status === "available") ?? AWS_SERVICES[0];
+export const DEFAULT_SERVICE: ServiceDefinition =
+  SERVICES.find((service) => service.status === "available") ?? SERVICES[0];
 
 /**
  * Turns whatever a URL carries into a service that exists.
  *
  * Shared and bookmarked links outlive the registry, so an id that was never
- * valid — or stopped being — resolves to the default instead of leaving the
+ * valid - or stopped being - resolves to the default instead of leaving the
  * caller with nothing to render.
  */
-export function resolveService(value: unknown): AwsServiceDefinition {
+export function resolveService(value: unknown): ServiceDefinition {
   return (typeof value === "string" ? findService(value) : undefined) ?? DEFAULT_SERVICE;
 }
 
-/** The service a pathname belongs to, for the sidebar's active state. */
-export function serviceForPath(pathname: string): AwsServiceDefinition | undefined {
-  return AWS_SERVICES.find(
-    (service) => pathname === service.basePath || pathname.startsWith(`${service.basePath}/`),
-  );
+/**
+ * The service a pathname belongs to, for the sidebar's active state. The
+ * longest matching base path wins, so `/s3/connections` is the endpoints
+ * service rather than S3.
+ */
+export function serviceForPath(pathname: string): ServiceDefinition | undefined {
+  let best: ServiceDefinition | undefined;
+  for (const service of SERVICES) {
+    const matches = pathname === service.basePath || pathname.startsWith(`${service.basePath}/`);
+    if (matches && (!best || service.basePath.length > best.basePath.length)) best = service;
+  }
+  return best;
 }

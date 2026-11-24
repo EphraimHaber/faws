@@ -514,6 +514,18 @@ importers:
       '@faws/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@faws/kit':
+        specifier: workspace:*
+        version: link:../../packages/kit
+      '@faws/provider-aws':
+        specifier: workspace:*
+        version: link:../../packages/providers/aws
+      '@faws/provider-kubernetes':
+        specifier: workspace:*
+        version: link:../../packages/providers/kubernetes
+      '@faws/provider-s3compat':
+        specifier: workspace:*
+        version: link:../../packages/providers/s3compat
       '@faws/server':
         specifier: workspace:*
         version: link:../server
@@ -721,6 +733,54 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: catalog:build
+        version: 24.13.4
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
+      vitest:
+        specifier: catalog:build
+        version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
+
+  packages/providers/aws:
+    dependencies:
+      '@faws/kit':
+        specifier: workspace:*
+        version: link:../../kit
+    devDependencies:
+      '@types/node':
+        specifier: catalog:build
+        version: 24.13.4
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
+      vitest:
+        specifier: catalog:build
+        version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
+
+  packages/providers/kubernetes:
+    dependencies:
+      '@faws/kit':
+        specifier: workspace:*
+        version: link:../../kit
+    devDependencies:
+      '@types/node':
+        specifier: catalog:build
+        version: 24.13.4
+      typescript:
+        specifier: catalog:build
+        version: 7.0.2
+      vitest:
+        specifier: catalog:build
+        version: 5.0.1(@types/node@24.13.4)(vite@8.3.0(@types/node@24.13.4)(esbuild@0.28.2)(jiti@2.7.0))
+
+  packages/providers/s3compat:
+    dependencies:
+      '@faws/kit':
+        specifier: workspace:*
+        version: link:../../kit
     devDependencies:
       '@types/node':
         specifier: catalog:build

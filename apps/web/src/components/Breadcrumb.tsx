@@ -4,7 +4,7 @@ import { ChevronRight } from "lucide-react";
 import * as React from "react";
 
 import { useAwsScope } from "~/contexts/ScopeContext";
-import { AWS_SERVICES } from "~/services/registry";
+import { serviceForPath } from "~/services/registry";
 import { trpc } from "~/lib/trpc";
 import { cn } from "~/lib/utils";
 
@@ -97,7 +97,7 @@ export function deriveCrumbs(
   // Every trail starts at the account overview, so there is always a way up.
   const home: Crumb = { label: "Overview", to: "/" };
 
-  const service = AWS_SERVICES.find((entry) => entry.id === segments[0]);
+  const service = serviceForPath(pathname);
   if (!service) {
     // Shell-level routes (diagnostics, settings) are one level deep.
     const label = segments[0] === "logs" ? "Diagnostics" : titleCase(segments[0] ?? "");
@@ -105,6 +105,10 @@ export function deriveCrumbs(
   }
 
   const crumbs: Crumb[] = [home, { label: service.label, to: service.basePath }];
+
+  // A service rooted deeper than one segment (the S3-compatible endpoints at
+  // /s3/connections) is a single page; everything below assumes a root of one.
+  if (service.basePath.split("/").filter(Boolean).length > 1) return crumbs;
 
   // /cloudwatch/tail reads log groups, so it sits under them in the trail
   // rather than being a section of its own in the sidebar.
