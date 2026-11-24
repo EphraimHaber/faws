@@ -1,5 +1,11 @@
 # @faws/desktop
 
+## 0.2.0
+
+### Minor Changes
+
+- [`5fb192c`](https://github.com/EphraimHaber/faws/commit/5fb192ceba193fe625f52d880f0647f8f8b23230) Thanks [@EphraimHaber](https://github.com/EphraimHaber)! - Update from your own network: point the app at a folder of releases, such as a Nexus raw repository, and mirror releases into it, even across an air gap; the Windows installer no longer asks for administrator rights
+
 ## 0.1.0
 
 ### Minor Changes
